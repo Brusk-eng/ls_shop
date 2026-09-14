@@ -341,7 +341,7 @@ def update_quotation_address(address: dict):
 	quotation.shipping_address_name = shipping_address_name
 	# The delivery price was quoted for the previous address, so the shopper picks again for this one.
 	clear_delivery_option(quotation)
-	update_gst_details_for_addresses(quotation)
+	set_gst_details(quotation)
 
 	contact = frappe.get_doc("Contact", quotation.contact_person)
 	existing_phones = {entry.phone for entry in contact.phone_nos}
@@ -360,7 +360,7 @@ def update_quotation_address(address: dict):
 	return {"message": _("Addresses updated successfully")}
 
 
-def update_gst_details_for_addresses(quotation):
+def set_gst_details(quotation):
 	"""Re-derive place of supply and GST taxes for the cart's current addresses.
 
 	india_compliance fills place of supply only while it is blank and re-derives it only on a new document,
@@ -381,6 +381,8 @@ def update_gst_details_for_addresses(quotation):
 	quotation.update(gst_details)
 	if party_details.gst_category:
 		quotation.gst_category = party_details.gst_category
+	# gst_details carries a whole new taxes table, which drops the flat Shipping Rule row with the GST rows.
+	set_charges(quotation)
 
 
 @frappe.whitelist()
