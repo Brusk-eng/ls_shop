@@ -361,12 +361,8 @@ def update_quotation_address(address: dict):
 
 
 def set_gst_details(quotation):
-	"""Re-derive place of supply and GST taxes for the cart's current addresses.
-
-	india_compliance fills place of supply only while it is blank and re-derives it only on a new document,
-	so a cart that first saved an Indian address keeps that state after the shopper switches abroad - and
-	its own validation then refuses the save.
-	"""
+	"""india_compliance sets place of supply only while blank or on a new document, so a cart that switches
+	from an Indian to a foreign address keeps the old state and fails its Overseas validation."""
 	if "india_compliance" not in frappe.get_installed_apps():
 		return
 
