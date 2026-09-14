@@ -61,7 +61,7 @@
 				aria-label="{{ _('Address line 2') }}">
 		</div>
 	</div>
-	<div class="col-md-12">
+	<div class="col-md-6">
 		<div class="m-b25">
 			<label class="label-title" for="{{ prefix }}_country">{{ _("Country / Region") }} *</label>
 			<select class="default-select form-select w-100" id="{{ prefix }}_country" x-model="{{ prefix }}.country" required>
@@ -70,6 +70,12 @@
 					<option value="{{ country.name }}">{{ country.name }}</option>
 				{% endfor %}
 			</select>
+		</div>
+	</div>
+	<div class="col-md-6">
+		<div class="form-group m-b25">
+			<label class="label-title" for="{{ prefix }}_state">{{ _("State / Province") }} *</label>
+			<input type="text" id="{{ prefix }}_state" class="form-control" x-model="{{ prefix }}.state" required>
 		</div>
 	</div>
 	<div class="col-md-6">
@@ -462,6 +468,7 @@
 				full_address: "",
 				landmark: "",
 				country: "",
+				state: "",
 				city: "",
 				po_box: "",
 			};
