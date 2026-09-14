@@ -60,7 +60,7 @@
 						<ul class="header-right">
 							<li class="nav-item login-link">
 								{% if frappe.session.user == "Guest" %}
-								<a class="nav-link" href="/login">{{ _("Login / Register") }}</a>
+								<a class="nav-link" href="javascript:void(0);" @click="$dispatch('open-auth')">{{ _("Login / Register") }}</a>
 								{% else %}
 								<a class="nav-link" href="/{{ language }}/account/dashboard">{{ _("My Account") }}</a>
 								{% endif %}
@@ -98,6 +98,17 @@
 								<a class="nav-link" href="javascript:void(0);" @click="$dispatch('open-search')" aria-label="{{ _('Search') }}">
 									<i class="iconly-Light-Search"></i>
 								</a>
+							</li>
+							<li class="nav-item account-link d-none d-lg-flex">
+								{% if frappe.session.user == "Guest" %}
+								<a class="nav-link" href="javascript:void(0);" @click="$dispatch('open-auth')" aria-label="{{ _('Login / Register') }}">
+									<i class="iconly-Light-User"></i>
+								</a>
+								{% else %}
+								<a class="nav-link" href="/{{ language }}/account/dashboard" aria-label="{{ _('My Account') }}">
+									<i class="iconly-Light-User"></i>
+								</a>
+								{% endif %}
 							</li>
 							<li class="nav-item wishlist-link">
 								<a class="nav-link" href="/{{ language }}/account/wishlist" aria-label="{{ _('Wishlist') }}">

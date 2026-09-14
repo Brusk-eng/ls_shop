@@ -339,6 +339,8 @@ def update_quotation_address(address: dict):
 		shipping_address_name = shipping_address_doc.name
 
 	quotation.shipping_address_name = shipping_address_name
+	clear_delivery_option(quotation)
+	set_gst_details(quotation)
 
 	contact = frappe.get_doc("Contact", quotation.contact_person)
 	existing_phones = {entry.phone for entry in contact.phone_nos}
@@ -355,6 +357,23 @@ def update_quotation_address(address: dict):
 	save_cart_quotation(quotation)
 
 	return {"message": _("Addresses updated successfully")}
+
+
+def set_gst_details(quotation):
+	if "india_compliance" not in frappe.get_installed_apps():
+		return
+
+	from india_compliance.gst_india.overrides.transaction import get_gst_details
+
+	party_details = quotation.as_dict()
+	party_details.gst_category = frappe.db.get_value("Address", quotation.customer_address, "gst_category")
+	gst_details = get_gst_details(
+		party_details, quotation.doctype, quotation.company, update_place_of_supply=True
+	)
+	quotation.update(gst_details)
+	if party_details.gst_category:
+		quotation.gst_category = party_details.gst_category
+	set_charges(quotation)
 
 
 @frappe.whitelist()
