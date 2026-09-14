@@ -79,6 +79,7 @@ class TestCheckoutAddress(IntegrationTestCase):
 			"billing_address": {
 				"full_address": "1 Billing Street",
 				"city": "Riyadh",
+				"state": "Riyadh Province",
 				"country": COUNTRY,
 				"phone_number": "+966500000001",
 				"email": "zz_address@example.com",
@@ -88,6 +89,7 @@ class TestCheckoutAddress(IntegrationTestCase):
 			"shipping_address": {
 				"full_address": "2 Shipping Street",
 				"city": "Jeddah",
+				"state": "Makkah Province",
 				"country": COUNTRY,
 				"phone_number": "+966500000002",
 				"email": "zz_address@example.com",
@@ -130,10 +132,12 @@ class TestCheckoutAddress(IntegrationTestCase):
 	def test_billing_address_is_linked_to_the_customer(self):
 		address = add_billing_address(self.customer, self.checkout_payload())
 		self.assertEqual(self.customer_links_of(address.name), [self.customer])
+		self.assertEqual(frappe.db.get_value("Address", address.name, "state"), "Riyadh Province")
 
 	def test_shipping_address_is_linked_to_the_customer(self):
 		address = add_shipping_address(self.customer, self.checkout_payload())
 		self.assertEqual(self.customer_links_of(address.name), [self.customer])
+		self.assertEqual(frappe.db.get_value("Address", address.name, "state"), "Makkah Province")
 
 	def test_quotation_accepts_checkout_addresses(self):
 		payload = self.checkout_payload()
