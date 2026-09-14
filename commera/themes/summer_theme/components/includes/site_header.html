@@ -99,7 +99,6 @@
 									<i class="iconly-Light-Search"></i>
 								</a>
 							</li>
-							{# The theme CSS hides .login-link between 992px and 1480px, so this icon is the account entry on most laptops. #}
 							<li class="nav-item account-link d-none d-lg-flex">
 								{% if frappe.session.user == "Guest" %}
 								<a class="nav-link" href="javascript:void(0);" @click="$dispatch('open-auth')" aria-label="{{ _('Login / Register') }}">

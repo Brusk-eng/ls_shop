@@ -339,7 +339,6 @@ def update_quotation_address(address: dict):
 		shipping_address_name = shipping_address_doc.name
 
 	quotation.shipping_address_name = shipping_address_name
-	# The delivery price was quoted for the previous address, so the shopper picks again for this one.
 	clear_delivery_option(quotation)
 	set_gst_details(quotation)
 
@@ -361,15 +360,12 @@ def update_quotation_address(address: dict):
 
 
 def set_gst_details(quotation):
-	"""india_compliance sets place of supply only while blank or on a new document, so a cart that switches
-	from an Indian to a foreign address keeps the old state and fails its Overseas validation."""
 	if "india_compliance" not in frappe.get_installed_apps():
 		return
 
 	from india_compliance.gst_india.overrides.transaction import get_gst_details
 
 	party_details = quotation.as_dict()
-	# The category is a fetch from the billing address, which Frappe only refreshes later in save.
 	party_details.gst_category = frappe.db.get_value("Address", quotation.customer_address, "gst_category")
 	gst_details = get_gst_details(
 		party_details, quotation.doctype, quotation.company, update_place_of_supply=True
@@ -377,7 +373,6 @@ def set_gst_details(quotation):
 	quotation.update(gst_details)
 	if party_details.gst_category:
 		quotation.gst_category = party_details.gst_category
-	# gst_details carries a whole new taxes table, which drops the flat Shipping Rule row with the GST rows.
 	set_charges(quotation)
 
 
