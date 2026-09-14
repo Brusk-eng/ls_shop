@@ -339,6 +339,9 @@ def update_quotation_address(address: dict):
 		shipping_address_name = shipping_address_doc.name
 
 	quotation.shipping_address_name = shipping_address_name
+	# The delivery price was quoted for the previous address, so the shopper picks again for this one.
+	clear_delivery_option(quotation)
+	update_gst_details_for_addresses(quotation)
 
 	contact = frappe.get_doc("Contact", quotation.contact_person)
 	existing_phones = {entry.phone for entry in contact.phone_nos}
@@ -355,6 +358,29 @@ def update_quotation_address(address: dict):
 	save_cart_quotation(quotation)
 
 	return {"message": _("Addresses updated successfully")}
+
+
+def update_gst_details_for_addresses(quotation):
+	"""Re-derive place of supply and GST taxes for the cart's current addresses.
+
+	india_compliance fills place of supply only while it is blank and re-derives it only on a new document,
+	so a cart that first saved an Indian address keeps that state after the shopper switches abroad - and
+	its own validation then refuses the save.
+	"""
+	if "india_compliance" not in frappe.get_installed_apps():
+		return
+
+	from india_compliance.gst_india.overrides.transaction import get_gst_details
+
+	party_details = quotation.as_dict()
+	# The category is a fetch from the billing address, which Frappe only refreshes later in save.
+	party_details.gst_category = frappe.db.get_value("Address", quotation.customer_address, "gst_category")
+	gst_details = get_gst_details(
+		party_details, quotation.doctype, quotation.company, update_place_of_supply=True
+	)
+	quotation.update(gst_details)
+	if party_details.gst_category:
+		quotation.gst_category = party_details.gst_category
 
 
 @frappe.whitelist()
