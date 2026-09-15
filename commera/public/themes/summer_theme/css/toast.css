@@ -1,10 +1,3 @@
-/* The shared toast renderer (templates/includes/toast-teleport.html) is written in Tailwind
-   utilities, and summer ships Bootstrap instead. These rules give exactly those utilities their
-   Tailwind values, scoped under .toaster so they never touch Bootstrap classes elsewhere.
-   !important only where a Bootstrap utility of the same name already carries it. */
-
-/* The renderer only resets the list height on a manual dismiss, so after an auto-dismiss the empty
-   list keeps covering the header icons; only the toasts themselves take the pointer. */
 .toaster {
 	margin: 0;
 	padding: 0;
@@ -35,8 +28,6 @@
 	width: 100%;
 }
 
-/* Summer's header sits at 9999 and its modals and backdrops at 100000, so Tailwind's 200 would draw
-   the toast under them; this clears both while staying below the preloader and the lightbox. */
 .toaster.z-\[200\] {
 	z-index: 100001;
 }
@@ -260,8 +251,6 @@
 	color: var(--title);
 }
 
-/* The merchant accent rule is !important and summer's accent is the brand red, which makes a
-   success read as an error. */
 .toaster .text-accent {
 	color: var(--bs-success) !important;
 }

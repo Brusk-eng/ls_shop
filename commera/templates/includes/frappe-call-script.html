@@ -29,7 +29,6 @@
         try {
             data = await response.json()
         } catch (error) {
-            // A proxy or crash page answers in HTML, which has no errors array to surface.
             toast(fallback_message, { type: "danger" })
             throw error
         }
