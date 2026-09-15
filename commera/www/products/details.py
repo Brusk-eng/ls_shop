@@ -35,13 +35,10 @@ def get_context(context):
 		}
 	)
 
+	resolved_size = selected_item["size"] if selected_item else None
 	context.available_sizes = detail["available_sizes"]
-	context.selected_size = detail["selected_size"]
-	# A single-size product has nothing to pick, so nothing ever puts ?size= in the URL — and
-	# add_to_cart refuses an item with no size chosen, so the lone size counts as already chosen.
-	context.size_selected = size_selected or (
-		detail["selected_size"] if len(detail["available_sizes"]) == 1 else None
-	)
+	context.selected_size = resolved_size
+	context.size_selected = resolved_size
 	context.selected_item = selected_item
 	context.selected_price = detail["selected_price"]
 	context.default_price = detail["default_price"]
