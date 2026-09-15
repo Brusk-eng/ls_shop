@@ -6,7 +6,6 @@
 {% set product_name = variant_display_name(variant) %}
 <div class="shop-card style-5 wow fadeInUp" data-wow-delay="{{ wow_delay }}">
 	<div class="dz-media">
-		{# The title link below already carries the accessible name, so the image link is hidden from a11y tree to avoid a duplicate stop. #}
 		<a href="{{ product_url }}" tabindex="-1" aria-hidden="true">
 			<img src="{{ variant.image or '/assets/commera/images/1.jpg' }}" alt="{{ product_name }}" loading="lazy">
 		</a>

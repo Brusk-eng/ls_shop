@@ -1,6 +1,5 @@
 {# Quick View and Add To Cart link to the product page: the cart store refuses an item without a chosen size variant. #}
 
-{# Style name alone collides across colour variants (e.g. two "Checkered Spread Collar Casual Shirt" cards), so the colour is appended when it isn't already part of the name. #}
 {% macro variant_display_name(variant) -%}
 {%- set base_name = variant.item_name if frappe.lang == "en" else (variant.custom_item_name_ar or variant.item_name) -%}
 {%- set colour = variant.attribute_value if variant.attribute_value and variant.attribute_value not in base_name else "" -%}
@@ -28,7 +27,6 @@
 {% set product_url = "/" ~ (frappe.lang or "en") ~ "/products/" ~ route %}
 <div class="shop-card {{ style }} wow fadeInUp" data-wow-delay="{{ wow_delay }}">
 	<div class="dz-media">
-		{# The title link below already carries the accessible name, so the image link is hidden from a11y tree to avoid a duplicate stop. #}
 		<a href="{{ product_url }}" tabindex="-1" aria-hidden="true">
 			<img src="{{ image or '/assets/commera/images/1.jpg' }}" alt="{{ product_name }}">
 		</a>
