@@ -423,7 +423,6 @@ MAX_STOREFRONT_PAGE = 100000
 
 
 def get_current_page():
-	# cint("abc") is 0; the upper clamp stops the OFFSET math overflowing the database.
 	return min(max(cint(frappe.form_dict.get("page")), 1), MAX_STOREFRONT_PAGE)
 
 
