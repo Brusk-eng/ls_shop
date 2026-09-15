@@ -1,6 +1,8 @@
 {% extends "components/theme_layout.html" %}
 {% from "components/macros/product_card.html" import variant_card %}
 
+{% set total_pages = [1, ((total_count + page_length - 1) // page_length) if total_count else 0] | max %}
+
 
 {% block head %}
 	{{ super() }}
@@ -77,6 +79,16 @@
 						</nav>
 					</div>
 				</div>
+				{% elif total_count %}
+				<div class="dz-empty-listing">
+					<h4 class="title">{{ _("This page is empty") }}</h4>
+					{% if total_pages == 1 %}
+					<p>{{ _("There is only 1 page.") }}</p>
+					{% else %}
+					<p>{{ _("There are only {0} pages.").format(total_pages) }}</p>
+					{% endif %}
+					<a href="javascript:void(0);" class="btn btn-secondary btn-sharp" @click="go_to_page(1)">{{ _("Go to page 1") }}</a>
+				</div>
 				{% else %}
 				<div class="dz-empty-listing">
 					<h4 class="title">{{ _("No products found") }}</h4>
@@ -102,10 +114,7 @@
 				page_length: {{ page_length | tojson }},
 				current_page: {{ current_page | tojson }},
 				total_count: {{ total_count | tojson }},
-
-				get total_pages() {
-					return Math.max(1, Math.ceil(this.total_count / this.page_length));
-				},
+				total_pages: {{ total_pages | tojson }},
 
 				get pages_to_show() {
 					const start = Math.max(1, Math.min(this.current_page - 2, this.total_pages - 4));

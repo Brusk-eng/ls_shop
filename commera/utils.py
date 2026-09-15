@@ -9,7 +9,7 @@ from erpnext.selling.doctype.customer.customer import (
 from frappe.geo.country_info import get_all
 from frappe.query_builder import Case, DocType
 from frappe.query_builder.functions import Count, Min, Sum
-from frappe.utils import add_days, create_batch, cstr, flt, get_datetime, now_datetime
+from frappe.utils import add_days, cint, create_batch, cstr, flt, get_datetime, now_datetime
 from frappe.utils.data import strip_html
 from pypika import Order
 
@@ -419,10 +419,11 @@ def get_login_url_for_current_page() -> str:
 	return f"/login?redirect-to={quote(return_to, safe='')}"
 
 
+MAX_STOREFRONT_PAGE = 100000
+
+
 def get_current_page():
-	query_params = frappe.form_dict
-	page = int(query_params.get("page", "1"))
-	return page
+	return min(max(cint(frappe.form_dict.get("page")), 1), MAX_STOREFRONT_PAGE)
 
 
 def can_return(order_name, return_period_days):
