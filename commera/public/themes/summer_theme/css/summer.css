@@ -235,3 +235,35 @@
 [dir="rtl"] .dzSubscribe .form-group .input-group .input-group-addon .btn i {
 	transform: scaleX(-1);
 }
+
+.shop-card .shop-meta {
+	pointer-events: none;
+}
+
+.shop-card .shop-meta > * {
+	pointer-events: auto;
+}
+
+@media only screen and (max-width: 991.98px) {
+	.shop-card .shop-meta .btn.btn-rounded {
+		bottom: -4px;
+	}
+}
+
+@media only screen and (max-width: 575px) {
+	.shop-card .shop-meta .btn.btn-rounded {
+		bottom: -15px;
+	}
+}
+
+@media only screen and (max-width: 575.98px) {
+	.shop-card:not([class*="style-"]) .dz-content {
+		flex-direction: column;
+		align-items: flex-start;
+		gap: 4px;
+	}
+
+	.shop-card:not([class*="style-"]) .dz-content .title {
+		width: 100%;
+	}
+}
