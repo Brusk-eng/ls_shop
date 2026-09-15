@@ -235,3 +235,50 @@
 [dir="rtl"] .dzSubscribe .form-group .input-group .input-group-addon .btn i {
 	transform: scaleX(-1);
 }
+
+/* --- Product card: image link vs. the heart/basket/quick-view overlay --- */
+
+/* .shop-meta is a full-cover absolute layer over the product image, so it swallows every tap
+   meant for the new image link underneath it; letting events pass through it and re-enabling
+   them on its own buttons keeps the heart/basket/quick-view clickable. */
+.shop-card .shop-meta {
+	pointer-events: none;
+}
+
+.shop-card .shop-meta > * {
+	pointer-events: auto;
+}
+
+/* --- Product card: quick-view pill only ever reveals on :hover, which touch pointers never fire --- */
+
+/* Below lg the pill is given the same position style.css already uses on :hover, so it stays
+   visible without a hover state; heart/basket keep their own flow position so nothing overlaps. */
+@media only screen and (max-width: 991.98px) {
+	.shop-card .shop-meta .btn.btn-rounded {
+		bottom: -4px;
+	}
+}
+
+@media only screen and (max-width: 575px) {
+	.shop-card .shop-meta .btn.btn-rounded {
+		bottom: -15px;
+	}
+}
+
+/* --- Product card: default-style title/price row squeezes onto touch widths --- */
+
+/* style.css keeps .dz-content a row (title 100% width | price) below 1199px, so the discount
+   <del> and the colour suffix now added to the title fight the price for the same line at 390px.
+   Only the default (unstyled) card carries both, so it alone is stacked; style-2/3/4 already give
+   price its own row via their own markup and are untouched. */
+@media only screen and (max-width: 575.98px) {
+	.shop-card:not([class*="style-"]) .dz-content {
+		flex-direction: column;
+		align-items: flex-start;
+		gap: 4px;
+	}
+
+	.shop-card:not([class*="style-"]) .dz-content .title {
+		width: 100%;
+	}
+}

@@ -49,7 +49,10 @@
 						{# No .wow here: summer.js wires its reveal observer at load, so a card added later would stay hidden. #}
 						<div class="shop-card">
 							<div class="dz-media">
-								<img :src="product.image || '/assets/commera/images/1.jpg'" :alt="get_product_name(product)">
+								{# The title link below already carries the accessible name, so the image link is hidden from a11y tree to avoid a duplicate stop. #}
+								<a :href="get_product_url(product)" tabindex="-1" aria-hidden="true">
+									<img :src="product.image || '/assets/commera/images/1.jpg'" :alt="get_product_name(product)">
+								</a>
 							</div>
 							<div class="dz-content">
 								<h5 class="title"><a :href="get_product_url(product)" x-text="get_product_name(product)"></a></h5>
