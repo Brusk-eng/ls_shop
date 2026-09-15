@@ -100,6 +100,14 @@
 	text-transform: capitalize;
 }
 
+/* --- Selected-filter chips: the reference hides them under 1480px because dz.ajax.js never
+   reloaded the grid inline, so a chip only mattered above that breakpoint; this catalogue
+   reloads via query params at every width, so the chips must stay visible throughout. */
+.filter-wrapper .filter-tag {
+	display: flex;
+	flex-wrap: wrap;
+}
+
 /* --- Toolbar sort control: the bootstrap-select gap --- */
 
 /* bootstrap-select.min.js replaces this <select> with a .dropdown-toggle button that style.css
@@ -128,6 +136,20 @@
 	background-position: left 12px center;
 }
 
+/* --- Desktop filter sidebar: taller than the viewport --- */
+
+/* style.css pins .sticky-xl-top at top:120px but never caps its height, so a facet list longer
+   than the screen pushes Reset off the bottom with no way to reach it except scrolling the page
+   past the grid. Scoped to the >=1200px breakpoint where .sticky-xl-top actually goes sticky. */
+@media (min-width: 1200px) {
+	.content-inner-3 .sticky-xl-top {
+		max-height: calc(100vh - 120px);
+		overflow-y: auto;
+		/* Without this the price-slider thumbs clip flush against the edge. */
+		padding: 4px 4px 4px 2px;
+	}
+}
+
 /* --- Empty result set --- */
 
 /* The reference has no empty state: its grid is hand-authored and always full. */
@@ -147,10 +169,14 @@
 /* --- Mobile toolbar --- */
 
 /* .filter-right-area is a flex row and .panel-btn is the only text item in it, so it is the one
-   that gets squeezed: below 768px "Filter" wraps under its own icon. */
-.filter-wrapper .filter-right-area .panel-btn {
-	display: flex;
-	align-items: center;
-	flex-shrink: 0;
-	white-space: nowrap;
+   that gets squeezed: below 768px "Filter" wraps under its own icon. Scoped to the same
+   breakpoint style.css uses to show the button at all (>1199px it is display:none, inline
+   sidebar has no drawer to open). */
+@media (max-width: 1199.98px) {
+	.filter-wrapper .filter-right-area .panel-btn {
+		display: flex;
+		align-items: center;
+		flex-shrink: 0;
+		white-space: nowrap;
+	}
 }

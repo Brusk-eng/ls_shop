@@ -165,8 +165,6 @@ class TestStorefrontSearch(IntegrationTestCase):
 				"configurator": configurator,
 				"item_style": STYLE_ITEM,
 				"attribute_value": color,
-				# Real catalogues put the attribute's LABEL here ("Color"), not its value, and the colour filter
-				# compares against this column - storing the colour would pass the assertions for the wrong reason.
 				"attribute_name": "Color",
 				"display_name": display_name,
 				"item_group": item_group,
@@ -292,13 +290,12 @@ class TestStorefrontSearch(IntegrationTestCase):
 		facets = SqliteProductSearch().search(SEARCH_TOKEN)["facets"]
 		self.assertEqual(facets["brand"].get(BRAND), 2)
 		self.assertEqual(set(facets["category"]), {ITEM_GROUP, ITEM_GROUP_BLUE})
-		# Colour facet reads attribute_name, which real data fills with the label - a known storefront parity bug.
-		self.assertEqual(facets["color"], {"Color": 2})
+		self.assertEqual(facets["color"], {"Zzred": 1, "Zzblue": 1})
 		self.assertEqual(facets["size"], {"8": 1, "10": 1, "38": 1, "40": 1})
 
 		sidebar = search_query.listing_facets({"search": SEARCH_TOKEN})
 		self.assertIn(BRAND, sidebar["brands"])
-		self.assertEqual(sidebar["colors"], ["Color"])
+		self.assertEqual(set(sidebar["colors"]), {"Zzred", "Zzblue"})
 
 	def test_size_facet_is_ordered_numerically(self):
 		# By count the order is arbitrary; as text 10 sorts before 8. Both are wrong for a numeric size scale.

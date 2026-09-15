@@ -97,7 +97,7 @@
 			Alpine.data('shop_listing', () => ({
 				query_state: window.query_state,
 				panel_open: false,
-				view: 'grid',
+				view: Alpine.$persist('grid').as('shop_listing_view'),
 				search_term: {{ (selected_filters.search or "") | tojson }},
 				page_length: {{ page_length | tojson }},
 				current_page: {{ current_page | tojson }},
