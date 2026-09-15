@@ -24,22 +24,33 @@
             response = await fetch(url)
         }
 
-        const data = await response.json()
+        const fallback_message = {{ _("Something went wrong") | tojson }}
+        let data
+        try {
+            data = await response.json()
+        } catch (error) {
+            // A proxy or crash page answers in HTML, which has no errors array to surface.
+            toast(fallback_message, { type: "danger" })
+            throw error
+        }
+
         if (data.errors) {
-            const error = data.errors[0] // todo: handle multiple errors
+            const error = data.errors[0]
 
             if (error.message) {
                 toast(error.message, { type: "danger" })
             } else {
-                toast("Internal Server Error", { type: "danger" })
+                toast({{ _("Internal Server Error") | tojson }}, { type: "danger" })
             }
 
             throw Error(error.exception)
-        } else if (!response.ok) {
-            toast("Something went wrong", { type: "danger" })
         }
-        else {
-            return data
+
+        if (!response.ok) {
+            toast(fallback_message, { type: "danger" })
+            throw Error(`${response.status} ${response.statusText}`)
         }
+
+        return data
     }
 </script>
