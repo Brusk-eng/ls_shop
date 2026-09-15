@@ -116,8 +116,6 @@ def build_product_search_records(variant_names=None):
 				"content": build_content(configured_fields, variant, item, configurator),
 				"item_group": variant.item_group or "",
 				"brand": item.get("brand") or "",
-				# Must hold Style Attribute Variant.attribute_value to match the storefront's `colors` filter
-				# (utils.get_product_base_query), or picking a facet value returns nothing.
 				"color": variant.attribute_value or "",
 				"sizes": sizes_by_variant.get(variant.name, []),
 				"detail": build_product_detail(
