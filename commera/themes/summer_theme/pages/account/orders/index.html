@@ -60,22 +60,45 @@
 	<div class="d-flex justify-content-center">
 		<nav aria-label="{{ _('Table Pagination') }}">
 			<ul class="pagination style-1">
-				<li class="page-item {{ 'disabled' if current_page <= 1 }}">
+				{% if current_page > 1 %}
+				<li class="page-item">
 					<a class="page-link" href="{{ orders_url }}?page={{ current_page - 1 }}">{{ _("Prev") }}</a>
 				</li>
+				{% else %}
+				<li class="page-item disabled" aria-disabled="true">
+					<span class="page-link">{{ _("Prev") }}</span>
+				</li>
+				{% endif %}
 				{% for page_number in range(window_start, window_end + 1) %}
 				<li class="page-item">
 					<a class="page-link {{ 'active' if page_number == current_page }}"
 						href="{{ orders_url }}?page={{ page_number }}">{{ page_number }}</a>
 				</li>
 				{% endfor %}
-				<li class="page-item {{ 'disabled' if current_page >= total_pages }}">
+				{% if current_page < total_pages %}
+				<li class="page-item">
 					<a class="page-link" href="{{ orders_url }}?page={{ current_page + 1 }}">{{ _("Next") }}</a>
 				</li>
+				{% else %}
+				<li class="page-item disabled" aria-disabled="true">
+					<span class="page-link">{{ _("Next") }}</span>
+				</li>
+				{% endif %}
 			</ul>
 		</nav>
 	</div>
 	{% endif %}
+	{% elif total_count %}
+	<div class="account-empty">
+		<i class="flaticon flaticon-cart"></i>
+		<p>{{ _("This page is empty") }}</p>
+		{% if total_pages == 1 %}
+		<p>{{ _("There is only 1 page.") }}</p>
+		{% else %}
+		<p>{{ _("There are only {0} pages.").format(total_pages) }}</p>
+		{% endif %}
+		<a href="{{ orders_url }}?page=1" class="btn btn-secondary">{{ _("Go to page 1") }}</a>
+	</div>
 	{% else %}
 	<div class="account-empty">
 		<i class="flaticon flaticon-cart"></i>
