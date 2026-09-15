@@ -35,8 +35,6 @@ def get_context(context):
 		}
 	)
 
-	# detail["selected_size"] echoes an unresolved ?size= verbatim; use the resolved row's own size so the
-	# checked radio always matches the item add_to_cart sends.
 	resolved_size = selected_item["size"] if selected_item else None
 	context.available_sizes = detail["available_sizes"]
 	context.selected_size = resolved_size
