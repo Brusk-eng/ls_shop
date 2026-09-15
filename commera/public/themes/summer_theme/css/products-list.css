@@ -100,6 +100,11 @@
 	text-transform: capitalize;
 }
 
+.filter-wrapper .filter-tag {
+	display: flex;
+	flex-wrap: wrap;
+}
+
 /* --- Toolbar sort control: the bootstrap-select gap --- */
 
 /* bootstrap-select.min.js replaces this <select> with a .dropdown-toggle button that style.css
@@ -128,6 +133,14 @@
 	background-position: left 12px center;
 }
 
+@media (min-width: 1200px) {
+	.content-inner-3 .sticky-xl-top {
+		max-height: calc(100vh - 120px);
+		overflow-y: auto;
+		padding: 4px 4px 4px 2px;
+	}
+}
+
 /* --- Empty result set --- */
 
 /* The reference has no empty state: its grid is hand-authored and always full. */
@@ -148,9 +161,11 @@
 
 /* .filter-right-area is a flex row and .panel-btn is the only text item in it, so it is the one
    that gets squeezed: below 768px "Filter" wraps under its own icon. */
-.filter-wrapper .filter-right-area .panel-btn {
-	display: flex;
-	align-items: center;
-	flex-shrink: 0;
-	white-space: nowrap;
+@media (max-width: 1199.98px) {
+	.filter-wrapper .filter-right-area .panel-btn {
+		display: flex;
+		align-items: center;
+		flex-shrink: 0;
+		white-space: nowrap;
+	}
 }

@@ -1,10 +1,11 @@
 import frappe
 from frappe.query_builder import DocType
-from frappe.query_builder.functions import Cast_, Min
+from frappe.query_builder.functions import Min
 from frappe.utils import flt
 from frappe.utils.caching import redis_cache
 
 from commera import seo
+from commera.product_detail import size_sort_key
 from commera.search import query as search_query
 from commera.shop_data import get_category_facets
 from commera.utils import (
@@ -37,7 +38,7 @@ def get_filter_colors(filters=None):
 	query = get_product_base_query(filter_copy)
 	variant = DocType("Style Attribute Variant")
 
-	query = query.select(variant.attribute_name).distinct().orderby(variant.attribute_name)
+	query = query.select(variant.attribute_value).distinct().orderby(variant.attribute_value)
 	return [color for color in query.run(pluck=True) if color]
 
 
@@ -48,8 +49,8 @@ def get_filter_sizes(filters=None):
 	query = get_product_base_query(filter_copy)
 	color_size_item = DocType("Color Size Item")
 
-	query = query.select(color_size_item.size).distinct().orderby(Cast_(color_size_item.size, "Decimal"))
-	return query.run(pluck=True)
+	query = query.select(color_size_item.size).distinct()
+	return sorted(query.run(pluck=True), key=size_sort_key)
 
 
 def get_product_filters(selected_filters):

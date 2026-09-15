@@ -1,11 +1,21 @@
 import frappe
-from frappe.utils import flt
+from frappe.utils import cstr, flt
 
 from commera.utils import get_available_stock, get_discount_percent
 
 DEFAULT_PRODUCT_IMAGE = "/assets/commera/images/1.jpg"
 
 SIZE_ORDER = ["XS", "S", "M", "L", "XL", "XXL", "XXXL"]
+
+
+def size_sort_key(size):
+	"""Sort key ranking numeric sizes by value, then known letter sizes by SIZE_ORDER, unknown letters last."""
+	try:
+		return (0, float(size), "")
+	except (TypeError, ValueError):
+		size_label = cstr(size).upper()
+		rank = SIZE_ORDER.index(size_label) if size_label in SIZE_ORDER else len(SIZE_ORDER)
+		return (1, rank, size_label)
 
 
 def get_product_detail(route, selected_size=None):
@@ -64,17 +74,7 @@ def get_available_sizes(product_variant, warehouse):
 	if not sizes:
 		return []
 
-	try:
-		float(sizes[0]["size"])
-	except ValueError:
-		return sorted(
-			sizes,
-			key=lambda row: SIZE_ORDER.index(row["size"].upper())
-			if row["size"].upper() in SIZE_ORDER
-			else 999,
-		)
-
-	return sorted(sizes, key=lambda row: float(row["size"]))
+	return sorted(sizes, key=lambda row: size_sort_key(row["size"]))
 
 
 def get_selected_item(available_sizes, selected_size):

@@ -2,6 +2,7 @@ import re
 
 from frappe.search.sqlite_search import MAX_SEARCH_RESULTS
 
+from commera.product_detail import size_sort_key
 from commera.search.engine import MIN_QUERY_LENGTH
 from commera.search.engine_cache import get_search_engine
 
@@ -61,5 +62,5 @@ def listing_facets(selected_filters):
 	return {
 		"brands": list(facets.get("brand") or {}),
 		"colors": list(facets.get("color") or {}),
-		"sizes": list(facets.get("size") or {}),
+		"sizes": sorted(facets.get("size") or {}, key=size_sort_key),
 	}

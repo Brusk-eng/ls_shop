@@ -120,7 +120,7 @@ def get_product_list_qb(filters=None, product_list=None, page=1, page_length=30,
 			style_attribute_variant.item_style,
 			style_attribute_variant.display_name,
 			style_attribute_variant.attribute_value,
-			style_attribute_variant.attribute_name.as_("color"),
+			style_attribute_variant.attribute_value.as_("color"),
 			style_attribute_variant.item_group,
 			style_attribute_variant.modified,
 			item.brand,
@@ -268,7 +268,7 @@ def get_product_base_query(filters=None, product_list=None):
 		if filters.get("subcategory"):
 			query = query.where(style_attribute_variant.item_group.isin(filters["subcategory"]))
 		if filters.get("colors"):
-			query = query.where(style_attribute_variant.attribute_name.isin(filters["colors"]))
+			query = query.where(style_attribute_variant.attribute_value.isin(filters["colors"]))
 		if filters.get("sizes"):
 			query = query.where(color_size_item.size.isin(filters["sizes"]))
 		if filters.get("brands"):
@@ -282,7 +282,7 @@ def get_product_base_query(filters=None, product_list=None):
 			child_categories = get_complete_nested_links(search)
 			search_condition = (
 				(style_attribute_variant.display_name.like(f"%{search}%"))
-				| (style_attribute_variant.attribute_name.like(f"%{search}%"))
+				| (style_attribute_variant.attribute_value.like(f"%{search}%"))
 				| (style_attribute_variant.name.like(f"%{search}%"))
 				| (item.brand.like(f"%{search}%"))
 				| (style_attribute_variant.display_name.like(f"%{search}%"))

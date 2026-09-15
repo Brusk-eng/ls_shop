@@ -77,7 +77,6 @@ def build_product_search_records(variant_names=None):
 	base_variant_fields = [
 		"name",
 		"display_name",
-		"attribute_name",
 		"attribute_value",
 		"item_group",
 		"item_style",
@@ -117,9 +116,7 @@ def build_product_search_records(variant_names=None):
 				"content": build_content(configured_fields, variant, item, configurator),
 				"item_group": variant.item_group or "",
 				"brand": item.get("brand") or "",
-				# Must hold Style Attribute Variant.attribute_name to match the storefront's `colors` filter
-				# (utils.get_product_base_query), or picking a facet value returns nothing.
-				"color": variant.attribute_name or "",
+				"color": variant.attribute_value or "",
 				"sizes": sizes_by_variant.get(variant.name, []),
 				"detail": build_product_detail(
 					variant,
@@ -164,7 +161,7 @@ def build_product_detail(variant, item, sizes, images, prices):
 		"image": images.get("image") or "",
 		"hover_image": images.get("hover_image") or "",
 		"item_group": variant.item_group or "",
-		"color": variant.attribute_name or "",
+		"color": variant.attribute_value or "",
 		"modified": cstr(variant.modified) if variant.modified else None,
 	}
 	detail.update(prices)
