@@ -147,48 +147,22 @@ function plural(count, word) {
     </AppPageHeader>
 
     <PageBody width="wide">
-      <div class="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
-        <div class="flex items-start gap-3">
-          <Avatar :label="customer.name" size="2xl" />
-          <!-- min-w-0 so a long name or contact line truncates rather than
-               pushing the note panel out of the row. -->
-          <div class="min-w-0">
-            <div class="flex items-center gap-2">
-              <p class="text-xl text-ink-gray-9">{{ customer.name }}</p>
-              <Badge :label="lifecycle.label" :theme="lifecycle.theme" variant="subtle" />
-            </div>
-            <p class="mt-1 text-sm text-ink-gray-5">
-              {{ contactLine || 'No contact details on file' }}
-            </p>
-            <p class="mt-1 text-sm text-ink-gray-5">
-              Customer for {{ customerFor }} · since {{ longDate(customer.since) }}
-            </p>
+      <div class="flex items-start gap-3">
+        <Avatar :label="customer.name" size="2xl" />
+        <!-- min-w-0 so a long name or contact line truncates rather than
+             overflowing the row. -->
+        <div class="min-w-0">
+          <div class="flex items-center gap-2">
+            <p class="text-xl text-ink-gray-9">{{ customer.name }}</p>
+            <Badge :label="lifecycle.label" :theme="lifecycle.theme" variant="subtle" />
           </div>
+          <p class="mt-1 text-sm text-ink-gray-5">
+            {{ contactLine || 'No contact details on file' }}
+          </p>
+          <p class="mt-1 text-sm text-ink-gray-5">
+            Customer for {{ customerFor }} · since {{ longDate(customer.since) }}
+          </p>
         </div>
-
-        <!-- Top right, where Shopify keeps it: the note is what a shop owner
-             reaches for mid-conversation, so it does not belong below the fold. -->
-        <section class="w-full shrink-0 sm:w-80">
-          <label class="text-sm text-ink-gray-5" for="customer-note">Note</label>
-          <FormControl
-            id="customer-note"
-            class="mt-1.5"
-            type="textarea"
-            :rows="3"
-            v-model="note"
-            placeholder="Anything worth remembering about this customer"
-          />
-          <!-- Only once there is something to save: a permanently parked
-               disabled button is the loudest thing in the header, and the note
-               should sit quietly behind the customer's own details. -->
-          <Button
-            v-if="noteChanged"
-            class="mt-2"
-            label="Save note"
-            :loading="noteAction.loading"
-            @click="saveNote"
-          />
-        </section>
       </div>
 
       <ReportStats class="mt-6" :stats="stats" />
@@ -302,13 +276,36 @@ function plural(count, word) {
           </ul>
         </section>
 
-        <section class="rounded-5 border border-outline-gray-1 px-4 py-3.5">
-          <h2 class="text-sm text-ink-gray-5">Default address</h2>
-          <p v-if="customer.address" class="mt-1.5 whitespace-pre-line text-p-base text-ink-gray-7">
-            {{ customer.address }}
-          </p>
-          <p v-else class="mt-1.5 text-p-base text-ink-gray-4">No address on file.</p>
-        </section>
+        <div class="space-y-6">
+          <section class="rounded-5 border border-outline-gray-1 px-4 py-3.5">
+            <h2 class="text-sm text-ink-gray-5">Default address</h2>
+            <p v-if="customer.address" class="mt-1.5 whitespace-pre-line text-p-base text-ink-gray-7">
+              {{ customer.address }}
+            </p>
+            <p v-else class="mt-1.5 text-p-base text-ink-gray-4">No address on file.</p>
+          </section>
+
+          <section class="rounded-5 border border-outline-gray-1 px-4 py-3.5">
+            <label class="text-sm text-ink-gray-5" for="customer-note">Note</label>
+            <FormControl
+              id="customer-note"
+              class="mt-1.5"
+              type="textarea"
+              :rows="3"
+              v-model="note"
+              placeholder="Anything worth remembering about this customer"
+            />
+            <!-- Only once there is something to save: a button parked in a
+                 permanently disabled state reads as a control that never works. -->
+            <Button
+              v-if="noteChanged"
+              class="mt-2"
+              label="Save note"
+              :loading="noteAction.loading"
+              @click="saveNote"
+            />
+          </section>
+        </div>
       </div>
     </PageBody>
   </template>
@@ -324,16 +321,13 @@ function plural(count, word) {
     />
 
     <PageBody width="wide">
-      <div class="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
-        <div class="flex items-start gap-3">
-          <Skeleton class="size-10 rounded-4" />
-          <div class="space-y-2">
-            <Skeleton class="h-6 w-48 rounded-4" />
-            <Skeleton class="h-3.5 w-72 rounded-4" />
-            <Skeleton class="h-3.5 w-56 rounded-4" />
-          </div>
+      <div class="flex items-start gap-3">
+        <Skeleton class="size-10 rounded-4" />
+        <div class="space-y-2">
+          <Skeleton class="h-6 w-48 rounded-4" />
+          <Skeleton class="h-3.5 w-72 rounded-4" />
+          <Skeleton class="h-3.5 w-56 rounded-4" />
         </div>
-        <Skeleton class="h-24 w-full rounded-4 sm:w-80" />
       </div>
 
       <section
