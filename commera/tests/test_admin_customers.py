@@ -63,8 +63,6 @@ def make_webshop_order(
 	payment_mode=None,
 	currency=CURRENCY,
 ):
-	"""A storefront order. Left as a draft unless a test needs a submitted one - is_webshop_order counts
-	drafts, and a draft skips the whole GL chain."""
 	placed_on = getdate(placed_on or getdate())
 	ensure_fiscal_year(placed_on)
 	if payment_mode:
@@ -91,8 +89,6 @@ def make_webshop_order(
 
 
 def ensure_payment_mode(name):
-	"""custom_ecommerce_payment_mode is a Link to Mode of Payment, and CI's bare site ships none of the
-	modes a storefront actually books against — a missing one fails the order with LinkValidationError."""
 	if not frappe.db.exists("Mode of Payment", name):
 		frappe.get_doc({"doctype": "Mode of Payment", "mode_of_payment": name, "enabled": 1}).insert(
 			ignore_permissions=True
@@ -107,8 +103,6 @@ class TestCustomerProfile(IntegrationTestCase):
 		self.item_code = make_item()
 
 	def test_lifetime_figures_are_not_capped_by_the_recent_order_list(self):
-		"""The regression: spend and order count were summed off the capped recent list, so a customer
-		past CUSTOMER_ORDER_LIMIT read smaller on their own profile than on the Customers list."""
 		order_count = CUSTOMER_ORDER_LIMIT + 2
 		for _ in range(order_count):
 			make_webshop_order(self.customer, self.item_code)

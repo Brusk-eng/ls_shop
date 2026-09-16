@@ -119,8 +119,6 @@ def read_customer_order_stats(customer_names: list) -> dict:
 
 
 def read_customer_addresses(customer_names: list) -> dict:
-	"""One customer's city and full address off whichever Address links to it, primary first. A checkout
-	address links back only when add_billing_address/add_shipping_address wrote that Dynamic Link."""
 	if not customer_names:
 		return {}
 
@@ -159,8 +157,6 @@ def read_customer_addresses(customer_names: list) -> dict:
 
 
 def format_address(address) -> str | None:
-	"""The dashboard renders plain text, so the address is joined here rather than through ERPNext's
-	HTML address_display template."""
 	lines = [cstr(address.get(fieldname)).strip() for fieldname in ADDRESS_LINE_FIELDS]
 	return "\n".join(line for line in lines if line) or None
 
@@ -221,7 +217,6 @@ def get_customer(customer: str):
 
 @frappe.whitelist(methods=["POST"])
 def save_customer_note(customer: str, note: str):
-	"""The shop owner's own note about a customer, kept on ERPNext's own Customer Details field."""
 	frappe.has_permission("Customer", doc=customer, ptype="write", throw=True)
 
 	doc = frappe.get_doc("Customer", cstr(customer))
@@ -231,8 +226,6 @@ def save_customer_note(customer: str, note: str):
 
 
 def read_customer_lifetime_orders(customer: str) -> list:
-	"""Every webshop order this customer has ever placed, oldest first. Counts drafts and sums
-	base_grand_total, for the reason read_customer_order_stats gives."""
 	sales_order = frappe.qb.DocType("Sales Order")
 	return (
 		frappe.qb.from_(sales_order)
@@ -250,8 +243,6 @@ def read_customer_lifetime_orders(customer: str) -> list:
 
 
 def read_customer_items(customer: str) -> list:
-	"""What this customer has bought over their whole history, one row per item, most units first. Joined
-	to Sales Order rather than filtered on order names, so a long history cannot overgrow an IN list."""
 	sales_order = frappe.qb.DocType("Sales Order")
 	sales_order_item = frappe.qb.DocType("Sales Order Item")
 	rows = (
@@ -272,7 +263,6 @@ def read_customer_items(customer: str) -> list:
 
 
 def get_top_products(items: list) -> list:
-	"""The customer's most-bought items, named and pictured in one batched Item read."""
 	items = items[:TOP_PRODUCT_LIMIT]
 	if not items:
 		return []
@@ -304,8 +294,6 @@ def get_top_products(items: list) -> list:
 
 
 def read_item_templates(item_codes: list) -> dict:
-	"""The product template each sold size belongs to, walked size -> variant -> configurator the way
-	catalog.get_top_products does, so the profile links to the same product page the home screen does."""
 	color_size_item = frappe.qb.DocType("Color Size Item")
 	variant = frappe.qb.DocType("Style Attribute Variant")
 	configurator = frappe.qb.DocType("Style Attribute Configurator")
@@ -323,7 +311,6 @@ def read_item_templates(item_codes: list) -> dict:
 
 
 def get_days_between_orders(lifetime_orders: list) -> int | None:
-	"""Average gap between this customer's orders. Undefined on a single order — a gap needs two."""
 	if len(lifetime_orders) < 2:
 		return None
 	span = date_diff(lifetime_orders[-1].transaction_date, lifetime_orders[0].transaction_date)
@@ -331,8 +318,6 @@ def get_days_between_orders(lifetime_orders: list) -> int | None:
 
 
 def get_spend_by_month(lifetime_orders: list) -> list:
-	"""The trailing year of spend, oldest first. Empty months are kept so the chart's axis stays
-	continuous, the same way get_revenue_report builds its series."""
 	start, today, _months = month_window(SPEND_CHART_MONTHS)
 	spend_by_key = dict.fromkeys(build_month_buckets(start, today), 0.0)
 
@@ -347,8 +332,6 @@ def get_spend_by_month(lifetime_orders: list) -> list:
 
 
 def get_acquisition(first_order: str | None) -> dict | None:
-	"""Where the customer came from, off the analytics event their first order was captured with. Most
-	customers predate the beacon or arrived without UTM tags, so an empty result is normal, not an error."""
 	if not first_order:
 		return None
 
