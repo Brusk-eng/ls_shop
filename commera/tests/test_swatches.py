@@ -81,6 +81,10 @@ class TestSwatchReads(SwatchTestCase):
 		set_swatch(self.attribute, "Denim", image="/files/denim.webp")
 		set_swatch(self.attribute, "Olive", color="#4A5D3A")
 
+		# Warm the column cache first: on a cold one Frappe adds an information_schema lookup,
+		# which is environment noise rather than anything this test is about.
+		get_attributes()
+
 		# The ceiling is what matters: a swatch read per value would climb with the store,
 		# and every attribute on the site is in this count, not just the one built here.
 		with self.assertQueryCount(4):
