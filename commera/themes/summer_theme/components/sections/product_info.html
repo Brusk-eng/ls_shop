@@ -1,4 +1,3 @@
-{% from "components/macros/swatch.html" import swatch_dot %}
 {# The size radios reload the page: price, stock and the cart variant are all resolved per size by the controller. #}
 <div class="col-xl-8 col-md-8" x-data='{
 		product: JSON.parse({{ product_variant.as_json() | tojson }}),
@@ -105,7 +104,7 @@
 
 					{% if other_variants %}
 					<div class="meta-content mb-4">
-						<label class="form-label colour-label">{{ _("Colour") }}: {{ swatch_dot(product_variant.attribute_value, swatches) }}<span>{{ product_variant.attribute_value }}</span></label>
+						<label class="form-label">{{ _("Colour") }}</label>
 						<ul class="product-colour-list">
 							<li>
 								<a href="/{{ frappe.lang or 'en' }}/products/{{ product_variant.route }}" class="is-active" aria-current="page">

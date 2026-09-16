@@ -3,7 +3,6 @@ import frappe
 from commera import seo
 from commera.api.admin.catalog import DEFAULT_OPTION_ATTRIBUTE, DEFAULT_SIZE_VALUE
 from commera.product_detail import get_product_detail
-from commera.swatches import get_swatch_map
 from commera.utils import get_available_stock, get_product_list
 
 
@@ -52,7 +51,6 @@ def get_context(context):
 	context.show_sizes = len(detail["available_sizes"]) > 1 or detail["selected_size"] != DEFAULT_SIZE_VALUE
 	context.recommended_items = get_recommended_products(product_variant)
 	context.other_variants = get_other_variants(product_variant)
-	context.swatches = get_swatch_map()
 	context.discount_percent = detail["discount_percent"]
 	context.size_chart = get_size_chart(product.brand, product_variant.item_group)
 	context.item_qty = get_available_stock(product.item_code, detail["warehouse"])

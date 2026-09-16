@@ -100,14 +100,3 @@
 .btn-quantity .bootstrap-touchspin input {
 	display: block;
 }
-
-/* The theme sets spans in this block to display: block, which stacks the dot and the name. */
-.form-label.colour-label {
-	display: flex;
-	align-items: center;
-	gap: 6px;
-}
-
-.form-label.colour-label .swatch-dot {
-	margin-right: 0;
-}
