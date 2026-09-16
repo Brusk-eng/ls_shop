@@ -141,7 +141,7 @@ async function addValue() {
             v-if="editingValue === row.value"
             :ref="(element) => (nameInputs[row.value] = element)"
             :value="row.value"
-            class="min-w-0 flex-1 rounded-4 border border-outline-gray-2 bg-surface-gray-2 px-2 py-1 text-base text-ink-gray-8 outline-none focus:border-outline-gray-4"
+            class="min-w-0 flex-1 rounded-4 border border-transparent bg-surface-gray-2 px-2 py-1 text-base text-ink-gray-8 hover:bg-surface-gray-3 focus:border-outline-gray-4 focus:bg-surface-base focus:shadow-sm focus:ring-0 focus-visible:outline-none"
             :aria-label="`Rename ${row.value}`"
             @keyup.enter="$event.target.blur()"
             @keyup.escape="cancelRename"
