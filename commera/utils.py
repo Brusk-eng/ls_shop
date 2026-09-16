@@ -386,6 +386,13 @@ def get_country_list():
 	return country_list
 
 
+def set_item_group_displayname(doc, method):
+	# ERPNext's setup wizard and its fixtures insert Item Groups without knowing about commera's
+	# shopper-facing name, so fall back to the group name instead of refusing the insert.
+	if not doc.get("custom_displayname"):
+		doc.custom_displayname = doc.item_group_name or doc.name
+
+
 def prevent_welcome_email(doc, method):
 	if hasattr(doc, "send_welcome_email"):
 		doc.send_welcome_email = 0

@@ -122,6 +122,9 @@ doc_events = {
 	"User": {
 		"before_insert": "commera.utils.prevent_welcome_email",
 	},
+	"Item Group": {
+		"before_validate": "commera.utils.set_item_group_displayname",
+	},
 	"Gateway Payment Request": {
 		"on_update": "commera.api.payment_hooks.on_payment_request_update",
 	},
