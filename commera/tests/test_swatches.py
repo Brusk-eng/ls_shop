@@ -86,9 +86,11 @@ class TestSwatchReads(SwatchTestCase):
 		# which is environment noise rather than anything this test is about.
 		get_attributes()
 
-		# The ceiling is what matters: a swatch read per value would climb with the store,
-		# and every attribute on the site is in this count, not just the one built here.
-		with self.assertQueryCount(4):
+		# Five flat reads: attributes, their values, usage per attribute, usage per value, swatches.
+		# The per-attribute and per-value counts cannot be folded into one — a template using two
+		# values of the same attribute would be counted twice. The ceiling is what matters: a read
+		# per value would climb with the store, and every attribute on the site is in this count.
+		with self.assertQueryCount(5):
 			get_attributes()
 
 	def test_clearing_a_swatch_leaves_the_value_itself(self):
