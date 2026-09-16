@@ -1,0 +1,8 @@
+{% macro swatch_dot(value, swatches, size="sm") -%}
+{%- set swatch = (swatches or {}).get(value) -%}
+{%- if swatch and swatch.image -%}
+<span class="swatch-dot swatch-dot-{{ size }}" style="background-image: url('{{ swatch.image }}')" title="{{ value }}"></span>
+{%- elif swatch and swatch.color -%}
+<span class="swatch-dot swatch-dot-{{ size }}" style="background-color: {{ swatch.color }}" title="{{ value }}"></span>
+{%- endif -%}
+{%- endmacro %}

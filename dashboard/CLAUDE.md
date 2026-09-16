@@ -96,6 +96,9 @@ a `style="..."` attribute, or a class name built by string concatenation. Tailwi
 static class names — build variants with an object/array binding or a lookup map (see
 `PageBody`'s `WIDTHS`).
 
+A colour the store owner picked is exempt: it is data, not styling, and no class can hold an
+arbitrary hex. Draw one through `SwatchDot`, which binds it with `:style`, rather than a new binding.
+
 Icons are a `<span class="lucide-name size-4" aria-hidden="true" />`. There is no icon component.
 
 Mobile-first, `sm` (640px) is the layout switch — `useIsMobile()` and `MobileLayout` both agree

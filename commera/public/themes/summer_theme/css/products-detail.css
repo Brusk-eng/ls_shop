@@ -61,10 +61,14 @@
 	text-align: center;
 }
 
+/* contain, not cover: these are cut-out garment shots, so cropping them to fill the tile lops
+   off the sleeves. The padding keeps the garment off the selected tile's border. */
 .product-colour-list img {
+	box-sizing: border-box;
 	width: 62px;
 	height: 62px;
-	object-fit: cover;
+	padding: 6px;
+	object-fit: contain;
 	border-radius: 10px;
 	border: 2px solid transparent;
 }
