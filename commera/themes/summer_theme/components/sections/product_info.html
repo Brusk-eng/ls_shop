@@ -105,7 +105,7 @@
 
 					{% if other_variants %}
 					<div class="meta-content mb-4">
-						<label class="form-label">{{ _("Colour") }}: {{ swatch_dot(product_variant.attribute_value, swatches) }}{{ product_variant.attribute_value }}</label>
+						<label class="form-label colour-label">{{ _("Colour") }}: {{ swatch_dot(product_variant.attribute_value, swatches) }}<span>{{ product_variant.attribute_value }}</span></label>
 						<ul class="product-colour-list">
 							<li>
 								<a href="/{{ frappe.lang or 'en' }}/products/{{ product_variant.route }}" class="is-active" aria-current="page">
