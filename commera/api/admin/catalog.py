@@ -14,7 +14,7 @@ from commera.api.variant_pricing import (
 	get_selling_price_lists,
 	set_variant_prices,
 )
-from commera.swatches import COLOUR_ATTRIBUTE, get_swatch_map
+from commera.swatches import COLOUR_ATTRIBUTE, ensure_default_swatch, get_swatch_map
 from commera.utils import IN_CLAUSE_CHUNK_SIZE
 
 PAGE_LENGTH = 20
@@ -1016,6 +1016,9 @@ def create_attribute(name: str, values: list | str | None = None):
 
 	attribute.insert()
 
+	for row in attribute.item_attribute_values:
+		ensure_default_swatch(attribute.name, row.attribute_value)
+
 	return {"name": attribute.name}
 
 
@@ -1042,6 +1045,8 @@ def add_attribute_value(attribute: str, value: str, abbreviation: str | None = N
 
 	attribute_doc.append("item_attribute_values", {"attribute_value": value, "abbr": abbreviation})
 	attribute_doc.save()
+
+	ensure_default_swatch(attribute, value)
 
 	swatches = get_swatch_map(attribute)
 	return {
@@ -1341,6 +1346,8 @@ def add_missing_attribute_values(attribute: str, values: list, abbreviations: di
 
 	if added:
 		attribute_doc.save()
+		for value in resolved:
+			ensure_default_swatch(attribute_doc.name, value)
 
 	return resolved
 

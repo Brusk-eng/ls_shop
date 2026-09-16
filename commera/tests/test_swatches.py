@@ -12,7 +12,14 @@ from commera.api.admin.catalog import (
 	rename_attribute_value,
 	set_swatch,
 )
-from commera.swatches import CACHE_KEY, COLOUR_ATTRIBUTE, get_swatch_map
+from commera.swatches import (
+	CACHE_KEY,
+	COLOUR_ATTRIBUTE,
+	DEFAULT_SWATCHES,
+	ensure_default_swatch,
+	get_default_colour,
+	get_swatch_map,
+)
 
 
 class SwatchTestCase(IntegrationTestCase):
@@ -143,3 +150,48 @@ class TestAttributeValueRename(SwatchTestCase):
 		values = get_attribute_values(self.attribute)
 
 		self.assertEqual({row["used_by"] for row in values}, {0})
+
+
+class TestDefaultSwatches(SwatchTestCase):
+	def setUp(self):
+		super().setUp()
+		self.colour_value = "Mint"
+		self.ensure_colour_value(self.colour_value)
+		frappe.db.delete("Swatch", {"attribute": COLOUR_ATTRIBUTE, "attribute_value": self.colour_value})
+		frappe.cache.hdel(CACHE_KEY, COLOUR_ATTRIBUTE)
+
+	def tearDown(self):
+		frappe.cache.hdel(CACHE_KEY, COLOUR_ATTRIBUTE)
+		super().tearDown()
+
+	def ensure_colour_value(self, value):
+		if not frappe.db.exists("Item Attribute", COLOUR_ATTRIBUTE):
+			attribute = frappe.new_doc("Item Attribute")
+			attribute.attribute_name = COLOUR_ATTRIBUTE
+			attribute.insert()
+		attribute = frappe.get_doc("Item Attribute", COLOUR_ATTRIBUTE)
+		if not any(row.attribute_value == value for row in attribute.item_attribute_values):
+			attribute.append("item_attribute_values", {"attribute_value": value, "abbr": f"ZZ{self.suffix}"})
+			attribute.save()
+
+	def test_a_recognised_colour_arrives_with_its_swatch(self):
+		ensure_default_swatch(COLOUR_ATTRIBUTE, self.colour_value)
+
+		self.assertEqual(
+			get_swatch_map(COLOUR_ATTRIBUTE)[self.colour_value]["color"], DEFAULT_SWATCHES["mint"]
+		)
+
+	def test_an_owners_own_swatch_is_never_overwritten(self):
+		set_swatch(COLOUR_ATTRIBUTE, self.colour_value, color="#000001")
+		ensure_default_swatch(COLOUR_ATTRIBUTE, self.colour_value)
+
+		self.assertEqual(get_swatch_map(COLOUR_ATTRIBUTE)[self.colour_value]["color"], "#000001")
+
+	def test_only_the_colour_axis_gets_defaults(self):
+		ensure_default_swatch(self.attribute, "Navy")
+
+		self.assertFalse(frappe.db.exists("Swatch", {"attribute": self.attribute}))
+
+	def test_the_default_lookup_ignores_case_and_unknown_names(self):
+		self.assertEqual(get_default_colour("  NAVY "), DEFAULT_SWATCHES["navy"])
+		self.assertIsNone(get_default_colour("Chartreuse Sunset"))

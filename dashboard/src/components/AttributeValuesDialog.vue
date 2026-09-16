@@ -141,7 +141,7 @@ async function addValue() {
             v-if="editingValue === row.value"
             :ref="(element) => (nameInputs[row.value] = element)"
             :value="row.value"
-            class="min-w-0 flex-1 rounded-4 border border-outline-gray-3 bg-surface-white px-2 py-1 text-base text-ink-gray-8 outline-none"
+            class="min-w-0 flex-1 rounded-4 border border-outline-gray-2 bg-surface-gray-2 px-2 py-1 text-base text-ink-gray-8 outline-none focus:border-outline-gray-4"
             :aria-label="`Rename ${row.value}`"
             @keyup.enter="$event.target.blur()"
             @keyup.escape="cancelRename"
@@ -163,7 +163,7 @@ async function addValue() {
             "
             @click="startRename(row)"
           >
-            <span class="truncate">{{ row.value }}</span>
+            <span class="min-w-0 flex-1 truncate">{{ row.value }}</span>
             <span
               class="size-3.5 shrink-0 opacity-0 transition-opacity group-hover:opacity-100"
               :class="row.used_by ? 'lucide-lock' : 'lucide-pencil'"
@@ -210,6 +210,7 @@ async function addValue() {
               @change="uploadImage(row, $event)"
             />
             <Button
+              class="w-28 shrink-0"
               :loading="isUploading && savingValue === row.value"
               icon-left="lucide-image"
               :label="row.image ? 'Replace' : 'Image'"

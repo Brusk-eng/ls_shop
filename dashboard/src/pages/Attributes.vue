@@ -72,7 +72,16 @@ function editAttribute(attribute) {
       class="max-h-[calc(100vh-15rem)] border-y border-outline-gray-1"
     >
       <div class="divide-y divide-outline-gray-1">
-        <div v-for="attribute in attributes" :key="attribute.name" class="flex items-start gap-4 py-4">
+        <div
+          v-for="attribute in attributes"
+          :key="attribute.name"
+          class="flex cursor-pointer items-start gap-4 px-2 py-4 hover:bg-surface-gray-2"
+          role="button"
+          tabindex="0"
+          :aria-label="`Edit ${attribute.name}`"
+          @click="editAttribute(attribute)"
+          @keyup.enter="editAttribute(attribute)"
+        >
           <div class="min-w-0 flex-1">
             <p class="text-base text-ink-gray-8">{{ attribute.name }}</p>
             <p class="mt-1 text-sm text-ink-gray-5">Used by {{ attribute.used_by }} products</p>
@@ -93,7 +102,7 @@ function editAttribute(attribute) {
               </span>
             </div>
           </div>
-          <Button label="Edit" variant="ghost" @click="editAttribute(attribute)" />
+          <Button label="Edit" variant="ghost" @click.stop="editAttribute(attribute)" />
         </div>
       </div>
     </ScrollArea>
