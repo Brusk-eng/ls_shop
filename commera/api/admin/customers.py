@@ -1,11 +1,18 @@
 # Copyright (c) 2026, company@bwhstudios.com and contributors
 # For license information, please see license.txt
 
+from collections import Counter
+
 import frappe
 from frappe import _
 from frappe.query_builder.functions import Count, Sum
-from frappe.utils.data import cint, cstr, flt
+from frappe.utils.data import cint, cstr, date_diff, flt, formatdate
 
+from commera.api.admin.analytics import (
+	build_month_buckets,
+	month_key,
+	month_window,
+)
 from commera.api.admin.orders import (
 	describe_payment_state,
 	describe_state,
@@ -15,6 +22,21 @@ from commera.api.admin.orders import (
 )
 
 PAGE_LENGTH = 20
+
+# How many of a customer's most-bought items the profile screen lists.
+TOP_PRODUCT_LIMIT = 5
+
+# The spend chart's window. Fixed, because the chart has no month picker.
+SPEND_CHART_MONTHS = 12
+
+ADDRESS_LINE_FIELDS = (
+	"address_line1",
+	"address_line2",
+	"city",
+	"state",
+	"pincode",
+	"country",
+)
 
 # Caps the IN lists the batched address/order reads build from a page.
 MAX_PAGE_LENGTH = 100
@@ -59,7 +81,7 @@ def get_customers(search: str | None = None, start: int = 0, page_length: int = 
 
 	customer_names = [row.name for row in customers]
 	stats = read_customer_order_stats(customer_names)
-	cities = read_customer_cities(customer_names)
+	addresses = read_customer_addresses(customer_names)
 
 	return {
 		"customers": [
@@ -67,7 +89,7 @@ def get_customers(search: str | None = None, start: int = 0, page_length: int = 
 				"id": row.name,
 				"name": row.customer_name or row.name,
 				"email": row.email_id,
-				"city": cities.get(row.name),
+				"city": addresses.get(row.name, {}).get("city"),
 				"orders": cint(stats.get(row.name, {}).get("order_count")),
 				"spend": flt(stats.get(row.name, {}).get("spend")),
 				"since": row.creation,
@@ -98,9 +120,9 @@ def read_customer_order_stats(customer_names: list) -> dict:
 	return {row.customer: row for row in rows}
 
 
-def read_customer_cities(customer_names: list) -> dict:
-	"""One customer's city off whichever Address links to it, batched across the page. A checkout address
-	links back to the Customer only when add_billing_address/add_shipping_address wrote that Dynamic Link."""
+def read_customer_addresses(customer_names: list) -> dict:
+	"""One customer's city and full address off whichever Address links to it, primary first. A checkout
+	address links back only when add_billing_address/add_shipping_address wrote that Dynamic Link."""
 	if not customer_names:
 		return {}
 
@@ -116,17 +138,33 @@ def read_customer_cities(customer_names: list) -> dict:
 	if not address_names:
 		return {}
 
-	city_by_address = {
-		row.name: row.city
-		for row in frappe.get_all("Address", filters={"name": ["in", address_names]}, fields=["name", "city"])
+	address_by_name = {
+		row.name: row
+		for row in frappe.get_all(
+			"Address",
+			filters={"name": ["in", address_names]},
+			fields=["name", "is_primary_address", *ADDRESS_LINE_FIELDS],
+		)
 	}
 
-	cities = {}
+	addresses = {}
 	for customer, names in address_names_by_customer.items():
-		city = next((city_by_address[name] for name in names if city_by_address.get(name)), None)
-		if city:
-			cities[customer] = city
-	return cities
+		rows = [address_by_name[name] for name in names if name in address_by_name]
+		rows.sort(key=lambda row: not cint(row.is_primary_address))
+		if not rows:
+			continue
+		addresses[customer] = {
+			"city": next((row.city for row in rows if row.city), None),
+			"address": format_address(rows[0]),
+		}
+	return addresses
+
+
+def format_address(address) -> str | None:
+	"""The dashboard renders plain text, so the address is joined here rather than through ERPNext's
+	HTML address_display template."""
+	lines = [cstr(address.get(fieldname)).strip() for fieldname in ADDRESS_LINE_FIELDS]
+	return "\n".join(line for line in lines if line) or None
 
 
 @frappe.whitelist()
@@ -135,27 +173,174 @@ def get_customer(customer: str):
 	frappe.has_permission("Customer", doc=customer, ptype="read", throw=True)
 
 	doc = frappe.db.get_value(
-		"Customer", customer, ["name", "customer_name", "email_id", "mobile_no", "creation"], as_dict=True
+		"Customer",
+		customer,
+		["name", "customer_name", "email_id", "mobile_no", "creation", "customer_details"],
+		as_dict=True,
 	)
 	if not doc:
 		frappe.throw(_("Customer {0} not found").format(customer))
 
-	orders = read_customer_orders(customer)
-	spend = sum(flt(order["base_total"]) for order in orders)
-	order_count = len(orders)
+	# Lifetime figures come off every order the customer has ever placed, never off the capped recent
+	# list — past CUSTOMER_ORDER_LIMIT the profile would otherwise contradict the Customers list.
+	lifetime_orders = read_customer_lifetime_orders(customer)
+	order_count = len(lifetime_orders)
+	spend = sum(flt(row.base_grand_total) for row in lifetime_orders)
+
+	first_order = lifetime_orders[0] if lifetime_orders else None
+	last_order = lifetime_orders[-1] if lifetime_orders else None
+
+	items = read_customer_items(customer)
+	address = read_customer_addresses([doc.name]).get(doc.name, {})
+	payment_modes = Counter(
+		row.custom_ecommerce_payment_mode for row in lifetime_orders if row.custom_ecommerce_payment_mode
+	)
 
 	return {
 		"id": doc.name,
 		"name": doc.customer_name or doc.name,
 		"email": doc.email_id,
 		"phone": doc.mobile_no,
-		"city": read_customer_cities([doc.name]).get(doc.name),
+		"city": address.get("city"),
+		"address": address.get("address"),
 		"since": doc.creation,
 		"orders": order_count,
 		"spend": spend,
 		"average_order": flt(spend / order_count) if order_count else 0,
-		"recent_orders": [{k: v for k, v in order.items() if k != "base_total"} for order in orders],
+		"first_order": first_order.transaction_date if first_order else None,
+		"last_order": last_order.transaction_date if last_order else None,
+		"days_between_orders": get_days_between_orders(lifetime_orders),
+		"units": sum(flt(row.units) for row in items),
+		"payment_mode": payment_modes.most_common(1)[0][0] if payment_modes else None,
+		"acquisition": get_acquisition(first_order.name if first_order else None),
+		"top_products": get_top_products(items),
+		"spend_by_month": get_spend_by_month(lifetime_orders),
+		"note": cstr(doc.customer_details),
+		"recent_orders": [
+			{key: value for key, value in order.items() if key != "base_total"}
+			for order in read_customer_orders(customer)
+		],
 	}
+
+
+@frappe.whitelist(methods=["POST"])
+def save_customer_note(customer: str, note: str):
+	"""The shop owner's own note about a customer, kept on ERPNext's own Customer Details field."""
+	frappe.has_permission("Customer", doc=customer, ptype="write", throw=True)
+
+	doc = frappe.get_doc("Customer", cstr(customer))
+	doc.customer_details = cstr(note)
+	doc.save()
+	return doc.customer_details
+
+
+def read_customer_lifetime_orders(customer: str) -> list:
+	"""Every webshop order this customer has ever placed, oldest first. Counts drafts and sums
+	base_grand_total, for the reason read_customer_order_stats gives."""
+	sales_order = frappe.qb.DocType("Sales Order")
+	return (
+		frappe.qb.from_(sales_order)
+		.select(
+			sales_order.name,
+			sales_order.transaction_date,
+			sales_order.base_grand_total,
+			sales_order.custom_ecommerce_payment_mode,
+		)
+		.where(is_webshop_order(sales_order))
+		.where(sales_order.customer == customer)
+		.orderby(sales_order.transaction_date)
+		.orderby(sales_order.creation)
+	).run(as_dict=True)
+
+
+def read_customer_items(customer: str) -> list:
+	"""What this customer has bought over their whole history, one row per item, most units first. Joined
+	to Sales Order rather than filtered on order names, so a long history cannot overgrow an IN list."""
+	sales_order = frappe.qb.DocType("Sales Order")
+	sales_order_item = frappe.qb.DocType("Sales Order Item")
+	rows = (
+		frappe.qb.from_(sales_order_item)
+		.join(sales_order)
+		.on(sales_order_item.parent == sales_order.name)
+		.select(
+			sales_order_item.item_code,
+			Sum(sales_order_item.qty).as_("units"),
+			Sum(sales_order_item.base_amount).as_("spend"),
+		)
+		.where(is_webshop_order(sales_order))
+		.where(sales_order.customer == customer)
+		.groupby(sales_order_item.item_code)
+	).run(as_dict=True)
+	rows.sort(key=lambda row: (-flt(row.units), cstr(row.item_code)))
+	return rows
+
+
+def get_top_products(items: list) -> list:
+	"""The customer's most-bought items, named and pictured in one batched Item read."""
+	items = items[:TOP_PRODUCT_LIMIT]
+	if not items:
+		return []
+
+	item_codes = [row.item_code for row in items]
+	item_by_code = {
+		row.name: row
+		for row in frappe.get_all(
+			"Item", filters={"name": ["in", item_codes]}, fields=["name", "item_name", "image"]
+		)
+	}
+
+	return [
+		{
+			"item_code": row.item_code,
+			"name": item_by_code.get(row.item_code, {}).get("item_name") or row.item_code,
+			"units": flt(row.units),
+			"spend": flt(row.spend),
+			"image": item_by_code.get(row.item_code, {}).get("image"),
+		}
+		for row in items
+	]
+
+
+def get_days_between_orders(lifetime_orders: list) -> int | None:
+	"""Average gap between this customer's orders. Undefined on a single order — a gap needs two."""
+	if len(lifetime_orders) < 2:
+		return None
+	span = date_diff(lifetime_orders[-1].transaction_date, lifetime_orders[0].transaction_date)
+	return cint(span / (len(lifetime_orders) - 1))
+
+
+def get_spend_by_month(lifetime_orders: list) -> list:
+	"""The trailing year of spend, oldest first. Empty months are kept so the chart's axis stays
+	continuous, the same way get_revenue_report builds its series."""
+	start, today, _months = month_window(SPEND_CHART_MONTHS)
+	spend_by_key = dict.fromkeys(build_month_buckets(start, today), 0.0)
+
+	for row in lifetime_orders:
+		key = month_key(row.transaction_date)
+		if key in spend_by_key:
+			spend_by_key[key] += flt(row.base_grand_total)
+
+	return [
+		{"label": formatdate(f"{key}-01", "MMM"), "spend": spend_by_key[key]} for key in sorted(spend_by_key)
+	]
+
+
+def get_acquisition(first_order: str | None) -> dict | None:
+	"""Where the customer came from, off the analytics event their first order was captured with. Most
+	customers predate the beacon or arrived without UTM tags, so an empty result is normal, not an error."""
+	if not first_order:
+		return None
+
+	event = frappe.get_all(
+		"Storefront Analytics Event",
+		filters={"order_id": first_order},
+		fields=["utm_source", "utm_campaign"],
+		order_by="creation asc",
+		limit=1,
+	)
+	if not event or not event[0].utm_source:
+		return None
+	return {"source": event[0].utm_source, "campaign": event[0].utm_campaign or None}
 
 
 def read_customer_orders(customer: str) -> list:

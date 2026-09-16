@@ -124,9 +124,10 @@ def make_test_sales_order(order_type="Sales", submit=True, shipping_rule=None, c
 	return sales_order
 
 
-def ensure_fiscal_year():
-	"""This site was never given one, and every submitted selling document needs one."""
-	year_start = get_year_start(getdate())
+def ensure_fiscal_year(on_date=None):
+	"""This site was never given one, and every selling document needs one covering its date."""
+	on_date = getdate(on_date or getdate())
+	year_start = get_year_start(on_date)
 	if frappe.db.exists("Fiscal Year", {"year_start_date": year_start, "disabled": 0}):
 		return
 	frappe.get_doc(
@@ -134,7 +135,7 @@ def ensure_fiscal_year():
 			"doctype": "Fiscal Year",
 			"year": str(year_start.year),
 			"year_start_date": year_start,
-			"year_end_date": get_year_ending(getdate()),
+			"year_end_date": get_year_ending(on_date),
 		}
 	).insert(ignore_permissions=True, ignore_if_duplicate=True)
 

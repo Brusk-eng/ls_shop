@@ -1,17 +1,22 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { Avatar, Button, Skeleton } from 'frappe-ui'
-import { List, ListCell, ListRow, ListRows } from 'frappe-ui/list'
+import { Avatar, Badge, Button, FormControl, Skeleton, dayjs, toast } from 'frappe-ui'
+import { BarChart } from 'frappe-ui/charts'
 import AppPageHeader from '../components/AppPageHeader.vue'
 import PageBody from '../components/PageBody.vue'
+import ReportStats from '../components/ReportStats.vue'
 import StatusBadge from '../components/StatusBadge.vue'
+import Thumb from '../components/Thumb.vue'
 import EmptyState from '../components/EmptyState.vue'
-import { useAdminRead } from '../data/api'
+import { useAdminRead, useAdminAction } from '../data/api'
 import { erpnextLink } from '../data/erpnext'
 import { errorMessage } from '../data/errors'
-import { longDate, money, shortDate } from '../data/format'
-import { ia } from '../ia/store'
+import { longDate, money } from '../data/format'
+
+// A shop owner stops chasing after a quarter of silence, so that is where a
+// repeat customer starts reading as lapsed.
+const LAPSED_AFTER_DAYS = 90
 
 const route = useRoute()
 
@@ -22,6 +27,7 @@ const customerRequest = useAdminRead('customers.get_customer', {
 
 const customer = computed(() => customerRequest.data)
 const theirOrders = computed(() => customer.value?.recent_orders ?? [])
+const topProducts = computed(() => customer.value?.top_products ?? [])
 
 // A merged or deleted customer, a typo in the URL and a permission refusal all
 // settle the same way — a finished request holding no customer — so the wording
@@ -40,6 +46,79 @@ const loadFailure = computed(() =>
         description: `No customer matches ${route.params.id}. They may have been deleted or merged.`,
       },
 )
+
+const daysSinceLastOrder = computed(() =>
+  customer.value?.last_order ? dayjs().diff(dayjs(customer.value.last_order), 'day') : null,
+)
+
+const lifecycle = computed(() => {
+  if (!customer.value?.orders) return { label: 'No orders yet', theme: 'gray' }
+  if (daysSinceLastOrder.value > LAPSED_AFTER_DAYS) return { label: 'Lapsed', theme: 'red' }
+  if (customer.value.orders > 1) return { label: 'Repeat', theme: 'green' }
+  return { label: 'New', theme: 'blue' }
+})
+
+const stats = computed(() => [
+  { label: 'Orders', value: customer.value.orders },
+  { label: 'Lifetime spend', value: money(customer.value.spend) },
+  {
+    label: 'Avg spend per order',
+    value: customer.value.orders ? money(customer.value.average_order) : '—',
+  },
+  {
+    label: 'Last order',
+    value: customer.value.last_order ? dayjs(customer.value.last_order).fromNow() : '—',
+  },
+])
+
+// Facts that earn a line but not a tile. A fact with nothing behind it is
+// dropped rather than printed as an em dash, so the strip stays honest about
+// what this store actually knows — most stores carry no UTM data at all.
+const atAGlance = computed(() => {
+  const record = customer.value
+  const facts = []
+
+  if (record.first_order) facts.push({ label: 'First order', value: longDate(record.first_order) })
+  if (record.days_between_orders) {
+    facts.push({ label: 'Orders about every', value: `${record.days_between_orders} days` })
+  }
+  if (record.units) facts.push({ label: 'Units bought', value: record.units })
+  if (record.payment_mode) facts.push({ label: 'Usually pays by', value: record.payment_mode })
+  if (record.acquisition?.source) {
+    facts.push({
+      label: 'Came from',
+      value: [record.acquisition.source, record.acquisition.campaign].filter(Boolean).join(' · '),
+    })
+  }
+  return facts
+})
+
+const customerFor = computed(() => dayjs(customer.value.since).fromNow(true))
+
+// Customer.email_id and mobile_no come back as empty strings, not null, when a
+// shopper checked out without them — joining the truthy parts keeps a missing
+// one from leaving a stray separator behind.
+const contactLine = computed(() =>
+  [customer.value.email, customer.value.phone, customer.value.city].filter(Boolean).join(' · '),
+)
+
+const note = ref('')
+watch(customer, (record) => (note.value = record?.note ?? ''), { immediate: true })
+
+const noteAction = useAdminAction('customers.save_customer_note')
+const noteChanged = computed(() => note.value !== (customer.value?.note ?? ''))
+
+async function saveNote() {
+  await noteAction.submit({ customer: route.params.id, note: note.value })
+  // A refusal already toasted inside useAdminAction.
+  if (noteAction.error) return
+  toast.success('Note saved')
+  customerRequest.reload()
+}
+
+function plural(count, word) {
+  return `${count} ${word}${count === 1 ? '' : 's'}`
+}
 </script>
 
 <template>
@@ -55,73 +134,153 @@ const loadFailure = computed(() =>
     </AppPageHeader>
 
     <PageBody width="wide">
-      <div class="flex items-center gap-3">
-        <Avatar :label="customer.name" size="2xl" />
-        <div>
-          <p class="text-xl text-ink-gray-9">{{ customer.name }}</p>
-          <p class="mt-1 text-sm text-ink-gray-5">
-            {{ customer.email ?? 'No email on file' }} · {{ customer.city ?? 'No city on file' }} · since
-            {{ longDate(customer.since) }}
-          </p>
-          <p class="mt-1 text-sm text-ink-gray-4">
-            Contact and billing details are kept on the customer record.
-          </p>
+      <div class="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
+        <div class="flex items-start gap-3">
+          <Avatar :label="customer.name" size="2xl" />
+          <!-- min-w-0 so a long name or contact line truncates rather than
+               pushing the note panel out of the row. -->
+          <div class="min-w-0">
+            <div class="flex items-center gap-2">
+              <p class="text-xl text-ink-gray-9">{{ customer.name }}</p>
+              <Badge :label="lifecycle.label" :theme="lifecycle.theme" variant="subtle" />
+            </div>
+            <p class="mt-1 text-sm text-ink-gray-5">
+              {{ contactLine || 'No contact details on file' }}
+            </p>
+            <p class="mt-1 text-sm text-ink-gray-5">
+              Customer for {{ customerFor }} · since {{ longDate(customer.since) }}
+            </p>
+          </div>
         </div>
+
+        <!-- Top right, where Shopify keeps it: the note is what a shop owner
+             reaches for mid-conversation, so it does not belong below the fold. -->
+        <section class="w-full shrink-0 sm:w-80">
+          <label class="text-sm text-ink-gray-5" for="customer-note">Note</label>
+          <FormControl
+            id="customer-note"
+            class="mt-1.5"
+            type="textarea"
+            :rows="3"
+            v-model="note"
+            placeholder="Anything worth remembering about this customer"
+          />
+          <Button
+            class="mt-2"
+            label="Save note"
+            :loading="noteAction.loading"
+            :disabled="!noteChanged"
+            @click="saveNote"
+          />
+        </section>
       </div>
 
-      <section
-        class="mt-6 grid grid-cols-2 rounded-5 border border-outline-gray-1 sm:grid-cols-3 sm:divide-x sm:divide-outline-gray-2"
-      >
-        <div class="px-4 py-3.5">
-          <p class="text-sm text-ink-gray-5">Orders</p>
-          <p class="mt-1 text-2xl text-ink-gray-9 tabular-nums">{{ customer.orders }}</p>
+      <ReportStats class="mt-6" :stats="stats" />
+
+      <section v-if="atAGlance.length" class="mt-3 rounded-5 border border-outline-gray-1 px-4 py-3.5">
+        <dl class="grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-3">
+          <div v-for="fact in atAGlance" :key="fact.label">
+            <dt class="text-sm text-ink-gray-5">{{ fact.label }}</dt>
+            <dd class="mt-0.5 text-base text-ink-gray-8 tabular-nums">{{ fact.value }}</dd>
+          </div>
+        </dl>
+      </section>
+
+      <section v-if="customer.orders" class="mt-8">
+        <div class="flex items-baseline justify-between">
+          <h2 class="text-lg-semibold text-ink-gray-8">Spend by month</h2>
+          <span class="text-sm text-ink-gray-5">Last 12 months</span>
         </div>
-        <div class="px-4 py-3.5">
-          <p class="text-sm text-ink-gray-5">Lifetime spend</p>
-          <p class="mt-1 text-2xl text-ink-gray-9 tabular-nums">{{ money(customer.spend) }}</p>
-        </div>
-        <div class="px-4 py-3.5">
-          <p class="text-sm text-ink-gray-5">Average order</p>
-          <p class="mt-1 text-2xl text-ink-gray-9 tabular-nums">
-            {{ customer.orders ? money(customer.average_order) : '—' }}
-          </p>
+        <!-- frappe-ui's charts fill their parent, so the height has to come
+             from the wrapper — the analytics reports do the same. -->
+        <div class="mt-2 rounded-5 border border-outline-gray-1 p-4">
+          <div class="h-56">
+            <BarChart :data="customer.spend_by_month" x="label" :y="['spend']" />
+          </div>
         </div>
       </section>
 
+      <!-- Full page width rather than a column of the block below: the address
+           and product panels run out well before the order history does, and a
+           half-width row wastes the space the badges and totals want. -->
       <section class="mt-8">
         <div class="flex items-baseline justify-between">
           <h2 class="text-lg-semibold text-ink-gray-8">Recent orders</h2>
-          <span class="text-sm text-ink-gray-5">{{ customer.orders }} orders all time</span>
+          <span class="text-sm text-ink-gray-5">{{ plural(customer.orders, 'order') }} all time</span>
         </div>
-        <div class="mt-1 overflow-x-auto">
-          <List class="min-w-[34rem]" :row-height="Math.max(ia.density, 48)">
-            <ListRows :items="theirOrders" row-key="name" v-slot="{ item }">
-              <ListRow :to="`/orders/${item.name}`" :value="item.name">
-                <ListCell>
-                  <span class="text-base text-ink-gray-4 tabular-nums">{{ item.name }}</span>
-                </ListCell>
-                <ListCell>
-                  <div class="min-w-0">
-                    <p class="truncate text-base text-ink-gray-8">
-                      {{ item.item_count }} item{{ item.item_count > 1 ? 's' : '' }} · {{ money(item.total) }}
-                    </p>
-                    <p class="mt-1 text-sm text-ink-gray-5">{{ shortDate(item.placed_on) }}</p>
-                  </div>
-                </ListCell>
-                <ListCell>
-                  <div class="flex items-center gap-3">
-                    <StatusBadge :status="item.payment_state.key" :label="item.payment_state.label" />
-                    <StatusBadge :status="item.state.key" :label="item.state.label" />
-                    <span class="lucide-chevron-right size-4 text-ink-gray-4" aria-hidden="true" />
-                  </div>
-                </ListCell>
-              </ListRow>
-            </ListRows>
-          </List>
-        </div>
-
-        <EmptyState v-if="!theirOrders.length" icon="lucide-shopping-bag" title="No orders yet" compact />
+        <!-- Not frappe-ui's List here: its cell borders stop short of the row
+             edge, which reads as a broken rule next to the bordered panels
+             around it. A five-row summary needs no virtualised list either. -->
+        <ul
+          v-if="theirOrders.length"
+          class="mt-2 divide-y divide-outline-gray-1 rounded-5 border border-outline-gray-1"
+        >
+          <li v-for="order in theirOrders" :key="order.name">
+            <router-link
+              :to="`/orders/${order.name}`"
+              class="flex items-center gap-4 px-4 py-2.5 hover:bg-surface-gray-2"
+            >
+              <!-- min-w-0 so a long order name truncates instead of pushing the
+                   badges and total off the card. -->
+              <div class="min-w-0 flex-1">
+                <p class="truncate text-base text-ink-gray-8">{{ order.name }}</p>
+                <p class="mt-0.5 text-sm text-ink-gray-5">
+                  {{ longDate(order.placed_on) }} · {{ plural(order.item_count, 'item') }}
+                </p>
+              </div>
+              <!-- Badges sized by their own content: a fixed status column is
+                   overrun by longer labels ("Cash on delivery" + "Confirmation
+                   pending"), which then covers the money. The name column
+                   absorbs the slack instead. -->
+              <div class="flex shrink-0 items-center gap-2">
+                <StatusBadge :status="order.payment_state.key" :label="order.payment_state.label" />
+                <StatusBadge :status="order.state.key" :label="order.state.label" />
+              </div>
+              <!-- Last and fixed width so the totals line up down the column.
+                   Wide enough for a three-character currency symbol (SAR's
+                   ر.س), which a narrower column clipped. -->
+              <p class="w-28 shrink-0 text-right text-base text-ink-gray-8 tabular-nums">
+                {{ money(order.total) }}
+              </p>
+            </router-link>
+          </li>
+        </ul>
+        <EmptyState v-else icon="lucide-shopping-bag" title="No orders yet" compact />
       </section>
+
+      <div class="mt-8 grid gap-8 lg:grid-cols-3">
+        <section v-if="topProducts.length" class="lg:col-span-2">
+          <div class="flex items-baseline justify-between">
+            <h2 class="text-lg-semibold text-ink-gray-8">Recently bought</h2>
+            <span class="text-sm text-ink-gray-5">{{ plural(customer.units, 'unit') }} all time</span>
+          </div>
+          <ul class="mt-2 divide-y divide-outline-gray-1 rounded-5 border border-outline-gray-1">
+            <li
+              v-for="product in topProducts"
+              :key="product.item_code"
+              class="flex items-center gap-3 px-4 py-2.5"
+            >
+              <Thumb :image="product.image" size="size-9" />
+              <div class="min-w-0 flex-1">
+                <p class="truncate text-base text-ink-gray-8">{{ product.name }}</p>
+                <p class="mt-0.5 text-sm text-ink-gray-5">{{ product.item_code }}</p>
+              </div>
+              <div class="text-right">
+                <p class="text-base text-ink-gray-8 tabular-nums">{{ plural(product.units, 'unit') }}</p>
+                <p class="mt-0.5 text-sm text-ink-gray-5 tabular-nums">{{ money(product.spend) }}</p>
+              </div>
+            </li>
+          </ul>
+        </section>
+
+        <section class="rounded-5 border border-outline-gray-1 px-4 py-3.5">
+          <h2 class="text-sm text-ink-gray-5">Default address</h2>
+          <p v-if="customer.address" class="mt-1.5 whitespace-pre-line text-p-base text-ink-gray-7">
+            {{ customer.address }}
+          </p>
+          <p v-else class="mt-1.5 text-p-base text-ink-gray-4">No address on file.</p>
+        </section>
+      </div>
     </PageBody>
   </template>
 
@@ -136,19 +295,22 @@ const loadFailure = computed(() =>
     />
 
     <PageBody width="wide">
-      <div class="flex items-center gap-3">
-        <Skeleton class="size-10 rounded-4" />
-        <div class="space-y-2">
-          <Skeleton class="h-6 w-48 rounded-4" />
-          <Skeleton class="h-3.5 w-72 rounded-4" />
-          <Skeleton class="h-3.5 w-56 rounded-4" />
+      <div class="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
+        <div class="flex items-start gap-3">
+          <Skeleton class="size-10 rounded-4" />
+          <div class="space-y-2">
+            <Skeleton class="h-6 w-48 rounded-4" />
+            <Skeleton class="h-3.5 w-72 rounded-4" />
+            <Skeleton class="h-3.5 w-56 rounded-4" />
+          </div>
         </div>
+        <Skeleton class="h-24 w-full rounded-4 sm:w-80" />
       </div>
 
       <section
-        class="mt-6 grid grid-cols-2 rounded-5 border border-outline-gray-1 sm:grid-cols-3 sm:divide-x sm:divide-outline-gray-2"
+        class="mt-6 grid grid-cols-2 rounded-5 border border-outline-gray-1 sm:grid-cols-4 sm:divide-x sm:divide-outline-gray-2"
       >
-        <div v-for="placeholder in 3" :key="placeholder" class="px-4 py-3.5">
+        <div v-for="placeholder in 4" :key="placeholder" class="px-4 py-3.5">
           <Skeleton class="h-3.5 w-20 rounded-4" />
           <Skeleton class="mt-1 h-7 w-24 rounded-4" />
         </div>
@@ -161,11 +323,11 @@ const loadFailure = computed(() =>
         </div>
         <div class="mt-1 divide-y divide-outline-gray-1">
           <div v-for="placeholder in 3" :key="placeholder" class="flex items-center gap-4 py-3.5">
-            <Skeleton class="h-4 w-28 rounded-4" />
             <div class="min-w-0 flex-1 space-y-2">
               <Skeleton class="h-4 w-44 rounded-4" />
               <Skeleton class="h-3.5 w-24 rounded-4" />
             </div>
+            <Skeleton class="h-5 w-40 rounded-4" />
             <Skeleton class="h-5 w-20 rounded-4" />
           </div>
         </div>
@@ -193,4 +355,3 @@ const loadFailure = computed(() =>
     </PageBody>
   </template>
 </template>
-
