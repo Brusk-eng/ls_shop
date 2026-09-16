@@ -1,6 +1,7 @@
 <script setup>
 import { computed, nextTick, ref, watch } from 'vue'
 import { Button, Dialog, ErrorMessage, TextInput, toast, useFileUpload } from 'frappe-ui'
+import SwatchDot from './SwatchDot.vue'
 import { useAdminAction } from '../data/api'
 
 const props = defineProps({
@@ -21,6 +22,7 @@ const fileInputs = ref({})
 const nameInputs = ref({})
 const savingValue = ref('')
 const editingValue = ref('')
+const cancelling = ref(false)
 const newValue = ref('')
 
 const isColour = computed(() => Boolean(props.attribute?.is_colour))
@@ -39,12 +41,25 @@ async function startRename(row) {
   if (row.used_by) return
   editingValue.value = row.value
   await nextTick()
-  nameInputs.value[row.value]?.el?.focus?.()
+  const input = nameInputs.value[row.value]
+  input?.focus?.()
+  input?.select?.()
+}
+
+// Escape leaves through the same blur as Enter, so it has to say it meant to discard.
+function cancelRename(event) {
+  cancelling.value = true
+  event.target.blur()
 }
 
 async function commitRename(row, typed) {
-  const next = (typed ?? '').trim()
   editingValue.value = ''
+  if (cancelling.value) {
+    cancelling.value = false
+    return
+  }
+
+  const next = (typed ?? '').trim()
   if (!next || next === row.value) return
 
   savingValue.value = row.value
@@ -120,42 +135,61 @@ async function addValue() {
 
       <div v-if="rows.length" class="divide-y divide-outline-gray-1 border-y border-outline-gray-1">
         <div v-for="row in rows" :key="row.value" class="flex items-center gap-3 py-3">
-          <TextInput
+          <!-- A plain input, not TextInput: TextInput settles on its own schedule, which committed
+               the rename after a single keystroke. -->
+          <input
             v-if="editingValue === row.value"
             :ref="(element) => (nameInputs[row.value] = element)"
-            :model-value="row.value"
-            class="min-w-0 flex-1"
+            :value="row.value"
+            class="min-w-0 flex-1 rounded-4 border border-outline-gray-3 bg-surface-white px-2 py-1 text-base text-ink-gray-8 outline-none"
             :aria-label="`Rename ${row.value}`"
-            @update:model-value="commitRename(row, $event)"
-            @keydown.escape="editingValue = ''"
+            @keyup.enter="$event.target.blur()"
+            @keyup.escape="cancelRename"
+            @blur="commitRename(row, $event.target.value)"
           />
           <button
             v-else
             type="button"
-            class="min-w-0 flex-1 truncate rounded-4 px-1 py-0.5 text-start text-base"
+            class="group flex min-w-0 flex-1 items-center gap-1.5 rounded-4 px-2 py-1 text-start text-base"
             :class="
               row.used_by
-                ? 'cursor-default text-ink-gray-5'
-                : 'text-ink-gray-8 hover:bg-surface-gray-2'
+                ? 'cursor-not-allowed text-ink-gray-5'
+                : 'text-ink-gray-8 hover:bg-surface-gray-3'
             "
             :title="
               row.used_by
-                ? `Used by ${row.used_by} products — renaming would leave their SKUs and links saying ${row.value}.`
+                ? `Used by ${row.used_by} ${row.used_by === 1 ? 'product' : 'products'} — renaming would leave their SKUs and links saying ${row.value}.`
                 : `Rename ${row.value}`
             "
             @click="startRename(row)"
           >
-            {{ row.value }}
+            <span class="truncate">{{ row.value }}</span>
+            <span
+              class="size-3.5 shrink-0 opacity-0 transition-opacity group-hover:opacity-100"
+              :class="row.used_by ? 'lucide-lock' : 'lucide-pencil'"
+              aria-hidden="true"
+            />
           </button>
 
           <template v-if="isColour">
-            <input
-              :value="row.color || '#000000'"
-              type="color"
-              class="size-7 shrink-0 cursor-pointer rounded-4 border border-outline-gray-2 bg-surface-base"
-              :aria-label="`${row.value} colour`"
-              @change="save(row, { color: $event.target.value })"
-            />
+            <!-- The circle is the preview and the picker at once, so an uploaded image is visible
+                 where the colour would be; the native input sits over it, invisible. -->
+            <label class="relative inline-flex size-6 shrink-0 cursor-pointer">
+              <SwatchDot
+                :color="row.color"
+                :image="row.image"
+                :label="row.value"
+                size="md"
+                class="pointer-events-none"
+              />
+              <input
+                :value="row.color || '#000000'"
+                type="color"
+                class="absolute inset-0 size-full cursor-pointer opacity-0"
+                :aria-label="`${row.value} colour`"
+                @change="save(row, { color: $event.target.value })"
+              />
+            </label>
 
             <!-- TextInput emits update:modelValue on the settled value and has no change event of
                  its own; a @change here would fall through to the native input and hand us a DOM
