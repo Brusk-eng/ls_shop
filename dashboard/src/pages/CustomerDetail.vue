@@ -14,8 +14,6 @@ import { erpnextLink } from '../data/erpnext'
 import { errorMessage } from '../data/errors'
 import { longDate, money } from '../data/format'
 
-// A shop owner stops chasing after a quarter of silence, so that is where a
-// repeat customer starts reading as lapsed.
 const LAPSED_AFTER_DAYS = 90
 
 const route = useRoute()
@@ -71,9 +69,6 @@ const stats = computed(() => [
   },
 ])
 
-// Facts that earn a line but not a tile. A fact with nothing behind it is
-// dropped rather than printed as an em dash, so the strip stays honest about
-// what this store actually knows — most stores carry no UTM data at all.
 const atAGlance = computed(() => {
   const record = customer.value
   const facts = []
@@ -88,8 +83,6 @@ const atAGlance = computed(() => {
     facts.push({
       label: 'Came from',
       value: [record.acquisition.source, record.acquisition.campaign].filter(Boolean).join(' · '),
-      // utm_source arrives however the campaign was tagged, almost always
-      // lowercase ("google"), which reads as unfinished next to the other facts.
       capitalize: true,
     })
   }
@@ -98,19 +91,12 @@ const atAGlance = computed(() => {
 
 const customerFor = computed(() => dayjs(customer.value.since).fromNow(true))
 
-// The server always sends a full year so the axis is continuous, but a customer
-// who first bought four months ago would spend two thirds of the plot proving
-// they did not exist yet. Drop the empty run before their first month; the gaps
-// between their own orders stay, because those are the ones worth seeing.
 const spendByMonth = computed(() => {
   const months = customer.value?.spend_by_month ?? []
   const firstMonthWithSpend = months.findIndex((month) => month.spend)
   return firstMonthWithSpend > 0 ? months.slice(firstMonthWithSpend) : months
 })
 
-// Customer.email_id and mobile_no come back as empty strings, not null, when a
-// shopper checked out without them — joining the truthy parts keeps a missing
-// one from leaving a stray separator behind.
 const contactLine = computed(() =>
   [customer.value.email, customer.value.phone, customer.value.city].filter(Boolean).join(' · '),
 )
@@ -123,7 +109,6 @@ const noteChanged = computed(() => note.value !== (customer.value?.note ?? ''))
 
 async function saveNote() {
   await noteAction.submit({ customer: route.params.id, note: note.value })
-  // A refusal already toasted inside useAdminAction.
   if (noteAction.error) return
   toast.success('Note saved')
   customerRequest.reload()
@@ -149,8 +134,6 @@ function plural(count, word) {
     <PageBody width="wide">
       <div class="flex items-start gap-3">
         <Avatar :label="customer.name" size="2xl" />
-        <!-- min-w-0 so a long name or contact line truncates rather than
-             overflowing the row. -->
         <div class="min-w-0">
           <div class="flex items-center gap-2">
             <p class="text-xl text-ink-gray-9">{{ customer.name }}</p>
@@ -188,8 +171,6 @@ function plural(count, word) {
             {{ spendByMonth.length === 1 ? 'This month' : `Last ${spendByMonth.length} months` }}
           </span>
         </div>
-        <!-- frappe-ui's charts fill their parent, so the height has to come
-             from the wrapper — the analytics reports do the same. -->
         <div class="mt-2 rounded-5 border border-outline-gray-1 p-4">
           <div class="h-56">
             <BarChart :data="spendByMonth" x="label" :y="['spend']" />
@@ -197,17 +178,11 @@ function plural(count, word) {
         </div>
       </section>
 
-      <!-- Full page width rather than a column of the block below: the address
-           and product panels run out well before the order history does, and a
-           half-width row wastes the space the badges and totals want. -->
       <section class="mt-8">
         <div class="flex items-baseline justify-between">
           <h2 class="text-lg-semibold text-ink-gray-8">Recent orders</h2>
           <span class="text-sm text-ink-gray-5">{{ plural(customer.orders, 'order') }} all time</span>
         </div>
-        <!-- Not frappe-ui's List here: its cell borders stop short of the row
-             edge, which reads as a broken rule next to the bordered panels
-             around it. A five-row summary needs no virtualised list either. -->
         <ul
           v-if="theirOrders.length"
           class="mt-2 divide-y divide-outline-gray-1 rounded-5 border border-outline-gray-1"
@@ -217,30 +192,19 @@ function plural(count, word) {
               :to="`/orders/${order.name}`"
               class="flex items-center gap-4 px-4 py-2.5 hover:bg-surface-gray-2"
             >
-              <!-- min-w-0 so a long order name truncates instead of pushing the
-                   badges and total off the card. -->
               <div class="min-w-0 flex-1">
                 <p class="truncate text-base text-ink-gray-8">{{ order.name }}</p>
                 <p class="mt-0.5 text-sm text-ink-gray-5">
                   {{ longDate(order.placed_on) }} · {{ plural(order.item_count, 'item') }}
                 </p>
               </div>
-              <!-- Badges sized by their own content: a fixed status column is
-                   overrun by longer labels ("Cash on delivery" + "Confirmation
-                   pending"), which then covers the money. The name column
-                   absorbs the slack instead. -->
               <div class="flex shrink-0 items-center gap-2">
                 <StatusBadge :status="order.payment_state.key" :label="order.payment_state.label" />
                 <StatusBadge :status="order.state.key" :label="order.state.label" />
               </div>
-              <!-- Last and fixed width so the totals line up down the column.
-                   Wide enough for a three-character currency symbol (SAR's
-                   ر.س), which a narrower column clipped. -->
               <p class="w-28 shrink-0 text-right text-base text-ink-gray-8 tabular-nums">
                 {{ money(order.total) }}
               </p>
-              <!-- The row opens the order; without this the list reads as a
-                   read-only summary at rest, as the old List rows did not. -->
               <span class="lucide-chevron-right size-4 shrink-0 text-ink-gray-4" aria-hidden="true" />
             </router-link>
           </li>
@@ -248,9 +212,6 @@ function plural(count, word) {
         <EmptyState v-else icon="lucide-shopping-bag" title="No orders yet" compact />
       </section>
 
-      <!-- items-start so the address card hugs its two lines instead of being
-           stretched to the height of the product list beside it, which reads as
-           a panel that failed to load. -->
       <div class="mt-8 grid items-start gap-8 lg:grid-cols-3">
         <section v-if="topProducts.length" class="lg:col-span-2">
           <div class="flex items-baseline justify-between">
@@ -285,7 +246,7 @@ function plural(count, word) {
             <p v-else class="mt-1.5 text-p-base text-ink-gray-4">No address on file.</p>
           </section>
 
-          <section class="rounded-5 border border-outline-gray-1 px-4 py-3.5">
+          <section>
             <label class="text-sm text-ink-gray-5" for="customer-note">Note</label>
             <FormControl
               id="customer-note"
@@ -295,8 +256,6 @@ function plural(count, word) {
               v-model="note"
               placeholder="Anything worth remembering about this customer"
             />
-            <!-- Only once there is something to save: a button parked in a
-                 permanently disabled state reads as a control that never works. -->
             <Button
               v-if="noteChanged"
               class="mt-2"

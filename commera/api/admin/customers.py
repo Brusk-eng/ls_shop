@@ -23,10 +23,8 @@ from commera.api.admin.orders import (
 
 PAGE_LENGTH = 20
 
-# How many of a customer's most-bought items the profile screen lists.
 TOP_PRODUCT_LIMIT = 5
 
-# The spend chart's window. Fixed, because the chart has no month picker.
 SPEND_CHART_MONTHS = 12
 
 ADDRESS_LINE_FIELDS = (
@@ -181,8 +179,6 @@ def get_customer(customer: str):
 	if not doc:
 		frappe.throw(_("Customer {0} not found").format(customer))
 
-	# Lifetime figures come off every order the customer has ever placed, never off the capped recent
-	# list — past CUSTOMER_ORDER_LIMIT the profile would otherwise contradict the Customers list.
 	lifetime_orders = read_customer_lifetime_orders(customer)
 	order_count = len(lifetime_orders)
 	spend = sum(flt(row.base_grand_total) for row in lifetime_orders)

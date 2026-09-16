@@ -1,6 +1,4 @@
 # Copyright (c) 2026, company@bwhstudios.com and Contributors
-# Tests for the customer profile screen (api/admin/customers.py). The lifetime figures here are what a
-# shop owner quotes back at a customer, so they are exercised against real orders rather than stubs.
 
 import frappe
 from frappe.tests import IntegrationTestCase
@@ -150,7 +148,6 @@ class TestCustomerProfile(IntegrationTestCase):
 
 	def test_top_products_are_ranked_by_units_and_capped(self):
 		item_codes = [make_item(image="/files/zz-profile.png") for _ in range(TOP_PRODUCT_LIMIT + 1)]
-		# Descending quantities, so the least-bought item is the one that must fall off the list.
 		for index, item_code in enumerate(item_codes):
 			make_webshop_order(self.customer, item_code, qty=len(item_codes) - index)
 
@@ -188,7 +185,6 @@ class TestCustomerProfile(IntegrationTestCase):
 		]
 		self.assertEqual([row["label"] for row in spend_by_month], expected_labels)
 		self.assertAlmostEqual(spend_by_month[-1]["spend"], ITEM_RATE)
-		# An empty month has to carry a zero, or the chart's axis breaks where the customer went quiet.
 		self.assertEqual([row["spend"] for row in spend_by_month[:-1]], [0.0] * (SPEND_CHART_MONTHS - 1))
 
 	def test_an_order_older_than_the_chart_window_still_counts_towards_spend(self):
