@@ -1,6 +1,6 @@
 <script setup>
 import { onMounted, ref } from 'vue'
-import { Badge, Button, Dropdown, LoadingText, Tooltip, dialog, toast } from 'frappe-ui'
+import { Badge, Button, Dropdown, Skeleton, Tooltip, dialog, toast } from 'frappe-ui'
 import EmptyState from '../EmptyState.vue'
 import ChromePreview from './ChromePreview.vue'
 import FooterLinkDialog from './FooterLinkDialog.vue'
@@ -219,7 +219,32 @@ function linkActions(section, columnIndex, link, linkIndex) {
       <Button icon-left="lucide-plus" label="Add column" @click="addSection" />
     </div>
 
-    <LoadingText v-if="loading && !sections.length" class="mt-4" />
+    <div
+      v-if="loading && !sections.length"
+      class="mt-3 flex items-start gap-3 overflow-x-auto pb-2"
+      aria-hidden="true"
+    >
+      <div
+        v-for="column in 3"
+        :key="column"
+        class="flex w-72 shrink-0 flex-col rounded-6 border border-outline-gray-1 bg-surface-gray-1"
+      >
+        <div class="flex items-center gap-2 px-2 py-2">
+          <Skeleton class="h-4 w-28 rounded-4" />
+          <Skeleton class="ms-auto h-3.5 w-4 rounded-4" />
+        </div>
+        <div class="flex min-h-16 flex-col gap-2 px-2 pb-2">
+          <div
+            v-for="link in 3"
+            :key="link"
+            class="rounded-5 border border-outline-gray-1 bg-surface-base px-2 py-2 shadow-sm"
+          >
+            <Skeleton class="h-4 w-32 rounded-4" />
+            <Skeleton class="mt-1.5 h-3.5 w-44 rounded-4" />
+          </div>
+        </div>
+      </div>
+    </div>
 
     <EmptyState
       v-else-if="loadError"
