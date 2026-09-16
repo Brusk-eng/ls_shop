@@ -91,6 +91,7 @@ class CommeraSettings(Document):
 		product_list_meta_description: DF.SmallText | None
 		product_list_meta_title: DF.Data | None
 		product_list_og_image: DF.AttachImage | None
+		products_per_page: DF.Literal["12", "24", "48"]
 		reason_for_return: DF.Table[ReturnReason]
 		return_period: DF.Int
 		sale_price_list: DF.Link | None

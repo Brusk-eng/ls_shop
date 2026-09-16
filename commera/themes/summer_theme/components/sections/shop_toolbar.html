@@ -56,6 +56,14 @@
 				{% endfor %}
 			</select>
 		</div>
+		<div class="form-group">
+			<select class="default-select" aria-label="{{ _('Products per page') }}"
+				@change="set_filter('page_size', $event.target.value)">
+				{% for option_value in page_size_options %}
+				<option value="{{ option_value }}" {% if page_length == option_value %}selected{% endif %}>{{ _("Show {0}").format(option_value) }}</option>
+				{% endfor %}
+			</select>
+		</div>
 		<div class="shop-tab">
 			<ul class="nav" role="tablist">
 				<li class="nav-item" role="presentation">
