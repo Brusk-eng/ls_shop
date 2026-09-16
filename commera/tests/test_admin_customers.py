@@ -69,6 +69,8 @@ def make_webshop_order(
 	drafts, and a draft skips the whole GL chain."""
 	placed_on = getdate(placed_on or getdate())
 	ensure_fiscal_year(placed_on)
+	if payment_mode:
+		ensure_payment_mode(payment_mode)
 	sales_order = frappe.new_doc("Sales Order")
 	sales_order.update(
 		{
@@ -88,6 +90,15 @@ def make_webshop_order(
 	if submit:
 		sales_order.submit()
 	return sales_order
+
+
+def ensure_payment_mode(name):
+	"""custom_ecommerce_payment_mode is a Link to Mode of Payment, and CI's bare site ships none of the
+	modes a storefront actually books against — a missing one fails the order with LinkValidationError."""
+	if not frappe.db.exists("Mode of Payment", name):
+		frappe.get_doc({"doctype": "Mode of Payment", "mode_of_payment": name, "enabled": 1}).insert(
+			ignore_permissions=True
+		)
 
 
 class TestCustomerProfile(IntegrationTestCase):
