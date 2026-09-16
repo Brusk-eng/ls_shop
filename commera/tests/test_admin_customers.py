@@ -159,6 +159,16 @@ class TestCustomerProfile(IntegrationTestCase):
 		self.assertAlmostEqual(top_products[0]["spend"], ITEM_RATE * 6)
 		self.assertEqual(top_products[0]["image"], "/files/zz-profile.png")
 		self.assertEqual(top_products[0]["name"], frappe.db.get_value("Item", item_codes[0], "item_name"))
+		self.assertEqual(top_products[0]["product"], item_codes[0])
+
+	def test_a_variant_links_to_its_template_product(self):
+		template = make_item()
+		frappe.db.set_value("Item", template, "has_variants", 1)
+		variant = make_item()
+		frappe.db.set_value("Item", variant, "variant_of", template)
+		make_webshop_order(self.customer, variant)
+
+		self.assertEqual(get_customer(self.customer)["top_products"][0]["product"], template)
 
 	def test_units_count_every_order_line(self):
 		make_webshop_order(self.customer, self.item_code, qty=3)

@@ -281,13 +281,19 @@ def get_top_products(items: list) -> list:
 	item_by_code = {
 		row.name: row
 		for row in frappe.get_all(
-			"Item", filters={"name": ["in", item_codes]}, fields=["name", "item_name", "image"]
+			"Item",
+			filters={"name": ["in", item_codes]},
+			fields=["name", "item_name", "image", "variant_of"],
 		)
 	}
+	template_by_code = read_item_templates(item_codes)
 
 	return [
 		{
 			"item_code": row.item_code,
+			"product": template_by_code.get(row.item_code)
+			or item_by_code.get(row.item_code, {}).get("variant_of")
+			or row.item_code,
 			"name": item_by_code.get(row.item_code, {}).get("item_name") or row.item_code,
 			"units": flt(row.units),
 			"spend": flt(row.spend),
@@ -295,6 +301,25 @@ def get_top_products(items: list) -> list:
 		}
 		for row in items
 	]
+
+
+def read_item_templates(item_codes: list) -> dict:
+	"""The product template each sold size belongs to, walked size -> variant -> configurator the way
+	catalog.get_top_products does, so the profile links to the same product page the home screen does."""
+	color_size_item = frappe.qb.DocType("Color Size Item")
+	variant = frappe.qb.DocType("Style Attribute Variant")
+	configurator = frappe.qb.DocType("Style Attribute Configurator")
+	rows = (
+		frappe.qb.from_(color_size_item)
+		.join(variant)
+		.on(variant.name == color_size_item.parent)
+		.join(configurator)
+		.on(configurator.name == variant.configurator)
+		.select(color_size_item.item_code, configurator.item_template)
+		.where(color_size_item.parenttype == "Style Attribute Variant")
+		.where(color_size_item.item_code.isin(item_codes))
+	).run()
+	return dict(rows)
 
 
 def get_days_between_orders(lifetime_orders: list) -> int | None:

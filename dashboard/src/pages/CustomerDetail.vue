@@ -219,20 +219,22 @@ function plural(count, word) {
             <span class="text-sm text-ink-gray-5">{{ plural(customer.units, 'unit') }} all time</span>
           </div>
           <ul class="mt-2 divide-y divide-outline-gray-1 rounded-5 border border-outline-gray-1">
-            <li
-              v-for="product in topProducts"
-              :key="product.item_code"
-              class="flex items-center gap-3 px-4 py-2.5"
-            >
-              <Thumb :image="product.image" size="size-9" />
-              <div class="min-w-0 flex-1">
-                <p class="truncate text-base text-ink-gray-8">{{ product.name }}</p>
-                <p class="mt-0.5 text-sm text-ink-gray-5">{{ product.item_code }}</p>
-              </div>
-              <div class="text-right">
-                <p class="text-base text-ink-gray-8 tabular-nums">{{ plural(product.units, 'unit') }}</p>
-                <p class="mt-0.5 text-sm text-ink-gray-5 tabular-nums">{{ money(product.spend) }}</p>
-              </div>
+            <li v-for="product in topProducts" :key="product.item_code">
+              <router-link
+                :to="`/products/${encodeURIComponent(product.product)}`"
+                class="flex items-center gap-3 px-4 py-2.5 hover:bg-surface-gray-2"
+              >
+                <Thumb :image="product.image" size="size-9" />
+                <div class="min-w-0 flex-1">
+                  <p class="truncate text-base text-ink-gray-8">{{ product.name }}</p>
+                  <p class="mt-0.5 text-sm text-ink-gray-5">{{ product.item_code }}</p>
+                </div>
+                <div class="text-right">
+                  <p class="text-base text-ink-gray-8 tabular-nums">{{ plural(product.units, 'unit') }}</p>
+                  <p class="mt-0.5 text-sm text-ink-gray-5 tabular-nums">{{ money(product.spend) }}</p>
+                </div>
+                <span class="lucide-chevron-right size-4 shrink-0 text-ink-gray-4" aria-hidden="true" />
+              </router-link>
             </li>
           </ul>
         </section>
