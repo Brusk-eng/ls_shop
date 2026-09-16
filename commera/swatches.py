@@ -90,7 +90,7 @@ def ensure_default_swatch(attribute: str, value: str):
 DUPLICATE_COLOUR_ATTRIBUTE = "Colour"
 
 
-def drop_unused_colour_attribute(args=None):
+def drop_unused_colour_attribute(setup_args=None):
 	if not frappe.db.exists("Item Attribute", DUPLICATE_COLOUR_ATTRIBUTE):
 		return
 	if frappe.db.exists("Item Variant Attribute", {"attribute": DUPLICATE_COLOUR_ATTRIBUTE}):
