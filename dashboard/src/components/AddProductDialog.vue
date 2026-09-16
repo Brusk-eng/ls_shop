@@ -25,6 +25,13 @@ const excludedPairs = ref([])
 const compareAt = ref(null)
 const price = ref(null)
 const colorsOpen = ref(false)
+const optionSwatches = ref({})
+
+function setOptionSwatches(values) {
+  optionSwatches.value = Object.fromEntries(
+    values.map((entry) => [entry.value, { color: entry.color, image: entry.image }]),
+  )
+}
 const sizesOpen = ref(false)
 
 // reka guards only Escape by topmost layer, so one outside click dismisses the
@@ -222,6 +229,7 @@ async function submit() {
           :label="optionAttribute"
           :placeholder="`Pick or type a ${optionAttribute.toLowerCase()}`"
           :description="`Type a new ${optionAttribute.toLowerCase()} to add it — leave empty if this product has none`"
+          @values="setOptionSwatches"
         />
 
         <AttributeMultiSelect
@@ -239,6 +247,7 @@ async function submit() {
           :options="colors"
           :sizes="sizes"
           :option-label="optionAttribute || 'Option'"
+          :swatches="optionSwatches"
         />
 
         <p class="text-sm text-ink-gray-5">{{ summary }}</p>

@@ -267,3 +267,31 @@
 		width: 100%;
 	}
 }
+
+/* --- Colour swatches (Swatch doctype) --- */
+
+/* The dot's own colour is data and arrives inline; everything else about it lives here. */
+.swatch-dot {
+	display: inline-block;
+	flex-shrink: 0;
+	background-position: center;
+	background-size: cover;
+	background-repeat: no-repeat;
+	border: 1px solid rgba(0, 0, 0, 0.12);
+	vertical-align: middle;
+}
+
+.swatch-dot-sm {
+	width: 14px;
+	height: 14px;
+	border-radius: 50%;
+	margin-right: 6px;
+}
+
+.swatch-dot-lg {
+	width: 62px;
+	height: 62px;
+	border-radius: 10px;
+	border-width: 2px;
+	border-color: transparent;
+}

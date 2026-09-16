@@ -6,7 +6,8 @@ import Thumb from './Thumb.vue'
 import EditableValue from './EditableValue.vue'
 import EmptyState from './EmptyState.vue'
 import VariantDialog from './VariantDialog.vue'
-import { useAdminAction } from '../data/api'
+import SwatchDot from './SwatchDot.vue'
+import { useAdminAction, useAdminRead } from '../data/api'
 import { stockTone } from '../data/format'
 import { pricePayload, shownPrice } from '../data/product'
 import { ia } from '../ia/store'
@@ -33,6 +34,20 @@ function openVariant(variant) {
 // prototype's options[] this list is read-only: it names the one axis this
 // product already has and shows its values, nothing more.
 const optionValues = computed(() => [...new Set(props.product.variants.map((v) => v.option))])
+
+const optionValuesRequest = useAdminRead('catalog.get_attribute_values', {
+  params: () => ({ attribute: props.product.option_attribute }),
+  refetch: true,
+})
+
+const swatches = computed(() =>
+  Object.fromEntries(
+    (optionValuesRequest.data ?? []).map((entry) => [
+      entry.value,
+      { color: entry.color, image: entry.image },
+    ]),
+  ),
+)
 
 const priceAction = useAdminAction('catalog.set_variant_price')
 
@@ -145,7 +160,17 @@ const columns = ['minmax(7rem,1.3fr)', 'minmax(5rem,1fr)', '6.5rem', '5rem', '4.
         <div class="flex items-start gap-3">
           <span class="w-24 shrink-0 pt-0.5 text-base text-ink-gray-6">{{ product.option_attribute }}</span>
           <div class="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
-            <Badge v-for="value in optionValues" :key="value" :label="value" variant="subtle" />
+            <Badge v-for="value in optionValues" :key="value" variant="subtle">
+              <span class="flex items-center gap-1.5">
+                <SwatchDot
+                  v-if="swatches[value]?.color || swatches[value]?.image"
+                  :color="swatches[value]?.color"
+                  :image="swatches[value]?.image"
+                  size="xs"
+                />
+                {{ value }}
+              </span>
+            </Badge>
           </div>
         </div>
       </div>

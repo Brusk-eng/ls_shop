@@ -14,6 +14,7 @@ from commera.api.variant_pricing import (
 	get_selling_price_lists,
 	set_variant_prices,
 )
+from commera.swatches import get_swatch_map
 from commera.utils import IN_CLAUSE_CHUNK_SIZE
 
 PAGE_LENGTH = 20
@@ -854,18 +855,26 @@ def get_attribute_values(attribute: str):
 	"""The colours and sizes this store already uses, so the create form suggests instead of retypes."""
 	frappe.has_permission("Item Attribute", doc=attribute, ptype="read", throw=True)
 
-	return frappe.get_all(
+	values = frappe.get_all(
 		"Item Attribute Value",
 		filters={"parent": attribute, "parenttype": "Item Attribute"},
 		order_by="idx asc",
 		pluck="attribute_value",
 	)
+	swatches = get_swatch_map(attribute)
+
+	return [decorate_value_with_swatch(value, swatches) for value in values]
+
+
+def decorate_value_with_swatch(value: str, swatches: dict) -> dict:
+	swatch = swatches.get(value) or {}
+	return {"value": value, "color": swatch.get("color"), "image": swatch.get("image")}
 
 
 @frappe.whitelist()
 def get_attributes():
-	"""The Attributes screen: every Item Attribute with its values and a live usage count.
-	Two queries however many attributes exist - one for value rows, one grouped for usage; never per attribute."""
+	"""The Attributes screen: every Item Attribute with its values, swatches and a live usage count.
+	Three queries however many attributes exist; never per attribute."""
 	frappe.has_permission("Item Attribute", ptype="read", throw=True)
 
 	attribute_names = frappe.get_all("Item Attribute", pluck="name", order_by="name asc")
@@ -883,15 +892,35 @@ def get_attributes():
 		values_by_attribute.setdefault(row.parent, []).append(row.attribute_value)
 
 	usage_by_attribute = get_attribute_usage_counts(attribute_names)
+	swatches_by_attribute = get_swatches_for_attributes(attribute_names)
 
 	return [
 		{
 			"name": name,
-			"values": values_by_attribute.get(name, []),
+			"values": [
+				decorate_value_with_swatch(value, swatches_by_attribute.get(name, {}))
+				for value in values_by_attribute.get(name, [])
+			],
 			"used_by": usage_by_attribute.get(name, 0),
 		}
 		for name in attribute_names
 	]
+
+
+def get_swatches_for_attributes(attribute_names):
+	"""Every swatch across the listed attributes in one query, grouped by attribute."""
+	rows = frappe.get_all(
+		"Swatch",
+		filters={"attribute": ["in", attribute_names]},
+		fields=["attribute", "attribute_value", "color", "image"],
+	)
+	grouped = {}
+	for row in rows:
+		grouped.setdefault(row.attribute, {})[row.attribute_value] = {
+			"color": row.color,
+			"image": row.image,
+		}
+	return grouped
 
 
 def get_attribute_usage_counts(attribute_names):
@@ -979,10 +1008,49 @@ def add_attribute_value(attribute: str, value: str, abbreviation: str | None = N
 	attribute_doc.append("item_attribute_values", {"attribute_value": value, "abbr": abbreviation})
 	attribute_doc.save()
 
+	swatches = get_swatch_map(attribute)
 	return {
 		"name": attribute_doc.name,
-		"values": [row.attribute_value for row in attribute_doc.item_attribute_values],
+		"values": [
+			decorate_value_with_swatch(row.attribute_value, swatches)
+			for row in attribute_doc.item_attribute_values
+		],
 	}
+
+
+@frappe.whitelist(methods=["POST"])
+def set_swatch(attribute: str, value: str, color: str | None = None, image: str | None = None):
+	"""Give one attribute value a swatch — a colour, an image, or both."""
+	frappe.has_permission("Item Attribute", doc=attribute, ptype="write", throw=True)
+
+	value = cstr(value).strip()
+	if not value:
+		frappe.throw(_("Enter a value"))
+
+	color = cstr(color).strip() or None
+	image = cstr(image).strip() or None
+
+	existing = frappe.db.exists("Swatch", {"attribute": attribute, "attribute_value": value})
+	swatch = frappe.get_doc("Swatch", existing) if existing else frappe.new_doc("Swatch")
+	swatch.attribute = attribute
+	swatch.attribute_value = value
+	swatch.color = color
+	swatch.image = image
+	swatch.save()
+
+	return {"value": value, "color": swatch.color, "image": swatch.image}
+
+
+@frappe.whitelist(methods=["POST"])
+def clear_swatch(attribute: str, value: str):
+	"""Drop the swatch for one value. The value itself stays."""
+	frappe.has_permission("Item Attribute", doc=attribute, ptype="write", throw=True)
+
+	existing = frappe.db.exists("Swatch", {"attribute": attribute, "attribute_value": cstr(value).strip()})
+	if existing:
+		frappe.delete_doc("Swatch", existing)
+
+	return {"value": value, "color": None, "image": None}
 
 
 # A product that sells as a single item still needs both variant axes present: Color Size Item.size is

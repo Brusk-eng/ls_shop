@@ -8,6 +8,7 @@ from commera import seo
 from commera.product_detail import size_sort_key
 from commera.search import query as search_query
 from commera.shop_data import get_category_facets
+from commera.swatches import get_swatch_map
 from commera.utils import (
 	PAGE_SIZE_OPTIONS,
 	get_current_page,
@@ -132,6 +133,7 @@ def get_context(context):
 	context.total_count = get_total_product_count(filters=selected_filters)
 	context.filters = filters
 	context.selected_filters = selected_filters
+	context.swatches = get_swatch_map()
 	context.price_range = price_range
 	context.breadcrumbs = [
 		{

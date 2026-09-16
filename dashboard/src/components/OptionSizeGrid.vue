@@ -5,12 +5,14 @@
  */
 import { computed } from 'vue'
 import { Checkbox } from 'frappe-ui'
+import SwatchDot from './SwatchDot.vue'
 import { buildOptionSizes, pairKey } from '../data/optionSizes'
 
 const props = defineProps({
   options: { type: Array, required: true },
   sizes: { type: Array, required: true },
   optionLabel: { type: String, default: 'Colour' },
+  swatches: { type: Object, default: () => ({}) },
 })
 
 const excluded = defineModel({ type: Array, required: true })
@@ -58,10 +60,18 @@ function toggle(option, size, selected) {
         <tbody>
           <tr v-for="option in props.options" :key="option" class="border-t border-outline-gray-1">
             <th
-              class="sticky start-0 z-10 max-w-40 truncate bg-surface-base px-3 py-2 text-sm font-normal"
+              class="sticky start-0 z-10 max-w-40 bg-surface-base px-3 py-2 text-sm font-normal"
               :class="emptyOptions.has(option) ? 'text-ink-red-6' : 'text-ink-gray-8'"
             >
-              {{ option }}
+              <span class="flex items-center gap-2">
+                <SwatchDot
+                  v-if="props.swatches[option]?.color || props.swatches[option]?.image"
+                  :color="props.swatches[option]?.color"
+                  :image="props.swatches[option]?.image"
+                  size="sm"
+                />
+                <span class="truncate">{{ option }}</span>
+              </span>
             </th>
             <td v-for="size in props.sizes" :key="size" class="px-3 py-2 text-center">
               <Checkbox

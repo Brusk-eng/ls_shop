@@ -6,6 +6,7 @@
  */
 import { computed, ref, watch } from 'vue'
 import { Button, MultiSelect } from 'frappe-ui'
+import SwatchDot from './SwatchDot.vue'
 import { useAdminRead } from '../data/api'
 
 const props = defineProps({
@@ -21,10 +22,18 @@ const selected = defineModel({ type: Array, required: true })
 // Surfaced so the host dialog can stand down from outside-dismissal while this popover owns the click.
 const open = defineModel('open', { type: Boolean, default: false })
 
+const emit = defineEmits(['values'])
+
 const valuesRequest = useAdminRead('catalog.get_attribute_values', {
   params: () => ({ attribute: props.attribute }),
   refetch: true,
 })
+
+// Surfaced so a sibling can draw the same swatches without fetching this list again.
+watch(
+  () => valuesRequest.data,
+  (values) => emit('values', values ?? []),
+)
 
 // A value the owner types lives only in this picker until the product is created, so it is held here.
 const addedValues = ref([])
@@ -36,9 +45,17 @@ watch(
   },
 )
 
-const options = computed(() =>
-  [...(valuesRequest.data ?? []), ...addedValues.value].map((value) => ({ label: value, value })),
-)
+// A stored value arrives as {value, color, image}; one the owner just typed is a bare string
+// that has no swatch until the Attributes screen gives it one.
+const options = computed(() => [
+  ...(valuesRequest.data ?? []).map((entry) => ({
+    label: entry.value,
+    value: entry.value,
+    color: entry.color,
+    image: entry.image,
+  })),
+  ...addedValues.value.map((value) => ({ label: value, value })),
+])
 
 // ERPNext matches attribute values case-insensitively, so "red" beside "Red" would add nothing new.
 function canAdd(query) {
@@ -67,6 +84,9 @@ function addTypedValue(query, setQuery) {
   >
     <template #summary="{ summary, selectedOptions }">
       {{ selectedOptions.length ? selectedOptions.map((option) => option.label).join(', ') : summary }}
+    </template>
+    <template #item-prefix="{ item }">
+      <SwatchDot v-if="item.color || item.image" :color="item.color" :image="item.image" size="sm" />
     </template>
     <template #search-suffix="{ query, setQuery }">
       <Button

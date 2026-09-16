@@ -77,6 +77,8 @@ declare module 'vue' {
     SettingsSkeleton: typeof import('./src/components/settings/SettingsSkeleton.vue')['default']
     SourceStep: typeof import('./src/components/import/steps/SourceStep.vue')['default']
     StatusBadge: typeof import('./src/components/StatusBadge.vue')['default']
+    SwatchDot: typeof import('./src/components/SwatchDot.vue')['default']
+    SwatchEditorDialog: typeof import('./src/components/SwatchEditorDialog.vue')['default']
     ThemeEditor: typeof import('./src/components/storefront/ThemeEditor.vue')['default']
     ThemeField: typeof import('./src/components/storefront/ThemeField.vue')['default']
     Thumb: typeof import('./src/components/Thumb.vue')['default']

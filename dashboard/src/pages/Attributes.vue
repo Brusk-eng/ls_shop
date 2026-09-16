@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { Button, ScrollArea, Skeleton, dialog, toast } from 'frappe-ui'
 import AppPageHeader from '../components/AppPageHeader.vue'
 import PageBody from '../components/PageBody.vue'
@@ -52,6 +52,14 @@ function editAttribute(attribute) {
     },
   })
 }
+
+const swatchAttribute = ref(null)
+const swatchDialogOpen = ref(false)
+
+function editSwatches(attribute) {
+  swatchAttribute.value = attribute
+  swatchDialogOpen.value = true
+}
 </script>
 
 <template>
@@ -93,14 +101,24 @@ function editAttribute(attribute) {
             <div class="mt-2 flex flex-wrap gap-1.5">
               <span
                 v-for="value in attribute.values"
-                :key="value"
-                class="rounded-1 bg-surface-gray-2 px-1.5 py-0.5 text-sm text-ink-gray-7"
+                :key="value.value"
+                class="flex items-center gap-1.5 rounded-1 bg-surface-gray-2 px-1.5 py-0.5 text-sm text-ink-gray-7"
               >
-                {{ value }}
+                <SwatchDot
+                  v-if="value.color || value.image"
+                  :color="value.color"
+                  :image="value.image"
+                  :label="value.value"
+                  size="xs"
+                />
+                {{ value.value }}
               </span>
             </div>
           </div>
-          <Button label="Edit" variant="ghost" @click="editAttribute(attribute)" />
+          <div class="flex shrink-0 items-center gap-1">
+            <Button label="Swatches" variant="ghost" @click="editSwatches(attribute)" />
+            <Button label="Edit" variant="ghost" @click="editAttribute(attribute)" />
+          </div>
         </div>
       </div>
     </ScrollArea>
@@ -114,4 +132,10 @@ function editAttribute(attribute) {
       <Button label="New attribute" icon-left="lucide-plus" variant="solid" theme="gray" @click="addAttribute" />
     </EmptyState>
   </PageBody>
+
+  <SwatchEditorDialog
+    v-model:open="swatchDialogOpen"
+    :attribute="swatchAttribute"
+    @saved="attributesRequest.reload()"
+  />
 </template>

@@ -1,4 +1,6 @@
 
+{% from "components/macros/swatch.html" import swatch_dot %}
+{% set swatches = swatches or {} %}
 {% set attribute_facets = ["brands", "colors", "sizes"] %}
 
 {% macro category_facet_list(nodes) %}
@@ -72,7 +74,7 @@
 				<input type="checkbox" class="btn-check" id="filter-color-{{ loop.index }}"
 					:checked='is_selected("colors", {{ color | tojson }})'
 					@change='toggle_filter("colors", {{ color | tojson }})'>
-				<label class="btn" for="filter-color-{{ loop.index }}">{{ _(color) }}</label>
+				<label class="btn" for="filter-color-{{ loop.index }}">{{ swatch_dot(color, swatches) }}{{ _(color) }}</label>
 				{% endfor %}
 			</div>
 		</div>

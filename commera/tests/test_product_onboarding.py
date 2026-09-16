@@ -505,7 +505,7 @@ class TestCreateProduct(ProductOnboardingTestCase):
 	def test_a_colour_the_owner_typed_joins_the_attribute(self):
 		product = self.add_product([{"option": "Saffron", "sizes": ["S"]}])
 
-		self.assertIn("Saffron", get_attribute_values(self.colour_attribute))
+		self.assertIn("Saffron", [row["value"] for row in get_attribute_values(self.colour_attribute)])
 		self.assertEqual(self.get_sizes_by_option(product["name"]), {"Saffron": ["S"]})
 
 	def test_get_attribute_values_keeps_the_stored_order(self):
@@ -514,7 +514,7 @@ class TestCreateProduct(ProductOnboardingTestCase):
 		stored_order = ["Medium", "Alpha", "Zulu"]
 		attribute = self.make_named_attribute("Order", stored_order)
 
-		self.assertEqual(get_attribute_values(attribute), stored_order)
+		self.assertEqual([row["value"] for row in get_attribute_values(attribute)], stored_order)
 
 
 class TestCreateSingleItemProduct(ProductOnboardingTestCase):
