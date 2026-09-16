@@ -23,7 +23,6 @@ declare module 'vue' {
     BulkBar: typeof import('./src/components/BulkBar.vue')['default']
     CascadePublishDialog: typeof import('./src/components/storefront/CascadePublishDialog.vue')['default']
     CashOnDeliverySettings: typeof import('./src/components/settings/CashOnDeliverySettings.vue')['default']
-    ChartSkeleton: typeof import('./src/components/ChartSkeleton.vue')['default']
     ChromePreview: typeof import('./src/components/storefront/ChromePreview.vue')['default']
     CoachTip: typeof import('./src/components/import/CoachTip.vue')['default']
     DeliveryOptionDialog: typeof import('./src/components/settings/DeliveryOptionDialog.vue')['default']

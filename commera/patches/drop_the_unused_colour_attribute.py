@@ -5,9 +5,8 @@ import frappe
 
 from commera.swatches import COLOUR_ATTRIBUTE
 
-# ERPNext ships the British spelling and commera seeds the American one, so a store ends up with two
-# colour attributes and an owner picking blind between them. Shopify's is "Color", which is the one
-# commera's own code keys off.
+# ERPNext ships the British spelling and commera seeds the American one, so a store ends up with
+# two colour attributes. "Color" is the one commera's own code keys off.
 DUPLICATE = "Colour"
 
 

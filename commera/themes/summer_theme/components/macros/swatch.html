@@ -10,9 +10,8 @@
 {%- endif -%}
 {%- endmacro %}
 
-{# The product page picks a colour off tiles big enough to show the garment, so the variant's own
-   photo beats the swatch here — a shopper learns more from two shirts than two flat squares. The
-   swatch is what a variant with no photo of its own gets, instead of the stock placeholder. #}
+{# The product page's tiles are big enough to show the garment, so the photo wins here and the
+   swatch is only what a variant with no photo of its own gets. #}
 {% macro colour_tile(image_url, value, swatches) -%}
 {%- if image_url -%}
 <img src="{{ image_url }}" alt="{{ value }}">
