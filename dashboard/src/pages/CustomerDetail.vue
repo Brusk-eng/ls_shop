@@ -88,12 +88,25 @@ const atAGlance = computed(() => {
     facts.push({
       label: 'Came from',
       value: [record.acquisition.source, record.acquisition.campaign].filter(Boolean).join(' · '),
+      // utm_source arrives however the campaign was tagged, almost always
+      // lowercase ("google"), which reads as unfinished next to the other facts.
+      capitalize: true,
     })
   }
   return facts
 })
 
 const customerFor = computed(() => dayjs(customer.value.since).fromNow(true))
+
+// The server always sends a full year so the axis is continuous, but a customer
+// who first bought four months ago would spend two thirds of the plot proving
+// they did not exist yet. Drop the empty run before their first month; the gaps
+// between their own orders stay, because those are the ones worth seeing.
+const spendByMonth = computed(() => {
+  const months = customer.value?.spend_by_month ?? []
+  const firstMonthWithSpend = months.findIndex((month) => month.spend)
+  return firstMonthWithSpend > 0 ? months.slice(firstMonthWithSpend) : months
+})
 
 // Customer.email_id and mobile_no come back as empty strings, not null, when a
 // shopper checked out without them — joining the truthy parts keeps a missing
@@ -165,11 +178,14 @@ function plural(count, word) {
             v-model="note"
             placeholder="Anything worth remembering about this customer"
           />
+          <!-- Only once there is something to save: a permanently parked
+               disabled button is the loudest thing in the header, and the note
+               should sit quietly behind the customer's own details. -->
           <Button
+            v-if="noteChanged"
             class="mt-2"
             label="Save note"
             :loading="noteAction.loading"
-            :disabled="!noteChanged"
             @click="saveNote"
           />
         </section>
@@ -177,11 +193,16 @@ function plural(count, word) {
 
       <ReportStats class="mt-6" :stats="stats" />
 
-      <section v-if="atAGlance.length" class="mt-3 rounded-5 border border-outline-gray-1 px-4 py-3.5">
+      <section v-if="atAGlance.length" class="mt-6 rounded-5 border border-outline-gray-1 px-4 py-3.5">
         <dl class="grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-3">
           <div v-for="fact in atAGlance" :key="fact.label">
             <dt class="text-sm text-ink-gray-5">{{ fact.label }}</dt>
-            <dd class="mt-0.5 text-base text-ink-gray-8 tabular-nums">{{ fact.value }}</dd>
+            <dd
+              class="mt-0.5 text-base text-ink-gray-8 tabular-nums"
+              :class="fact.capitalize ? 'capitalize' : ''"
+            >
+              {{ fact.value }}
+            </dd>
           </div>
         </dl>
       </section>
@@ -189,13 +210,15 @@ function plural(count, word) {
       <section v-if="customer.orders" class="mt-8">
         <div class="flex items-baseline justify-between">
           <h2 class="text-lg-semibold text-ink-gray-8">Spend by month</h2>
-          <span class="text-sm text-ink-gray-5">Last 12 months</span>
+          <span class="text-sm text-ink-gray-5">
+            {{ spendByMonth.length === 1 ? 'This month' : `Last ${spendByMonth.length} months` }}
+          </span>
         </div>
         <!-- frappe-ui's charts fill their parent, so the height has to come
              from the wrapper — the analytics reports do the same. -->
         <div class="mt-2 rounded-5 border border-outline-gray-1 p-4">
           <div class="h-56">
-            <BarChart :data="customer.spend_by_month" x="label" :y="['spend']" />
+            <BarChart :data="spendByMonth" x="label" :y="['spend']" />
           </div>
         </div>
       </section>
@@ -242,13 +265,19 @@ function plural(count, word) {
               <p class="w-28 shrink-0 text-right text-base text-ink-gray-8 tabular-nums">
                 {{ money(order.total) }}
               </p>
+              <!-- The row opens the order; without this the list reads as a
+                   read-only summary at rest, as the old List rows did not. -->
+              <span class="lucide-chevron-right size-4 shrink-0 text-ink-gray-4" aria-hidden="true" />
             </router-link>
           </li>
         </ul>
         <EmptyState v-else icon="lucide-shopping-bag" title="No orders yet" compact />
       </section>
 
-      <div class="mt-8 grid gap-8 lg:grid-cols-3">
+      <!-- items-start so the address card hugs its two lines instead of being
+           stretched to the height of the product list beside it, which reads as
+           a panel that failed to load. -->
+      <div class="mt-8 grid items-start gap-8 lg:grid-cols-3">
         <section v-if="topProducts.length" class="lg:col-span-2">
           <div class="flex items-baseline justify-between">
             <h2 class="text-lg-semibold text-ink-gray-8">Recently bought</h2>
