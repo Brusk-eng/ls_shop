@@ -31,34 +31,12 @@ function addAttribute() {
   })
 }
 
-const addValueAction = useAdminAction('catalog.add_attribute_value')
+const openAttribute = ref(null)
+const valuesDialogOpen = ref(false)
 
-// Editing an existing attribute here only ever appends a value. Renaming or removing one is not
-// wired: an abbreviation edit after variants already exist does not move their item codes, and
-// "Size" must literally stay named "Size" (generate_variants() depends on it) — both are edits
-// dangerous enough to need their own confirmation design, which this screen's frozen layout does
-// not have a control for.
 function editAttribute(attribute) {
-  dialog.prompt({
-    title: `Add a value to ${attribute.name}`,
-    message: 'The abbreviation is generated automatically and refused if it collides with an existing one.',
-    fields: [{ name: 'value', label: 'Value', required: true }],
-    onConfirm: async ({ values }) => {
-      await addValueAction.submit({ attribute: attribute.name, value: values.value })
-      // A collision (or any other refusal) already toasted inside useAdminAction.
-      if (addValueAction.error) return
-      toast.success(`"${values.value}" added to ${attribute.name}`)
-      attributesRequest.reload()
-    },
-  })
-}
-
-const swatchAttribute = ref(null)
-const swatchDialogOpen = ref(false)
-
-function editSwatches(attribute) {
-  swatchAttribute.value = attribute
-  swatchDialogOpen.value = true
+  openAttribute.value = attribute
+  valuesDialogOpen.value = true
 }
 </script>
 
@@ -115,10 +93,7 @@ function editSwatches(attribute) {
               </span>
             </div>
           </div>
-          <div class="flex shrink-0 items-center gap-1">
-            <Button label="Swatches" variant="ghost" @click="editSwatches(attribute)" />
-            <Button label="Edit" variant="ghost" @click="editAttribute(attribute)" />
-          </div>
+          <Button label="Edit" variant="ghost" @click="editAttribute(attribute)" />
         </div>
       </div>
     </ScrollArea>
@@ -133,9 +108,9 @@ function editSwatches(attribute) {
     </EmptyState>
   </PageBody>
 
-  <SwatchEditorDialog
-    v-model:open="swatchDialogOpen"
-    :attribute="swatchAttribute"
+  <AttributeValuesDialog
+    v-model:open="valuesDialogOpen"
+    :attribute="openAttribute"
     @saved="attributesRequest.reload()"
   />
 </template>

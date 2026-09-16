@@ -9,9 +9,10 @@ from commera.api.admin.catalog import (
 	clear_swatch,
 	get_attribute_values,
 	get_attributes,
+	rename_attribute_value,
 	set_swatch,
 )
-from commera.swatches import CACHE_KEY, get_swatch_map
+from commera.swatches import CACHE_KEY, COLOUR_ATTRIBUTE, get_swatch_map
 
 
 class SwatchTestCase(IntegrationTestCase):
@@ -106,3 +107,41 @@ class TestSwatchReads(SwatchTestCase):
 		set_swatch(self.attribute, "Navy", color="#FFFFFF")
 
 		self.assertEqual(get_swatch_map(self.attribute)["Navy"]["color"], "#FFFFFF")
+
+
+class TestAttributeValueRename(SwatchTestCase):
+	def test_an_unused_value_can_be_renamed(self):
+		rename_attribute_value(self.attribute, "Olive", "Moss")
+
+		self.assertEqual(
+			[row["value"] for row in get_attribute_values(self.attribute)], ["Navy", "Denim", "Moss"]
+		)
+
+	def test_renaming_carries_the_swatch_across(self):
+		set_swatch(self.attribute, "Olive", color="#4A5D3A")
+		rename_attribute_value(self.attribute, "Olive", "Moss")
+
+		swatches = get_swatch_map(self.attribute)
+		self.assertNotIn("Olive", swatches)
+		self.assertEqual(swatches["Moss"]["color"], "#4A5D3A")
+
+	def test_a_name_the_attribute_already_has_is_refused(self):
+		with self.assertRaises(frappe.ValidationError):
+			rename_attribute_value(self.attribute, "Olive", "Navy")
+
+	def test_an_empty_name_is_refused(self):
+		with self.assertRaises(frappe.ValidationError):
+			rename_attribute_value(self.attribute, "Olive", "   ")
+
+	def test_the_attributes_screen_marks_only_the_colour_axis(self):
+		by_name = {row["name"]: row for row in get_attributes()}
+
+		self.assertFalse(by_name[self.attribute]["is_colour"])
+		if COLOUR_ATTRIBUTE in by_name:
+			self.assertTrue(by_name[COLOUR_ATTRIBUTE]["is_colour"])
+
+	def test_every_value_reports_whether_a_product_uses_it(self):
+		values = get_attribute_values(self.attribute)
+
+		# Nothing in this test's own attribute is on a product yet.
+		self.assertEqual({row["used_by"] for row in values}, {0})
