@@ -1,7 +1,10 @@
 import frappe
+from frappe.utils.data import get_datetime
 
 from commera import seo
 from commera.api.admin.catalog import DEFAULT_OPTION_ATTRIBUTE, DEFAULT_SIZE_VALUE
+from commera.api.reviews import PAGE_LENGTH as REVIEWS_PAGE_LENGTH
+from commera.api.reviews import get_reviews
 from commera.product_detail import get_product_detail
 from commera.utils import get_available_stock, get_product_list
 
@@ -54,6 +57,7 @@ def get_context(context):
 	context.discount_percent = detail["discount_percent"]
 	context.size_chart = get_size_chart(product.brand, product_variant.item_group)
 	context.item_qty = get_available_stock(product.item_code, detail["warehouse"])
+	context.reviews = get_reviews_for_context(product_variant.name)
 	context.breadcrumbs = [
 		{"label": "Products", "href": f"/{frappe.local.lang}/products/"},
 		{"label": product_variant.display_name, "href": ""},
@@ -81,6 +85,8 @@ def add_seo(context, detail):
 			images=detail["images"],
 			price=price,
 			availability=availability,
+			review_count=context.reviews["review_count"],
+			average_rating=context.reviews["average_rating"],
 		),
 		seo.build_breadcrumb_json_ld(context.breadcrumbs),
 	]
@@ -114,6 +120,17 @@ def get_other_variants(product_variant):
 	if not variants:
 		return []
 	return get_product_list(product_list=variants)
+
+
+def get_reviews_for_context(variant):
+	"""Jinja's `| tojson` uses stdlib json.dumps, which can't serialise the raw datetime objects
+	get_reviews() returns, so isoformat them here before they reach the template."""
+	reviews = get_reviews(variant, page_length=REVIEWS_PAGE_LENGTH)
+	for review in reviews["reviews"]:
+		review["creation"] = get_datetime(review["creation"]).isoformat()
+		if review["replied_on"]:
+			review["replied_on"] = get_datetime(review["replied_on"]).isoformat()
+	return reviews
 
 
 def get_size_chart(brand, item_group):

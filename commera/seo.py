@@ -136,7 +136,16 @@ def build_product_seo(
 	}
 
 
-def build_product_json_ld(product_variant, product, images, price=None, availability=None, currency=None):
+def build_product_json_ld(
+	product_variant,
+	product,
+	images,
+	price=None,
+	availability=None,
+	currency=None,
+	review_count=None,
+	average_rating=None,
+):
 	override = product_variant.get("json_ld")
 	if override:
 		# orjson raises straight through frappe.parse_json, so a half-edited override falls back to generated.
@@ -187,6 +196,15 @@ def build_product_json_ld(product_variant, product, images, price=None, availabi
 		if schema_avail:
 			offer["availability"] = schema_avail
 		json_ld["offers"] = offer
+
+	# An aggregateRating with zero reviews is penalised by Google's rich-result validator, so the
+	# key is omitted entirely rather than emitted with reviewCount: 0.
+	if review_count:
+		json_ld["aggregateRating"] = {
+			"@type": "AggregateRating",
+			"ratingValue": f"{flt(average_rating):.1f}",
+			"reviewCount": review_count,
+		}
 
 	return json_ld
 
