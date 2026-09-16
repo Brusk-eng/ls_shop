@@ -6,13 +6,3 @@
 <span class="swatch-dot swatch-dot-{{ size }}" style="background-color: {{ swatch.color }}" title="{{ value }}"></span>
 {%- endif -%}
 {%- endmacro %}
-
-{% macro colour_tile(image_url, value, swatches) -%}
-{%- if image_url -%}
-<img src="{{ image_url }}" alt="{{ value }}">
-{%- elif (swatches or {}).get(value) -%}
-{{ swatch_dot(value, swatches, "lg") }}
-{%- else -%}
-<img src="/assets/commera/images/1.jpg" alt="{{ value }}">
-{%- endif -%}
-{%- endmacro %}

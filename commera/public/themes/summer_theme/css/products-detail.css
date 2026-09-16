@@ -100,9 +100,3 @@
 .btn-quantity .bootstrap-touchspin input {
 	display: block;
 }
-
-/* A swatch stands in for the variant photo, so it inherits the tile's selected/hover ring. */
-.product-colour-list a.is-active .swatch-dot,
-.product-colour-list a:hover .swatch-dot {
-	border-color: var(--secondary);
-}

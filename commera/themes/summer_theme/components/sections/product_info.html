@@ -1,4 +1,4 @@
-{% from "components/macros/swatch.html" import colour_tile %}
+{% from "components/macros/swatch.html" import swatch_dot %}
 {# The size radios reload the page: price, stock and the cart variant are all resolved per size by the controller. #}
 <div class="col-xl-8 col-md-8" x-data='{
 		product: JSON.parse({{ product_variant.as_json() | tojson }}),
@@ -105,18 +105,18 @@
 
 					{% if other_variants %}
 					<div class="meta-content mb-4">
-						<label class="form-label">{{ _("Colour") }}</label>
+						<label class="form-label">{{ _("Colour") }}: {{ swatch_dot(product_variant.attribute_value, swatches) }}{{ product_variant.attribute_value }}</label>
 						<ul class="product-colour-list">
 							<li>
 								<a href="/{{ frappe.lang or 'en' }}/products/{{ product_variant.route }}" class="is-active" aria-current="page">
-									{{ colour_tile(images[0], product_variant.attribute_value, swatches) }}
+									<img src="{{ images[0] }}" alt="{{ product_variant.attribute_value }}">
 									<span>{{ product_variant.attribute_value }}</span>
 								</a>
 							</li>
 							{% for variant in other_variants %}
 							<li>
 								<a href="/{{ frappe.lang or 'en' }}/products/{{ variant.route }}">
-									{{ colour_tile(variant.image, variant.attribute_value, swatches) }}
+									<img src="{{ variant.image or '/assets/commera/images/1.jpg' }}" alt="{{ variant.attribute_value }}">
 									<span>{{ variant.attribute_value }}</span>
 								</a>
 							</li>
