@@ -1,0 +1,156 @@
+{
+	"actions": [],
+	"allow_rename": 0,
+	"creation": "2026-09-16 00:00:00.000000",
+	"doctype": "DocType",
+	"engine": "InnoDB",
+	"field_order": [
+		"variant",
+		"item_style",
+		"column_break_rating",
+		"rating",
+		"review_title",
+		"comment",
+		"purchase_section",
+		"verified_purchase",
+		"sales_order",
+		"column_break_purchase",
+		"purchased_item",
+		"moderation_section",
+		"is_published",
+		"column_break_moderation",
+		"seller_reply",
+		"replied_on",
+		"replied_by"
+	],
+	"fields": [
+		{
+			"fieldname": "variant",
+			"fieldtype": "Link",
+			"in_list_view": 1,
+			"in_standard_filter": 1,
+			"label": "Variant",
+			"options": "Style Attribute Variant",
+			"reqd": 1
+		},
+		{
+			"fieldname": "item_style",
+			"fieldtype": "Link",
+			"label": "Item Style",
+			"options": "Item",
+			"read_only": 1,
+			"reqd": 1
+		},
+		{
+			"fieldname": "column_break_rating",
+			"fieldtype": "Column Break"
+		},
+		{
+			"fieldname": "rating",
+			"fieldtype": "Int",
+			"in_list_view": 1,
+			"label": "Rating",
+			"reqd": 1
+		},
+		{
+			"fieldname": "review_title",
+			"fieldtype": "Data",
+			"label": "Review Title"
+		},
+		{
+			"fieldname": "comment",
+			"fieldtype": "Text",
+			"label": "Comment"
+		},
+		{
+			"fieldname": "purchase_section",
+			"fieldtype": "Section Break",
+			"label": "Purchase Verification"
+		},
+		{
+			"default": "0",
+			"fieldname": "verified_purchase",
+			"fieldtype": "Check",
+			"in_list_view": 1,
+			"label": "Verified Purchase",
+			"read_only": 1
+		},
+		{
+			"fieldname": "sales_order",
+			"fieldtype": "Link",
+			"label": "Sales Order",
+			"options": "Sales Order",
+			"read_only": 1
+		},
+		{
+			"fieldname": "column_break_purchase",
+			"fieldtype": "Column Break"
+		},
+		{
+			"description": "Provenance for the Verified Purchase badge only — not a claim about which size the review is about, and never rendered on the storefront.",
+			"fieldname": "purchased_item",
+			"fieldtype": "Link",
+			"label": "Purchased Item",
+			"options": "Item",
+			"read_only": 1
+		},
+		{
+			"fieldname": "moderation_section",
+			"fieldtype": "Section Break",
+			"label": "Moderation"
+		},
+		{
+			"default": "0",
+			"fieldname": "is_published",
+			"fieldtype": "Check",
+			"in_list_view": 1,
+			"label": "Is Published?"
+		},
+		{
+			"fieldname": "column_break_moderation",
+			"fieldtype": "Column Break"
+		},
+		{
+			"fieldname": "seller_reply",
+			"fieldtype": "Text",
+			"label": "Seller Reply"
+		},
+		{
+			"fieldname": "replied_on",
+			"fieldtype": "Datetime",
+			"label": "Replied On",
+			"read_only": 1
+		},
+		{
+			"fieldname": "replied_by",
+			"fieldtype": "Link",
+			"label": "Replied By",
+			"options": "User",
+			"read_only": 1
+		}
+	],
+	"index_web_pages_for_search": 1,
+	"links": [],
+	"modified": "2026-09-16 00:00:00.000000",
+	"modified_by": "Administrator",
+	"module": "Commera Ecommerce",
+	"name": "Product Review",
+	"owner": "Administrator",
+	"permissions": [
+		{
+			"create": 1,
+			"delete": 1,
+			"email": 1,
+			"export": 1,
+			"print": 1,
+			"read": 1,
+			"report": 1,
+			"role": "System Manager",
+			"share": 1,
+			"write": 1
+		}
+	],
+	"sort_field": "creation",
+	"sort_order": "DESC",
+	"states": []
+}

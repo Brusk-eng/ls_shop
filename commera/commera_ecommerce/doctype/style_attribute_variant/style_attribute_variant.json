@@ -22,6 +22,10 @@
 		"images",
 		"section_break_hjed",
 		"sizes",
+		"reviews_section",
+		"average_rating",
+		"column_break_reviews",
+		"review_count",
 		"seo_section",
 		"seo_preview",
 		"meta_title",
@@ -119,6 +123,30 @@
 		},
 		{
 			"collapsible": 1,
+			"fieldname": "reviews_section",
+			"fieldtype": "Section Break",
+			"label": "Reviews"
+		},
+		{
+			"default": "0",
+			"fieldname": "average_rating",
+			"fieldtype": "Float",
+			"label": "Average Rating",
+			"read_only": 1
+		},
+		{
+			"fieldname": "column_break_reviews",
+			"fieldtype": "Column Break"
+		},
+		{
+			"default": "0",
+			"fieldname": "review_count",
+			"fieldtype": "Int",
+			"label": "Review Count",
+			"read_only": 1
+		},
+		{
+			"collapsible": 1,
 			"fieldname": "seo_section",
 			"fieldtype": "Section Break",
 			"label": "Search Engine Listing"
@@ -169,7 +197,7 @@
 	"index_web_pages_for_search": 1,
 	"is_published_field": "is_published",
 	"links": [],
-	"modified": "2025-06-30 06:03:33.477945",
+	"modified": "2026-09-16 00:00:00.000000",
 	"modified_by": "Administrator",
 	"module": "Commera Ecommerce",
 	"name": "Style Attribute Variant",

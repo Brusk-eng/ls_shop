@@ -32,6 +32,7 @@ class StyleAttributeVariant(Document):
 
 		attribute_name: DF.Data | None
 		attribute_value: DF.Data
+		average_rating: DF.Float
 		configurator: DF.Link
 		display_name: DF.Data
 		images: DF.Table[WebsiteSlideshowItem]
@@ -44,6 +45,7 @@ class StyleAttributeVariant(Document):
 		meta_title: DF.Data | None
 		noindex: DF.Check
 		og_image: DF.AttachImage | None
+		review_count: DF.Int
 		route: DF.Data | None
 		sizes: DF.Table[ColorSizeItem]
 
