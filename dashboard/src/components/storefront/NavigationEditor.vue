@@ -1,6 +1,6 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
-import { Badge, Button, Dropdown, LoadingText, Tree, dialog, toast } from 'frappe-ui'
+import { Badge, Button, Dropdown, Skeleton, Tree, dialog, toast } from 'frappe-ui'
 import EmptyState from '../EmptyState.vue'
 import CascadePublishDialog from './CascadePublishDialog.vue'
 import ChromePreview from './ChromePreview.vue'
@@ -264,7 +264,34 @@ const menuActions = computed(() => [
       </Dropdown>
     </div>
 
-    <LoadingText v-if="loading && !menu.length" class="mt-4" />
+    <div v-if="loading && !menu.length" class="mt-3 gap-6 lg:flex" aria-hidden="true">
+      <div class="min-w-0 flex-1">
+        <div
+          v-for="(row, index) in [
+            { indent: '', width: 'w-32' },
+            { indent: 'ps-6', width: 'w-40' },
+            { indent: 'ps-6', width: 'w-28' },
+            { indent: '', width: 'w-36' },
+            { indent: 'ps-6', width: 'w-24' },
+            { indent: '', width: 'w-32' },
+          ]"
+          :key="index"
+          class="flex h-8 items-center gap-2"
+          :class="row.indent"
+        >
+          <Skeleton class="h-4 rounded-4" :class="row.width" />
+          <Skeleton class="ms-auto h-3.5 w-10 shrink-0 rounded-4" />
+        </div>
+      </div>
+
+      <aside class="mt-8 w-full shrink-0 rounded-6 border border-outline-gray-1 p-4 lg:mt-0 lg:w-[24rem]">
+        <Skeleton class="h-5 w-32 rounded-4" />
+        <div v-for="field in 3" :key="field" class="mt-4">
+          <Skeleton class="h-3.5 w-24 rounded-4" />
+          <Skeleton class="mt-1.5 h-7 w-full rounded-4" />
+        </div>
+      </aside>
+    </div>
 
     <EmptyState
       v-else-if="loadError"

@@ -5,7 +5,7 @@
  */
 import { computed, onMounted, ref } from 'vue'
 import { useMediaQuery } from '@vueuse/core'
-import { Badge, Button, LoadingText, toast } from 'frappe-ui'
+import { Badge, Button, Skeleton, toast } from 'frappe-ui'
 import EmptyState from '../EmptyState.vue'
 import ChromePreview from './ChromePreview.vue'
 import ThemeField from './ThemeField.vue'
@@ -59,7 +59,35 @@ async function saveSetting(field, value) {
 
 <template>
   <div>
-    <LoadingText v-if="loading && !themes.length" class="py-10" />
+    <div v-if="loading && !themes.length" class="gap-6 lg:flex lg:items-start" aria-hidden="true">
+      <section class="w-full shrink-0 lg:w-[22rem]">
+        <Skeleton class="h-5 w-36 rounded-4" />
+        <Skeleton class="mt-2 h-3.5 w-64 max-w-full rounded-4" />
+        <div class="mt-3 space-y-2">
+          <div v-for="card in 3" :key="card" class="flex items-center gap-3 rounded-5 border border-outline-gray-1 p-3">
+            <Skeleton class="size-9 shrink-0 rounded-4" />
+            <div class="min-w-0 flex-1">
+              <Skeleton class="h-4 w-32 rounded-4" />
+              <Skeleton class="mt-2 h-3.5 w-44 max-w-full rounded-4" />
+            </div>
+            <Skeleton class="h-5 w-12 shrink-0 rounded-full" />
+          </div>
+        </div>
+      </section>
+
+      <div class="mt-8 min-w-0 flex-1 lg:mt-0">
+        <Skeleton class="h-5 w-48 rounded-4" />
+        <div v-for="group in 2" :key="group" class="mt-4">
+          <Skeleton class="h-3.5 w-24 rounded-4" />
+          <div class="mt-2 grid gap-4 sm:grid-cols-2">
+            <div v-for="field in 4" :key="field">
+              <Skeleton class="h-3.5 w-28 rounded-4" />
+              <Skeleton class="mt-1.5 h-7 w-full rounded-4" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <EmptyState
       v-else-if="loadError"
