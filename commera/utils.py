@@ -426,6 +426,20 @@ def get_current_page():
 	return min(max(cint(frappe.form_dict.get("page")), 1), MAX_STOREFRONT_PAGE)
 
 
+PAGE_SIZE_OPTIONS = (12, 24, 48)
+DEFAULT_PAGE_SIZE = 24
+
+
+def get_page_size():
+	"""The shopper's own choice for this session, else the merchant default off Commera Settings."""
+	page_size = cint(frappe.form_dict.get("page_size"))
+	if page_size not in PAGE_SIZE_OPTIONS:
+		# A Select holds its value as text, and an unset one reads back blank.
+		page_size = cint(frappe.db.get_single_value("Commera Settings", "products_per_page"))
+	# Anything off the dropdown is someone editing the URL, and an unbounded page_length is a table scan.
+	return page_size if page_size in PAGE_SIZE_OPTIONS else DEFAULT_PAGE_SIZE
+
+
 def can_return(order_name, return_period_days):
 	"""Check if the order is still within the return period."""
 

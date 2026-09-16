@@ -23,6 +23,8 @@
   "default_price_list",
   "column_break_sgnu",
   "sale_price_list",
+  "product_listing_section",
+  "products_per_page",
   "delivery_section",
   "shipping_rule",
   "reason_for_return",
@@ -245,6 +247,19 @@
    "fieldtype": "Link",
    "label": "Sale Price List",
    "options": "Price List"
+  },
+  {
+   "fieldname": "product_listing_section",
+   "fieldtype": "Section Break",
+   "label": "Product Listing Page"
+  },
+  {
+   "default": "24",
+   "description": "How many products a shopper sees per page on the product listing. Shoppers can pick their own from the storefront's Show dropdown.",
+   "fieldname": "products_per_page",
+   "fieldtype": "Select",
+   "label": "Products Per Page",
+   "options": "12\n24\n48"
   },
   {
    "fieldname": "reason_for_return",

@@ -42,7 +42,7 @@
 
 <script src="{{ shop_theme_asset_url('scripts/synced-query-params.js') }}"></script>
 <script>
-    const querySync = new QuerySync({ defaultValues: { page: 1 } });
+    const querySync = new QuerySync({ defaultValues: { page: 1, page_size: 24 } });
     const { state } = querySync;
     window.query_state = state;
 </script>

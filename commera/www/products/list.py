@@ -9,8 +9,10 @@ from commera.product_detail import size_sort_key
 from commera.search import query as search_query
 from commera.shop_data import get_category_facets
 from commera.utils import (
+	PAGE_SIZE_OPTIONS,
 	get_current_page,
 	get_nested_links,
+	get_page_size,
 	get_product_base_query,
 	get_product_list,
 	get_total_product_count,
@@ -115,7 +117,8 @@ def get_context(context):
 	page = get_current_page()
 	selected_filters = get_selected_filters()
 	filters, price_range = get_product_filters(selected_filters)
-	context.page_length = 30
+	context.page_length = get_page_size()
+	context.page_size_options = PAGE_SIZE_OPTIONS
 	context.show_relevance_sort = search_query.relevance_sort_available(selected_filters)
 	context.sort_by = get_sort_by("default" if context.show_relevance_sort else "new_arrival")
 	products = get_product_list(
