@@ -1,5 +1,4 @@
 {% from "components/macros/swatch.html" import swatch_dot %}
-{% set swatches = swatches or {} %}
 {# The size radios reload the page: price, stock and the cart variant are all resolved per size by the controller. #}
 <div class="col-xl-8 col-md-8" x-data='{
 		product: JSON.parse({{ product_variant.as_json() | tojson }}),

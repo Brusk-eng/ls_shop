@@ -34,8 +34,12 @@ watch(
 )
 
 async function save(row, changes) {
-  savingValue.value = row.value
   const next = { ...row, ...changes }
+  // Emptying the hex box is how an owner takes a swatch off, so it clears rather than asking the
+  // server to store a swatch with nothing to show — which it rightly refuses.
+  if (!next.color && !next.image) return clear(row)
+
+  savingValue.value = row.value
   await setAction.submit({
     attribute: props.attribute.name,
     value: row.value,
@@ -93,12 +97,15 @@ async function uploadImage(row, event) {
             @change="save(row, { color: $event.target.value })"
           />
 
+          <!-- TextInput emits update:modelValue on the settled value and has no change event of
+               its own; a @change here would fall through to the native input and hand us a DOM
+               Event instead of the hex. -->
           <TextInput
             :model-value="row.color ?? ''"
             class="w-28 shrink-0"
             placeholder="#000000"
             :aria-label="`${row.value} hex`"
-            @change="save(row, { color: $event })"
+            @update:model-value="save(row, { color: $event })"
           />
 
           <input
