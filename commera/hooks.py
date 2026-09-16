@@ -116,6 +116,7 @@ doctype_js = {
 
 after_install = "commera.migrate.after_install"
 after_migrate = "commera.migrate.after_migrate"
+setup_wizard_complete = "commera.swatches.drop_unused_colour_attribute"
 
 
 doc_events = {

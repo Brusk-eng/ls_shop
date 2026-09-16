@@ -16,6 +16,8 @@ from commera.swatches import (
 	CACHE_KEY,
 	COLOUR_ATTRIBUTE,
 	DEFAULT_SWATCHES,
+	DUPLICATE_COLOUR_ATTRIBUTE,
+	drop_unused_colour_attribute,
 	ensure_default_swatch,
 	get_default_colour,
 	get_swatch_map,
@@ -195,3 +197,16 @@ class TestDefaultSwatches(SwatchTestCase):
 	def test_the_default_lookup_ignores_case_and_unknown_names(self):
 		self.assertEqual(get_default_colour("  NAVY "), DEFAULT_SWATCHES["navy"])
 		self.assertIsNone(get_default_colour("Chartreuse Sunset"))
+
+
+class TestDuplicateColourAttribute(IntegrationTestCase):
+	def test_the_setup_wizard_leaves_one_colour_attribute(self):
+		if not frappe.db.exists("Item Attribute", DUPLICATE_COLOUR_ATTRIBUTE):
+			attribute = frappe.new_doc("Item Attribute")
+			attribute.attribute_name = DUPLICATE_COLOUR_ATTRIBUTE
+			attribute.append("item_attribute_values", {"attribute_value": "Red", "abbr": "RED"})
+			attribute.insert()
+
+		drop_unused_colour_attribute()
+
+		self.assertFalse(frappe.db.exists("Item Attribute", DUPLICATE_COLOUR_ATTRIBUTE))

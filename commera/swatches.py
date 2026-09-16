@@ -83,3 +83,17 @@ def ensure_default_swatch(attribute: str, value: str):
 	swatch.attribute_value = value
 	swatch.color = colour
 	swatch.insert(ignore_permissions=True)
+
+
+# ERPNext's setup wizard seeds the British spelling after commera installs, so a store would end up
+# with two colour attributes; "Color" is the one commera keys off.
+DUPLICATE_COLOUR_ATTRIBUTE = "Colour"
+
+
+def drop_unused_colour_attribute(args=None):
+	if not frappe.db.exists("Item Attribute", DUPLICATE_COLOUR_ATTRIBUTE):
+		return
+	if frappe.db.exists("Item Variant Attribute", {"attribute": DUPLICATE_COLOUR_ATTRIBUTE}):
+		return
+
+	frappe.delete_doc("Item Attribute", DUPLICATE_COLOUR_ATTRIBUTE, ignore_permissions=True, force=True)
