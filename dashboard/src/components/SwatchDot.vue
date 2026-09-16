@@ -1,9 +1,4 @@
 <script setup>
-/**
- * One attribute value's swatch. The fallback chain lives here and nowhere else, so every
- * surface that draws a colour — Attributes, the add-product pickers, the variant grid —
- * degrades the same way when a store has not set one.
- */
 import { computed } from 'vue'
 
 const SIZES = {

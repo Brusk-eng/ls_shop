@@ -73,7 +73,6 @@ class TestSwatchReads(SwatchTestCase):
 
 		self.assertEqual([row["value"] for row in values], ["Navy", "Denim", "Olive"])
 		self.assertEqual(values[2]["color"], "#4A5D3A")
-		# A value with no swatch still answers the same keys, so no caller branches on a missing record.
 		self.assertIsNone(values[0]["color"])
 		self.assertIsNone(values[0]["image"])
 
@@ -143,5 +142,4 @@ class TestAttributeValueRename(SwatchTestCase):
 	def test_every_value_reports_whether_a_product_uses_it(self):
 		values = get_attribute_values(self.attribute)
 
-		# Nothing in this test's own attribute is on a product yet.
 		self.assertEqual({row["used_by"] for row in values}, {0})

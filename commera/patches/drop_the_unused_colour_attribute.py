@@ -14,8 +14,6 @@ def execute():
 	if not frappe.db.exists("Item Attribute", DUPLICATE):
 		return
 
-	# Never touch one a store has actually built products on — that is a merge, not a cleanup, and it
-	# would move item codes. An owner who has used it keeps it.
 	if frappe.db.exists("Item Variant Attribute", {"attribute": DUPLICATE}):
 		return
 

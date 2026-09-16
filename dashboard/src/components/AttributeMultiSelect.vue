@@ -29,7 +29,6 @@ const valuesRequest = useAdminRead('catalog.get_attribute_values', {
   refetch: true,
 })
 
-// Surfaced so a sibling can draw the same swatches without fetching this list again.
 watch(
   () => valuesRequest.data,
   (values) => emit('values', values ?? []),
@@ -45,8 +44,6 @@ watch(
   },
 )
 
-// A stored value arrives as {value, color, image}; one the owner just typed is a bare string
-// that has no swatch until the Attributes screen gives it one.
 const options = computed(() => [
   ...(valuesRequest.data ?? []).map((entry) => ({
     label: entry.value,

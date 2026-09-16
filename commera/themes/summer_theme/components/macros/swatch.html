@@ -1,6 +1,3 @@
-{# The swatch fallback chain, in one place: image, then colour, then nothing at all — a store
-   that has set none must still get a readable chip rather than an empty circle. #}
-
 {% macro swatch_dot(value, swatches, size="sm") -%}
 {%- set swatch = (swatches or {}).get(value) -%}
 {%- if swatch and swatch.image -%}
@@ -10,8 +7,6 @@
 {%- endif -%}
 {%- endmacro %}
 
-{# The product page's tiles are big enough to show the garment, so the photo wins here and the
-   swatch is only what a variant with no photo of its own gets. #}
 {% macro colour_tile(image_url, value, swatches) -%}
 {%- if image_url -%}
 <img src="{{ image_url }}" alt="{{ value }}">

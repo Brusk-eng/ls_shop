@@ -913,7 +913,6 @@ def get_attributes():
 				for value in values_by_attribute.get(name, [])
 			],
 			"used_by": usage_by_attribute.get(name, 0),
-			# Only the colour axis gets swatches; a size or a format has no colour to show.
 			"is_colour": name == COLOUR_ATTRIBUTE,
 		}
 		for name in attribute_names
@@ -1114,7 +1113,6 @@ def rename_attribute_value(attribute: str, value: str, new_value: str):
 	row.attribute_value = new_value
 	attribute_doc.save()
 
-	# The Swatch is named after the value, so it has to follow rather than be orphaned.
 	existing = frappe.db.exists("Swatch", {"attribute": attribute, "attribute_value": value})
 	if existing:
 		swatch = frappe.get_doc("Swatch", existing)

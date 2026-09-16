@@ -1,9 +1,4 @@
 <script setup>
-/**
- * One attribute's values: rename them, and — on the colour axis only — give each one the swatch a
- * shopper sees instead of the word. Swatches are store-wide, so this is the only screen that
- * writes them; a product picks colours, it never defines them.
- */
 import { computed, nextTick, ref, watch } from 'vue'
 import { Button, Dialog, ErrorMessage, TextInput, toast, useFileUpload } from 'frappe-ui'
 import { useAdminAction } from '../data/api'
@@ -21,8 +16,6 @@ const clearAction = useAdminAction('catalog.clear_swatch')
 const renameAction = useAdminAction('catalog.rename_attribute_value')
 const addAction = useAdminAction('catalog.add_attribute_value')
 
-// Edited in place so a row shows its new colour the moment it is picked, rather than after a
-// round trip through the Attributes list.
 const rows = ref([])
 const fileInputs = ref({})
 const nameInputs = ref({})
@@ -64,8 +57,6 @@ async function commitRename(row, typed) {
 
 async function save(row, changes) {
   const next = { ...row, ...changes }
-  // Emptying the hex box is how an owner takes a swatch off, so it clears rather than asking the
-  // server to store a swatch with nothing to show — which it rightly refuses.
   if (!next.color && !next.image) return clear(row)
 
   savingValue.value = row.value
@@ -138,8 +129,6 @@ async function addValue() {
             @update:model-value="commitRename(row, $event)"
             @keydown.escape="editingValue = ''"
           />
-          <!-- A value already on a product cannot be renamed: its item code and storefront route
-               were built from the old word and do not move. The title says so on hover. -->
           <button
             v-else
             type="button"
