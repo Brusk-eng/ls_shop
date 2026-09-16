@@ -83,7 +83,7 @@ class TestSwatchReads(SwatchTestCase):
 
 		# The ceiling is what matters: a swatch read per value would climb with the store,
 		# and every attribute on the site is in this count, not just the one built here.
-		with self.assertQueryCount(8):
+		with self.assertQueryCount(4):
 			get_attributes()
 
 	def test_clearing_a_swatch_leaves_the_value_itself(self):
