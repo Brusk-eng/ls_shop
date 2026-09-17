@@ -89,6 +89,9 @@
             </ul>
         </div>
     </div>
+    <a x-cloak x-show="selectedOption && selectedOption.directions_url" x-bind:href="selectedOption && selectedOption.directions_url"
+        target="_blank" rel="noopener" class="self-start text-sm font-medium text-secondary-accent underline hover:text-accent"
+        x-text="$store.i18n.t('Get directions')"></a>
 </div>
 
 {% endmacro %}

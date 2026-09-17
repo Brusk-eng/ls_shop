@@ -158,6 +158,14 @@
 											<option value="{{ address.warehouse_name }}">{{ address.title }} &mdash; {{ address.display }}</option>
 										{% endfor %}
 									</select>
+									{% for address in store_pickup_addresses if address.directions_url %}
+										<a href="{{ address.directions_url }}" target="_blank" rel="noopener"
+											class="checkout-edit d-inline-block m-t10" x-cloak
+											x-show='store_pickup_warehouse === {{ address.warehouse_name | tojson }}'>
+											<i class="icon feather icon-map-pin"></i>
+											<span class="m-l5">{{ _("Get directions") }}</span>
+										</a>
+									{% endfor %}
 								</div>
 							</div>
 						</template>
