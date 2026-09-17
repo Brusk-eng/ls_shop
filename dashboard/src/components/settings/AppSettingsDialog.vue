@@ -52,7 +52,7 @@ watch(
         </SettingsNavItem>
         <SettingsNavItem value="locations">
           <template #prefix><span class="lucide-map-pin size-4" aria-hidden="true" /></template>
-          Locations
+          Pickup locations
         </SettingsNavItem>
         <SettingsNavItem value="appearance">
           <template #prefix><span class="lucide-sun-moon size-4" aria-hidden="true" /></template>

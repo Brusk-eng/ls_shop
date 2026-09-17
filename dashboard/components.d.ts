@@ -54,7 +54,7 @@ declare module 'vue' {
     OrderCustomerPanel: typeof import('./src/components/OrderCustomerPanel.vue')['default']
     OrderProgress: typeof import('./src/components/OrderProgress.vue')['default']
     PageBody: typeof import('./src/components/PageBody.vue')['default']
-    PickupAddressDialog: typeof import('./src/components/settings/PickupAddressDialog.vue')['default']
+    PickupAddressConfig: typeof import('./src/components/settings/PickupAddressConfig.vue')['default']
     ProductBasics: typeof import('./src/components/product/ProductBasics.vue')['default']
     ProductOrganization: typeof import('./src/components/product/ProductOrganization.vue')['default']
     ProductPricing: typeof import('./src/components/product/ProductPricing.vue')['default']
