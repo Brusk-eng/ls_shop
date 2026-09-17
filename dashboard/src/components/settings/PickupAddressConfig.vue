@@ -207,7 +207,7 @@ async function useCurrentLocation() {
         <LocationMap
           ref="map"
           v-model="values.custom_store_location"
-          empty-hint="No pin yet — click the map, or fill in the address above"
+          empty-hint="No pin yet — click the map to place one"
           @place-by-hand="placedByHand"
         />
 
@@ -239,7 +239,7 @@ async function useCurrentLocation() {
             :key="`${match.latitude},${match.longitude}`"
             variant="ghost"
             icon-left="lucide-map-pin"
-            class="h-auto justify-start whitespace-normal py-1.5 text-left"
+            class="h-auto !justify-start py-1.5"
             :label="match.label"
             @click="chooseMatch(match)"
           />

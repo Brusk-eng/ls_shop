@@ -144,7 +144,7 @@ onBeforeUnmount(() => {
       <!-- Palette colours, not theme tokens, on purpose: the pill sits on map tiles that stay light
            in both themes, and every token flips in dark mode (surface-gray-7 turns light grey under
            white text). Frappe-ui defines the raw gray scale once, so it does not flip. -->
-      <p class="rounded bg-gray-900 px-3 py-1.5 text-sm text-white shadow">{{ emptyHint }}</p>
+      <p class="rounded-full bg-gray-900 px-3 py-1.5 text-sm text-white shadow">{{ emptyHint }}</p>
     </div>
   </div>
 </template>
