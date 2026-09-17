@@ -1,5 +1,5 @@
 {# Bootstrap's tab JS is banned, so Alpine toggles the .active/.show classes bootstrap's own CSS keys the panes off. #}
-{% from "templates/macros/reviews.html" import reviews_state %}
+{% from "templates/macros/reviews.html" import reviews_state, star_svg %}
 {% from "templates/macros/signup_modal.html" import signup_modal %}
 {{ reviews_state() }}
 <section class="content-inner-3 pb-0">
@@ -100,7 +100,7 @@
 								<ul class="dz-rating justify-content-center">
 									<template x-for="star in 5" :key="star">
 										<li :class="star <= Math.round(average_rating) ? 'star-fill' : ''">
-											<i class="icon feather icon-star"></i>
+											{{ star_svg() }}
 										</li>
 									</template>
 								</ul>
@@ -113,7 +113,7 @@
 								<template x-for="star in [5, 4, 3, 2, 1]" :key="star">
 									<div class="d-flex align-items-center gap-2 mb-1 rating-histogram-row">
 										<span x-text="star"></span>
-										<i class="icon feather icon-star text-warning"></i>
+										{{ star_svg(classes='text-warning') }}
 										<div class="progress flex-grow-1" style="height:6px">
 											<div class="progress-bar bg-warning" :style="'width:' + histogram_percent(star) + '%'"></div>
 										</div>
@@ -130,7 +130,7 @@
 										<ul class="dz-rating mb-2">
 											<template x-for="star in 5" :key="star">
 												<li :class="star <= review.rating ? 'star-fill' : ''">
-													<i class="icon feather icon-star"></i>
+													{{ star_svg() }}
 												</li>
 											</template>
 										</ul>
@@ -174,7 +174,7 @@
 											<li :class="star <= form_rating ? 'star-fill' : ''">
 												<button type="button" class="btn btn-link p-0" @click="form_rating = star"
 													:aria-pressed="form_rating === star">
-													<i class="icon feather icon-star"></i>
+													{{ star_svg() }}
 												</button>
 											</li>
 										</template>
