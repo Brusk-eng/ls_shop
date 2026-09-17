@@ -114,6 +114,8 @@
 	list-style: none;
 }
 
+/* Only the summary block's stars are centred; a review's own stars sit above its left-aligned name. */
+.comments-area .comment-list .dz-rating,
 .comments-area .dz-rating.dz-rating-input {
 	justify-content: flex-start;
 }
