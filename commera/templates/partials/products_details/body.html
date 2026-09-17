@@ -364,11 +364,16 @@
             <div x-show="submitted" x-cloak class="rounded-md bg-green-50 p-4 text-sm text-green-700">
                 {{ _("Thanks! Your review is waiting for approval.") }}
             </div>
-            <div x-show="has_reviewed && !submitted" x-cloak class="text-sm text-gray-500">
-                {{ _("You've already reviewed this product.") }}
+            <div x-show="my_review && !editing" x-cloak class="flex items-center gap-4">
+                <span x-show="!submitted" class="text-sm text-gray-500">{{ _("You've already reviewed this product.") }}</span>
+                <button type="button" @click="edit_review()"
+                    class="cursor-pointer rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                    {{ _("Edit your review") }}
+                </button>
             </div>
-            <form x-show="can_review && !submitted" x-cloak @submit.prevent="submit_review()" class="max-w-md space-y-4">
-                <h3 class="text-base font-semibold">{{ _("Write a review") }}</h3>
+            <form x-show="editing || (can_review && !submitted)" x-cloak
+                @submit.prevent="editing ? save_review() : submit_review()" class="mt-4 max-w-md space-y-4">
+                <h3 class="text-base font-semibold" x-text="editing ? '{{ _('Edit your review') }}' : '{{ _('Write a review') }}'"></h3>
                 <div class="flex items-center gap-1" role="radiogroup" aria-label="{{ _('Rating') }}">
                     <template x-for="star in 5" :key="star">
                         <button type="button" @click="form_rating = star" :aria-pressed="form_rating === star"
@@ -383,10 +388,15 @@
                 <textarea x-model="form_comment" maxlength="2000" rows="4"
                     placeholder="{{ _('Share your thoughts about this product') }}"
                     class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-accent focus:outline-none"></textarea>
-                <button type="submit" :disabled="submitting"
-                    class="cursor-pointer rounded-md bg-button px-6 py-2 text-sm font-normal text-white opacity-90 hover:opacity-100 disabled:opacity-75">
-                    {{ _("Submit Review") }}
-                </button>
+                <div class="flex items-center gap-4">
+                    <button type="submit" :disabled="submitting"
+                        x-text="editing ? '{{ _('Save changes') }}' : '{{ _('Submit Review') }}'"
+                        class="cursor-pointer rounded-md bg-button px-6 py-2 text-sm font-normal text-white opacity-90 hover:opacity-100 disabled:opacity-75"></button>
+                    <button type="button" x-show="editing" x-cloak @click="editing = false"
+                        class="cursor-pointer text-sm font-medium text-gray-500 hover:text-gray-700">
+                        {{ _("Cancel") }}
+                    </button>
+                </div>
             </form>
             {% endif %}
         </div>

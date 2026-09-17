@@ -163,12 +163,13 @@
 							<div class="alert alert-success" x-show="submitted" x-cloak>
 								{{ _("Thanks! Your review is waiting for approval.") }}
 							</div>
-							<p class="text-muted" x-show="has_reviewed && !submitted" x-cloak>
-								{{ _("You've already reviewed this product.") }}
-							</p>
-							<div class="comment-respond style-1" x-show="can_review && !submitted" x-cloak>
-								<h4 class="comment-reply-title">{{ _("Write a review") }}</h4>
-								<form class="comment-form" @submit.prevent="submit_review()">
+							<div class="d-flex align-items-center gap-3 mb-3" x-show="my_review && !editing" x-cloak>
+								<p class="text-muted mb-0" x-show="!submitted">{{ _("You've already reviewed this product.") }}</p>
+								<button type="button" class="btn btn-outline-secondary" @click="edit_review()">{{ _("Edit your review") }}</button>
+							</div>
+							<div class="comment-respond style-1" x-show="editing || (can_review && !submitted)" x-cloak>
+								<h4 class="comment-reply-title" x-text="editing ? '{{ _('Edit your review') }}' : '{{ _('Write a review') }}'"></h4>
+								<form class="comment-form" @submit.prevent="editing ? save_review() : submit_review()">
 									<ul class="dz-rating dz-rating-input mb-3">
 										<template x-for="star in 5" :key="star">
 											<li :class="star <= form_rating ? 'star-fill' : ''">
@@ -186,7 +187,10 @@
 											placeholder="{{ _('Share your thoughts about this product') }}"></textarea>
 									</p>
 									<p class="form-submit">
-										<button type="submit" class="btn btn-secondary" :disabled="submitting">{{ _("Submit Review") }}</button>
+										<button type="submit" class="btn btn-secondary" :disabled="submitting"
+											x-text="editing ? '{{ _('Save changes') }}' : '{{ _('Submit Review') }}'"></button>
+										<button type="button" class="btn btn-link" x-show="editing" x-cloak
+											@click="editing = false">{{ _("Cancel") }}</button>
 									</p>
 								</form>
 							</div>

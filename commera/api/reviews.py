@@ -119,6 +119,59 @@ def submit_review(variant: str, rating: int, review_title: str | None = None, co
 	return review.name
 
 
+@frappe.whitelist()
+@rate_limit(limit=10, seconds=60 * 60)
+def update_review(name: str, rating: int, review_title: str | None = None, comment: str | None = None):
+	"""Every edit goes back through moderation: an approved review that could be silently rewritten
+	would put unvetted text straight on the storefront."""
+	if frappe.session.user == "Guest":
+		frappe.throw(_("Sign in to edit your review"))
+
+	if frappe.db.get_value("Product Review", name, "owner") != frappe.session.user:
+		frappe.throw(_("Review not found"))
+
+	rating = cint(rating)
+	if not 1 <= rating <= 5:
+		frappe.throw(_("Rating must be between 1 and 5"))
+
+	review_title = cstr(review_title).strip()[:MAX_REVIEW_TITLE_LENGTH]
+	comment = cstr(comment).strip()
+	if len(comment) > MAX_COMMENT_LENGTH:
+		frappe.throw(_("Review is too long"))
+
+	review = frappe.get_doc("Product Review", name)
+	review.rating = rating
+	review.review_title = review_title
+	review.comment = comment
+	# verified_purchase/sales_order/purchased_item stay frozen at submission time, so a later
+	# cancellation or return cannot strip a badge the merchant already vetted.
+	review.is_published = 0
+	# Portal shoppers have no write permission on Product Review; the owner check above is the gate.
+	review.save(ignore_permissions=True)
+
+	return get_reviews(review.variant)
+
+
+def get_own_review(variant: str) -> dict | None:
+	"""What the session's own review currently says, so the storefront can pre-fill its edit form."""
+	row = frappe.db.get_value(
+		"Product Review",
+		{"variant": variant, "owner": frappe.session.user},
+		["name", "rating", "review_title", "comment", "is_published"],
+		as_dict=True,
+	)
+	if not row:
+		return None
+
+	return {
+		"name": row.name,
+		"rating": cint(row.rating),
+		"review_title": row.review_title,
+		"comment": row.comment,
+		"is_published": bool(cint(row.is_published)),
+	}
+
+
 @frappe.whitelist(allow_guest=True)
 def get_reviews(variant: str, start: int = 0, page_length: int = PAGE_LENGTH):
 	"""Published reviews for the storefront, plus the summary, histogram and the session's own
@@ -180,9 +233,7 @@ def get_reviews(variant: str, start: int = 0, page_length: int = PAGE_LENGTH):
 
 	summary = get_rating_summary(variant)
 	signed_in = frappe.session.user != "Guest"
-	has_reviewed = bool(
-		signed_in and frappe.db.exists("Product Review", {"variant": variant, "owner": frappe.session.user})
-	)
+	own_review = get_own_review(variant) if signed_in else None
 
 	return {
 		"reviews": reviews,
@@ -190,6 +241,7 @@ def get_reviews(variant: str, start: int = 0, page_length: int = PAGE_LENGTH):
 		"average_rating": summary["average_rating"],
 		"review_count": summary["review_count"],
 		"histogram": get_rating_histogram(variant),
-		"has_reviewed": has_reviewed,
-		"can_review": signed_in and not has_reviewed,
+		"my_review": own_review,
+		"has_reviewed": bool(own_review),
+		"can_review": signed_in and not own_review,
 	}
