@@ -109,9 +109,9 @@
 									<span x-text="review_count === 1 ? '{{ _('review') }}' : '{{ _('reviews') }}'"></span>
 								</p>
 							</div>
-							<div class="flex-grow-1" x-show="review_count > 0" x-cloak style="min-width:220px">
+							<div class="flex-grow-1 rating-summary" x-show="review_count > 0" x-cloak>
 								<template x-for="star in [5, 4, 3, 2, 1]" :key="star">
-									<div class="d-flex align-items-center gap-2 mb-1">
+									<div class="d-flex align-items-center gap-2 mb-1 rating-histogram-row">
 										<span x-text="star"></span>
 										<i class="icon feather icon-star text-warning"></i>
 										<div class="progress flex-grow-1" style="height:6px">
@@ -139,7 +139,7 @@
 										<span class="text-muted d-block small" x-text="format_relative_time(review.creation)"></span>
 										<p class="fw-bold mb-1" x-show="review.review_title" x-text="review.review_title"></p>
 										<p x-text="review.comment"></p>
-										<div class="bg-light rounded p-3 ms-4" x-show="review.seller_reply" x-cloak>
+										<div class="seller-reply p-3 ms-4" x-show="review.seller_reply" x-cloak>
 											<p class="fw-bold mb-1 small">{{ _("Response from the seller") }}</p>
 											<p class="mb-0" x-text="review.seller_reply"></p>
 										</div>

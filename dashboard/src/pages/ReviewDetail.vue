@@ -110,18 +110,20 @@ async function saveReply() {
           <router-link
             v-if="review.product"
             :to="`/products/${review.product.item_style}/variants/${review.variant}`"
-            class="text-ink-blue-link hover:underline"
+            class="inline-flex items-center gap-1 text-sm-medium text-ink-gray-8 hover:underline"
           >
             {{ review.product.name }}
+            <span class="lucide-chevron-right size-3.5 text-ink-gray-5" aria-hidden="true" />
           </router-link>
           <a
             v-if="review.sales_order"
             :href="erpnextLink('Sales Order', review.sales_order)"
             target="_blank"
             rel="noopener"
-            class="text-ink-blue-link hover:underline"
+            class="inline-flex items-center gap-1 text-sm-medium text-ink-gray-8 hover:underline"
           >
             {{ review.sales_order }}
+            <span class="lucide-external-link size-3.5 text-ink-gray-5" aria-hidden="true" />
           </a>
         </div>
       </section>

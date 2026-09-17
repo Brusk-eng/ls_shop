@@ -100,3 +100,76 @@
 .btn-quantity .bootstrap-touchspin input {
 	display: block;
 }
+
+/* --- Reviews tab: style.css only styles .dz-rating / .star-fill / .comments-area furniture when
+   nested under specific card wrappers this markup doesn't use (.dz-shop-card, .dz-product-detail
+   .dz-content, .book-grid-row...), so the bare .comments-area block in product_tabs.html renders
+   completely unstyled. These rules give that exact markup a look consistent with those wrappers. */
+
+.comments-area .dz-rating {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 2px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.comments-area .dz-rating.dz-rating-input {
+	justify-content: flex-start;
+}
+
+.comments-area .dz-rating li {
+	display: inline-block;
+	font-size: 16px;
+	color: var(--bs-gray-300);
+}
+
+.comments-area .dz-rating li.star-fill {
+	color: var(--bs-warning);
+}
+
+.comments-area .dz-rating-input li .btn-link {
+	line-height: 1;
+	text-decoration: none;
+}
+
+.comments-area .rating-summary {
+	min-width: 220px;
+}
+
+.comments-area .rating-histogram-row {
+	font-size: 13px;
+	color: var(--bs-secondary-text);
+}
+
+.comments-area .rating-histogram-row .dz-rating li {
+	font-size: 12px;
+}
+
+.comments-area .comment-list > .comment .comment-body {
+	padding: 2px 0 30px 0;
+	min-height: 0;
+}
+
+.comments-area .comment-list > .comment .comment-body .fn {
+	font-family: var(--font-family-title);
+	font-size: 16px;
+	line-height: 21px;
+	color: var(--title);
+	font-weight: 600;
+	display: inline-block;
+	margin-right: 8px;
+}
+
+.comments-area .comment-list > .comment .comment-body p {
+	font-size: 14px;
+	font-family: var(--font-family-base);
+	color: var(--bs-secondary-text);
+}
+
+.comments-area .comment-list > .comment .seller-reply {
+	background: var(--bs-gray-100);
+	border-radius: 10px;
+}
