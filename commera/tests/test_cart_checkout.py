@@ -6,10 +6,28 @@ from frappe.tests import IntegrationTestCase
 
 from commera.api.cart import get_detail_for_cart_items, get_stock_shortfalls, validate_stock_available
 from commera.api.checkout import apply_shipping_rule
-from commera.api.payments import generate_quotation_for_cart, update_quotation_address
+from commera.api.payments import (
+	generate_quotation_for_cart,
+	update_delivery_charges,
+	update_quotation_address,
+)
 from commera.core import _get_cart_quotation
+from commera.utils import get_pickup_addresses
+from commera.www.cart.checkout import get_store_pickup_addresses
 
 COUNTRY = "Saudi Arabia"
+PIN_GEOJSON = frappe.as_json(
+	{
+		"type": "FeatureCollection",
+		"features": [
+			{
+				"type": "Feature",
+				"properties": {},
+				"geometry": {"type": "Point", "coordinates": [46.6753, 24.7136]},
+			}
+		],
+	}
+)
 IN_STOCK_QTY = 4.0
 DEFAULT_RATE = 120.0
 SALE_RATE = 90.0
@@ -186,3 +204,131 @@ class TestCartCheckout(IntegrationTestCase):
 
 		self.assertEqual(detail["stock_data"][self.discounted_item]["sale_price"], SALE_RATE)
 		self.assertEqual(detail["stock_data"][self.discounted_item]["default_price"], DEFAULT_RATE)
+
+	# -- store pickup -----------------------------------------------------------------------------
+
+	def set_store_pickup(self, enabled: int):
+		frappe.db.set_single_value("Commera Settings", "store_pickup_enabled", enabled)
+		# A rolled-back Single stays in Redis and would leak the switch into later tests.
+		self.addCleanup(frappe.clear_document_cache, "Commera Settings", "Commera Settings")
+
+	def create_pickup_warehouse(self, allow_pickup: int = 1, with_address: bool = True) -> str:
+		company = frappe.db.get_value("Warehouse", self.warehouse, "company")
+		warehouse = frappe.get_doc(
+			{
+				"doctype": "Warehouse",
+				"warehouse_name": f"ZZ Pickup {frappe.generate_hash(length=6)}",
+				"company": company,
+				"custom_store_pickup": allow_pickup,
+			}
+		).insert(ignore_permissions=True)
+		if with_address:
+			self.create_shop_address(warehouse.name)
+		return warehouse.name
+
+	def create_shop_address(
+		self, warehouse: str, title: str = "ZZ Pickup Counter", location: str = ""
+	) -> str:
+		address = frappe.new_doc("Address")
+		address.update(
+			{
+				"address_title": title,
+				"address_type": "Shop",
+				"address_line1": "1 Pickup Street",
+				"city": "Riyadh",
+				"country": COUNTRY,
+				"custom_store_location": location,
+			}
+		)
+		address.append("links", {"link_doctype": "Warehouse", "link_name": warehouse})
+		return address.insert(ignore_permissions=True).name
+
+	def pickup_payload(self, warehouse: str) -> dict:
+		return {"is_store_pickup": True, "store_pickup_warehouse": warehouse}
+
+	def test_store_pickup_is_off_on_a_fresh_install(self):
+		field = frappe.get_meta("Commera Settings").get_field("store_pickup_enabled")
+
+		self.assertEqual(field.default, "0")
+
+	def test_pickup_is_refused_while_store_pickup_is_off(self):
+		self.set_store_pickup(0)
+		warehouse = self.create_pickup_warehouse()
+		frappe.set_user(self.shopper)
+		generate_quotation_for_cart({"items": [self.cart_line(self.discounted_item, 1)]})
+
+		with self.assertRaises(frappe.ValidationError):
+			update_quotation_address(self.pickup_payload(warehouse))
+
+		self.assertFalse(_get_cart_quotation().custom_is_store_pickup)
+
+	def test_pickup_is_refused_at_a_warehouse_not_allowed_for_pickup(self):
+		self.set_store_pickup(1)
+		warehouse = self.create_pickup_warehouse(allow_pickup=0)
+		frappe.set_user(self.shopper)
+		generate_quotation_for_cart({"items": [self.cart_line(self.discounted_item, 1)]})
+
+		with self.assertRaises(frappe.ValidationError):
+			update_quotation_address(self.pickup_payload(warehouse))
+
+	def test_pickup_is_refused_at_a_warehouse_without_a_shop_address(self):
+		self.set_store_pickup(1)
+		warehouse = self.create_pickup_warehouse(with_address=False)
+		frappe.set_user(self.shopper)
+		generate_quotation_for_cart({"items": [self.cart_line(self.discounted_item, 1)]})
+
+		with self.assertRaises(frappe.ValidationError):
+			update_quotation_address(self.pickup_payload(warehouse))
+
+	def test_checkout_offers_only_pickup_warehouses_with_a_shop_address(self):
+		with_address = self.create_pickup_warehouse()
+		without_address = self.create_pickup_warehouse(with_address=False)
+
+		offered = {option["warehouse_name"] for option in get_store_pickup_addresses()}
+
+		self.assertIn(with_address, offered)
+		self.assertNotIn(without_address, offered)
+
+	def test_checkout_links_directions_to_the_pin(self):
+		warehouse = self.create_pickup_warehouse(with_address=False)
+		self.create_shop_address(warehouse, location=PIN_GEOJSON)
+
+		option = next(
+			option for option in get_store_pickup_addresses() if option["warehouse_name"] == warehouse
+		)
+
+		self.assertEqual(
+			option["directions_url"], "https://www.google.com/maps/dir/?api=1&destination=24.7136,46.6753"
+		)
+
+	def test_the_most_recently_changed_shop_address_is_the_pickup_address(self):
+		warehouse = self.create_pickup_warehouse(with_address=False)
+		older = self.create_shop_address(warehouse, title="ZZ Older Counter")
+		newer = self.create_shop_address(warehouse, title="ZZ Newer Counter")
+		frappe.db.set_value("Address", older, "modified", "2020-01-01 00:00:00", update_modified=False)
+
+		self.assertEqual(get_pickup_addresses([warehouse])[warehouse].name, newer)
+
+	def test_shopper_picks_up_from_an_allowed_warehouse(self):
+		self.set_store_pickup(1)
+		warehouse = self.create_pickup_warehouse()
+		frappe.set_user(self.shopper)
+		generate_quotation_for_cart({"items": [self.cart_line(self.discounted_item, 1)]})
+
+		update_quotation_address(self.pickup_payload(warehouse))
+
+		quotation = _get_cart_quotation()
+		self.assertTrue(quotation.custom_is_store_pickup)
+		self.assertEqual(quotation.custom_store, warehouse)
+
+	def test_a_pickup_cart_cannot_pay_once_store_pickup_is_switched_off(self):
+		self.set_store_pickup(1)
+		warehouse = self.create_pickup_warehouse()
+		frappe.set_user(self.shopper)
+		generate_quotation_for_cart({"items": [self.cart_line(self.discounted_item, 1)]})
+		update_quotation_address(self.pickup_payload(warehouse))
+
+		self.set_store_pickup(0)
+
+		with self.assertRaises(frappe.ValidationError):
+			update_delivery_charges(_get_cart_quotation())

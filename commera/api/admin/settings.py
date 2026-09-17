@@ -3,10 +3,16 @@
 
 import frappe
 from frappe.contacts.doctype.address.address import get_address_display, get_default_address
+from frappe.integrations.utils import make_get_request
 from frappe.utils.data import cint, cstr, flt, getdate
 
 from commera.install_analytics_demo_data import LEGACY_SESSION_PREFIX, SESSION_PREFIX
-from commera.utils import get_address_lines
+from commera.utils import (
+	PICKUP_ADDRESS_FIELDS,
+	format_addresses,
+	get_address_lines,
+	get_pickup_addresses,
+)
 
 SETTINGS_DOCTYPE = "Commera Settings"
 BRANDING_DOCTYPE = "Website Settings"
@@ -63,6 +69,12 @@ CURATED_FIELDS = frozenset(STORE_DETAIL_FIELDS + SHIPPING_FIELDS + PAYMENT_FIELD
 ADVANCED_SKIPPED_FIELDTYPES = frozenset(
 	{"Section Break", "Column Break", "Tab Break", "HTML", "Button", "Table", "Color"}
 )
+
+# The pickup address form lives on the settings screen but picks its country from the Address doctype.
+PICKUP_LINK_DOCTYPES = frozenset({"Country"})
+
+GEOCODING_URL = "https://nominatim.openstreetmap.org/search"
+GEOCODING_MATCH_LIMIT = 5
 
 NUMERIC_FIELDTYPES = frozenset({"Currency", "Float", "Percent"})
 INTEGER_FIELDTYPES = frozenset({"Int", "Check"})
@@ -310,7 +322,7 @@ def get_link_options(doctype: str, search_text: str | None = None):
 	"""Options for a Link control on the settings screen."""
 	frappe.has_permission(SETTINGS_DOCTYPE, ptype="read", throw=True)
 
-	if doctype not in get_linked_doctypes():
+	if doctype not in get_linked_doctypes() | PICKUP_LINK_DOCTYPES:
 		frappe.throw(frappe._("{0} is not linked from {1}").format(doctype, SETTINGS_DOCTYPE))
 
 	filters = {}
@@ -367,28 +379,131 @@ def get_company_profile():
 
 @frappe.whitelist()
 def get_locations():
-	"""The warehouse the storefront sells out of. This shop is single-warehouse, so the list is one
-	entry or none — it is a list only because the screen renders it as one."""
+	"""Every active warehouse, and whether shoppers can collect an order from it."""
+	settings = read_settings_fields(("ecommerce_warehouse", "store_pickup_enabled"))
+
+	warehouses = frappe.get_list(
+		"Warehouse",
+		filters={"disabled": 0, "is_group": 0},
+		fields=["name", "warehouse_name", "company", "custom_store_pickup"],
+		order_by="warehouse_name asc",
+	)
+	pickup_addresses = get_pickup_addresses([warehouse.name for warehouse in warehouses])
+	company_countries = dict(
+		frappe.get_all(
+			"Company",
+			filters={"name": ["in", list({warehouse.company for warehouse in warehouses})]},
+			fields=["name", "country"],
+			as_list=True,
+		)
+	)
+
+	return {
+		"store_pickup_enabled": cint(settings["store_pickup_enabled"]),
+		"warehouses": [
+			{
+				"name": warehouse.name,
+				"warehouse_name": warehouse.warehouse_name,
+				"company": warehouse.company,
+				# What a new pickup address starts with, since almost every shop is in its company's country.
+				"country": company_countries.get(warehouse.company) or "",
+				"is_ecommerce_warehouse": warehouse.name == settings["ecommerce_warehouse"],
+				"allow_pickup": cint(warehouse.custom_store_pickup),
+				"address": format_pickup_address(pickup_addresses.get(warehouse.name)),
+			}
+			for warehouse in warehouses
+		],
+	}
+
+
+def format_pickup_address(address) -> dict | None:
+	if not address:
+		return None
+
+	return {
+		**{fieldname: address.get(fieldname) or "" for fieldname in PICKUP_ADDRESS_FIELDS},
+		"name": address.name,
+		"display": format_addresses([address], address_type="Shop")[0]["display"],
+	}
+
+
+@frappe.whitelist(methods=["POST"])
+def save_store_pickup(enabled: int):
+	write_settings_fields(("store_pickup_enabled",), {"store_pickup_enabled": enabled})
+	return get_locations()
+
+
+@frappe.whitelist(methods=["POST"])
+def save_warehouse_pickup(warehouse: str, allow_pickup: int):
+	warehouse_doc = frappe.get_doc("Warehouse", warehouse)
+	warehouse_doc.custom_store_pickup = cint(allow_pickup)
+	warehouse_doc.save()
+	return get_locations()
+
+
+@frappe.whitelist(methods=["POST"])
+def save_pickup_address(warehouse: str, values: dict | str):
+	"""Create or update the one Shop address checkout sends shoppers to for this warehouse."""
+	values = frappe.parse_json(values)
+	warehouse_doc = frappe.get_doc("Warehouse", warehouse)
+	warehouse_doc.check_permission("write")
+
+	existing = get_pickup_addresses([warehouse]).get(warehouse)
+	if existing:
+		address = frappe.get_doc("Address", existing.name)
+	else:
+		address = frappe.new_doc("Address")
+		address.address_type = "Shop"
+		address.append("links", {"link_doctype": "Warehouse", "link_name": warehouse})
+
+	for fieldname in PICKUP_ADDRESS_FIELDS:
+		value = values.get(fieldname)
+		# The pin arrives as GeoJSON; cstr would store a parsed one as a Python repr Desk cannot draw.
+		address.set(fieldname, frappe.as_json(value) if isinstance(value, dict) else cstr(value).strip())
+	address.address_title = address.address_title or warehouse_doc.warehouse_name
+	address.save()
+	return get_locations()
+
+
+@frappe.whitelist()
+def find_address_location(query: str):
+	"""Where OpenStreetMap places an address, best match first, so the pin starts at the shop instead of
+	mid-ocean and the owner can pick another match when the first is wrong."""
 	frappe.has_permission(SETTINGS_DOCTYPE, ptype="read", throw=True)
 
-	warehouse = frappe.get_cached_value(SETTINGS_DOCTYPE, SETTINGS_DOCTYPE, "ecommerce_warehouse")
-	if not warehouse:
+	query = cstr(query).strip()
+	if not query:
 		return []
 
-	details = frappe.get_cached_value(
-		"Warehouse", warehouse, ["name", "warehouse_name", "company", "disabled"], as_dict=True
-	)
-	if not details:
+	try:
+		results = make_get_request(
+			GEOCODING_URL,
+			params={"q": query, "format": "json", "limit": GEOCODING_MATCH_LIMIT},
+			headers={"User-Agent": f"Commera ({frappe.local.site})"},
+		)
+	# make_request has already logged whatever went wrong; a failed lookup only means placing the pin by hand.
+	except Exception:
 		return []
 
-	return [
-		{
-			"name": details.name,
-			"warehouse_name": details.warehouse_name,
-			"company": details.company,
-			"disabled": cint(details.disabled),
-		}
-	]
+	if not isinstance(results, list):
+		return []
+	return [format_geocoding_match(result) for result in results if result.get("lat") and result.get("lon")]
+
+
+def format_geocoding_match(result: dict) -> dict:
+	bounding_box = result.get("boundingbox") or []
+	bounds = None
+	# Nominatim orders the box south, north, west, east; Leaflet wants [[south, west], [north, east]].
+	if len(bounding_box) == 4:
+		south, north, west, east = (flt(value) for value in bounding_box)
+		bounds = [[south, west], [north, east]]
+
+	return {
+		"label": cstr(result.get("display_name")),
+		"latitude": flt(result.get("lat")),
+		"longitude": flt(result.get("lon")),
+		"bounds": bounds,
+	}
 
 
 PROFILE_FIELDS = ("first_name", "last_name", "user_image")

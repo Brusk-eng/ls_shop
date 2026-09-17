@@ -1,7 +1,6 @@
 import frappe
 from bwh_payments.bwh_payments.utils import get_available_payment_modes
 from frappe.query_builder import DocType
-from frappe.utils.caching import site_cache
 
 from commera.core import _get_cart_quotation
 from commera.utils import (
@@ -10,6 +9,9 @@ from commera.utils import (
 	get_cod_configuration,
 	get_country_list,
 	get_delivery_configuration,
+	get_directions_url,
+	get_pickup_addresses,
+	get_pickup_warehouses,
 )
 
 # from commera.api.utils import auth_required
@@ -43,7 +45,9 @@ def get_context(context):
 	context.items = items
 	context.billing_addresses = get_addresses()
 	context.shipping_addresses = get_addresses(address_type="Shipping")
-	context.store_pickup_addresses = get_store_pickup_addresses()
+	context.store_pickup_addresses = (
+		get_store_pickup_addresses() if commera_settings.store_pickup_enabled else []
+	)
 	context.delivery_charge, context.delivery_charge_applicable_below = get_delivery_configuration()
 	context.cod_charge_applicable_below, context.cod_charge = get_cod_configuration()
 	context.breadcrumbs = [
@@ -110,46 +114,12 @@ def get_checkout_items(cart_quotation):
 	return query.run(as_dict=True)
 
 
-@site_cache(ttl=60 * 60)
 def get_store_pickup_addresses():
-	warehouses = frappe.get_all("Warehouse", filters={"custom_store_pickup": 1}, pluck="name")
-	if not warehouses:
-		return []
-
-	links = frappe.get_all(
-		"Dynamic Link",
-		filters={
-			"link_doctype": "Warehouse",
-			"link_name": ["in", warehouses],
-			"parenttype": "Address",
-		},
-		fields=["link_name", "parent"],
-	)
-
-	if not links:
-		return []
-
-	address_to_warehouse = {link["parent"]: link["link_name"] for link in links}
-	address_names = list(address_to_warehouse.keys())
-	addresses = frappe.get_all(
-		"Address",
-		filters={"name": ["in", address_names]},
-		fields=[
-			"name",
-			"address_title",
-			"address_type",
-			"address_line1",
-			"address_line2",
-			"city",
-			"state",
-			"country",
-			"pincode",
-			"phone",
-			"email_id",
-		],
-	)
-	formatted_addresses = format_addresses(addresses, address_type="Shop")
-	for addr in formatted_addresses:
-		addr["warehouse_name"] = address_to_warehouse.get(addr["name"])
-
-	return formatted_addresses
+	# Not cached: an owner who adds a pickup address in the dashboard expects checkout to offer it now.
+	options = []
+	for warehouse, address in get_pickup_addresses(get_pickup_warehouses()).items():
+		option = format_addresses([address], address_type="Shop")[0]
+		option["warehouse_name"] = warehouse
+		option["directions_url"] = get_directions_url(address.custom_store_location)
+		options.append(option)
+	return options

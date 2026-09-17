@@ -103,6 +103,7 @@ class CommeraSettings(Document):
 		sitemap_urls_per_page: DF.Int
 		snapchat_url: DF.Data | None
 		store_name: DF.Data | None
+		store_pickup_enabled: DF.Check
 		strikethrough_color: DF.Color | None
 		tiktok_url: DF.Data | None
 		twitter_handle: DF.Data | None

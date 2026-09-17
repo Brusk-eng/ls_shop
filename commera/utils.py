@@ -371,6 +371,85 @@ def format_addresses(addresses, address_type):
 	]
 
 
+PICKUP_ADDRESS_FIELDS = (
+	"address_title",
+	"address_line1",
+	"address_line2",
+	"city",
+	"state",
+	"pincode",
+	"country",
+	"phone",
+	"custom_store_location",
+)
+
+
+def get_pickup_warehouses() -> list[str]:
+	return frappe.get_all(
+		"Warehouse",
+		filters={"custom_store_pickup": 1, "disabled": 0, "is_group": 0},
+		pluck="name",
+	)
+
+
+def get_pickup_addresses(warehouses: list[str]) -> dict:
+	"""The Shop address shoppers are sent to, per warehouse. Desk can link more than one; the most
+	recently changed wins, so the dashboard edits the same address checkout shows."""
+	if not warehouses:
+		return {}
+
+	links = frappe.get_all(
+		"Dynamic Link",
+		filters={"link_doctype": "Warehouse", "link_name": ["in", warehouses], "parenttype": "Address"},
+		fields=["parent", "link_name"],
+	)
+	if not links:
+		return {}
+
+	warehouses_by_address = {}
+	for link in links:
+		warehouses_by_address.setdefault(link.parent, []).append(link.link_name)
+
+	addresses = frappe.get_all(
+		"Address",
+		filters={"name": ["in", list(warehouses_by_address)], "address_type": "Shop", "disabled": 0},
+		fields=["name", "address_type", *PICKUP_ADDRESS_FIELDS],
+		order_by="modified desc",
+	)
+
+	pickup_addresses = {}
+	for address in addresses:
+		for warehouse in warehouses_by_address[address.name]:
+			pickup_addresses.setdefault(warehouse, address)
+	return pickup_addresses
+
+
+def get_location_point(geojson) -> tuple[float, float] | None:
+	"""(latitude, longitude) of the first point a Geolocation field holds; GeoJSON stores it reversed."""
+	if not geojson:
+		return None
+
+	try:
+		features = frappe.parse_json(geojson).get("features") or []
+	except (ValueError, AttributeError):
+		return None
+
+	for feature in features:
+		geometry = feature.get("geometry") or {}
+		coordinates = geometry.get("coordinates") or []
+		if geometry.get("type") == "Point" and len(coordinates) == 2:
+			longitude, latitude = coordinates
+			return flt(latitude), flt(longitude)
+	return None
+
+
+def get_directions_url(geojson) -> str:
+	point = get_location_point(geojson)
+	if not point:
+		return ""
+	return f"https://www.google.com/maps/dir/?api=1&destination={point[0]},{point[1]}"
+
+
 @lru_cache(maxsize=2)
 def get_country_list():
 	country_list = get_all()

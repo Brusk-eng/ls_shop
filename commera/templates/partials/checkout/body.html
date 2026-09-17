@@ -292,6 +292,7 @@
                             {{ _('home delivery') }}
                         </span>
                     </label>
+                    {% if store_pickup_addresses %}
                     <label
                         class="flex flex-1 items-center p-3 space-x-3 bg-white border rounded-lg hover:bg-gray-50 border-gray-200/70 cursor-pointer"
                         :class="{'border-secondary-accent': delivery_option === 'store_pickup'}" @click="billing_address_filled = false;
@@ -304,6 +305,7 @@
                             {{ _('pickup from store') }}
                         </span>
                     </label>
+                    {% endif %}
                 </div>
                 <div x-show="delivery_option === 'store_pickup'" class="mt-6 "
                     x-transition:enter="transition ease-out duration-300"

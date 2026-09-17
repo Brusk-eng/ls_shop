@@ -17,7 +17,12 @@ from commera.api.shipping import (
 	reprice_selected_option,
 )
 from commera.core import _get_cart_quotation
-from commera.utils import COD_CHARGE_DESCRIPTION, get_cod_configuration
+from commera.utils import (
+	COD_CHARGE_DESCRIPTION,
+	get_cod_configuration,
+	get_pickup_addresses,
+	get_pickup_warehouses,
+)
 
 # ERPNext moved its transaction mappers to a sibling `mapper` module; both layouts are in the wild.
 try:
@@ -312,7 +317,8 @@ def update_quotation_address(address: dict):
 	validate_cart_is_not_in_checkout(quotation.name)
 	update_quotation_payment_terms_due_date(quotation)
 	if address.get("is_store_pickup", False):
-		quotation.custom_store = address.get("store_pickup_warehouse", "")
+		validate_store_pickup(address.get("store_pickup_warehouse"))
+		quotation.custom_store = address.get("store_pickup_warehouse")
 		quotation.custom_is_store_pickup = True
 		# A delivery option picked before store pickup would otherwise still be charged at payment time.
 		clear_delivery_option(quotation)
@@ -571,8 +577,19 @@ def update_quotation_payment_terms_due_date(quotation):
 			term.due_date = today
 
 
+def validate_store_pickup(warehouse: str | None):
+	if not frappe.db.get_single_value("Commera Settings", "store_pickup_enabled"):
+		frappe.throw(_("Store pickup is not available."))
+
+	# Checkout only lists warehouses that have a Shop address, so one without is not a place to send a shopper.
+	if warehouse not in get_pickup_warehouses() or not get_pickup_addresses([warehouse]):
+		frappe.throw(_("Please select a valid pickup location."))
+
+
 def update_delivery_charges(quotation):
 	if quotation.custom_is_store_pickup:
+		# A cart saved as a pickup before the owner switched pickup off must not reach payment as one.
+		validate_store_pickup(quotation.custom_store)
 		quotation.shipping_rule = None
 		quotation.taxes = []
 		quotation.calculate_taxes_and_totals()

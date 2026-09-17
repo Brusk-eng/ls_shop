@@ -11,6 +11,9 @@ const props = defineProps({
   field: { type: Object, required: true },
   modelValue: { type: String, default: '' },
   optionsPath: { type: String, required: true },
+  // Only for a control inside a form; a settings row already names its control.
+  label: { type: String, default: '' },
+  required: { type: Boolean, default: false },
 })
 
 const emit = defineEmits(['update:modelValue'])
@@ -39,6 +42,8 @@ const options = computed(() => {
       v-model:query="search.query.value"
       :model-value="modelValue"
       :options="options"
+      :label="label || undefined"
+      :required="required"
       :filterable="false"
       :loading="search.results.loading"
       :placeholder="`Search ${field.options}`"
