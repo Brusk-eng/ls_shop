@@ -101,10 +101,8 @@
 	display: block;
 }
 
-/* --- Reviews tab: style.css only styles .dz-rating / .star-fill / .comments-area furniture when
-   nested under specific card wrappers this markup doesn't use (.dz-shop-card, .dz-product-detail
-   .dz-content, .book-grid-row...), so the bare .comments-area block in product_tabs.html renders
-   completely unstyled. These rules give that exact markup a look consistent with those wrappers. */
+/* style.css styles .dz-rating / .star-fill / .comments-area only under card wrappers this markup
+   does not use (.dz-shop-card, .dz-product-detail .dz-content), so the bare block renders unstyled. */
 
 .comments-area .dz-rating {
 	display: flex;
