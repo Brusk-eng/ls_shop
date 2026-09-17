@@ -1,9 +1,6 @@
 <script setup>
 /**
  * The store's warehouses, and which of them shoppers can collect an order from.
- *
- * Every write answers with the whole screen, which is adopted as-is — the server decides what a
- * warehouse's pickup address is, so nothing here patches a row by hand.
  */
 import { computed, ref, watch } from 'vue'
 import {
@@ -18,45 +15,22 @@ import {
 import EmptyState from '../EmptyState.vue'
 import PickupAddressConfig from './PickupAddressConfig.vue'
 import SettingsSkeleton from './SettingsSkeleton.vue'
-import { createAdminCaller } from '../../data/adminCaller'
-import { useAdminRead } from '../../data/api'
+import { pickupLocations } from '../../data/pickupLocations'
 
 const props = defineProps({
   active: { type: Boolean, default: false },
 })
 
-const locations = useAdminRead('settings.get_locations', { immediate: false })
-const { call, loading: saving } = createAdminCaller('settings.')
+const { screen, loadError, loading: saving, pickupEnabled, warehouses, mutate } = pickupLocations
 
-const screen = ref(null)
 // The warehouse whose address is open, by name: the row itself is replaced by every answer the
 // server gives, so a held object would go stale the moment a switch is flipped.
 const editing = ref(null)
 const current = computed(
-  () => screen.value?.warehouses.find((warehouse) => warehouse.name === editing.value) ?? null,
+  () => warehouses.value.find((warehouse) => warehouse.name === editing.value) ?? null,
 )
 
-watch(
-  () => locations.data,
-  (data) => data && (screen.value = data),
-  { immediate: true },
-)
-
-watch(
-  () => props.active,
-  (isActive) => isActive && !locations.isFinished && locations.reload(),
-  { immediate: true },
-)
-
-// Frappe answers 1/0, and a Switch handed a number never reads it as its starting state.
-const pickupEnabled = computed(() => Boolean(screen.value?.store_pickup_enabled))
-const warehouses = computed(() => screen.value?.warehouses ?? [])
-
-async function mutate(method, params) {
-  const data = await call(method, params)
-  if (data) screen.value = data
-  return data
-}
+watch(() => props.active, (isActive) => isActive && pickupLocations.loadOnce(), { immediate: true })
 
 async function toggleStorePickup(enabled) {
   if (!(await mutate('save_store_pickup', { enabled: enabled ? 1 : 0 }))) return
@@ -98,13 +72,13 @@ async function saveAddress(values) {
 
     <SettingsBody>
       <EmptyState
-        v-if="locations.error && !screen"
+        v-if="loadError && !screen"
         compact
         icon="lucide-triangle-alert"
         title="These could not be loaded"
         description="Checkout still offers whatever is stored — this panel just cannot say what."
       >
-        <Button label="Try again" variant="subtle" theme="gray" @click="locations.reload()" />
+        <Button label="Try again" variant="subtle" theme="gray" @click="pickupLocations.load()" />
       </EmptyState>
 
       <SettingsSkeleton v-else-if="!screen" :rows="3" />

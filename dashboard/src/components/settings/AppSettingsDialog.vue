@@ -19,6 +19,7 @@ import GeneralSettings from './GeneralSettings.vue'
 import IntegrationsPanel from './IntegrationsPanel.vue'
 import LocationsSettings from './LocationsSettings.vue'
 import { paymentIntegrations, shippingIntegrations } from '../../data/integrations'
+import { pickupLocations } from '../../data/pickupLocations'
 import { settings } from '../../ia/settings'
 
 // The counts beside the sidebar entries are the server's answer, not a local tally, so
@@ -35,6 +36,7 @@ watch(
     if (!isOpen) return
     paymentIntegrations.loadOnce()
     shippingIntegrations.loadOnce()
+    pickupLocations.loadOnce()
   },
   { immediate: true },
 )
@@ -49,10 +51,6 @@ watch(
         <SettingsNavItem value="general">
           <template #prefix><span class="lucide-store size-4" aria-hidden="true" /></template>
           General
-        </SettingsNavItem>
-        <SettingsNavItem value="locations">
-          <template #prefix><span class="lucide-map-pin size-4" aria-hidden="true" /></template>
-          Pickup locations
         </SettingsNavItem>
         <SettingsNavItem value="appearance">
           <template #prefix><span class="lucide-sun-moon size-4" aria-hidden="true" /></template>
@@ -73,6 +71,14 @@ watch(
           Shipping
           <template #suffix>
             <span class="text-sm text-ink-gray-5 tabular-nums">{{ shippingConnected }}</span>
+          </template>
+        </SettingsNavItem>
+        <SettingsNavItem value="locations">
+          <template #prefix><span class="lucide-map-pin size-4" aria-hidden="true" /></template>
+          Pickup locations
+          <!-- Nothing while pickup is off: a count there would suggest shoppers can collect today. -->
+          <template v-if="pickupLocations.pickupEnabled.value" #suffix>
+            <span class="text-sm text-ink-gray-5 tabular-nums">{{ pickupLocations.activeCount.value }}</span>
           </template>
         </SettingsNavItem>
       </SettingsNavGroup>

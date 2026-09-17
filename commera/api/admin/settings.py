@@ -74,6 +74,7 @@ ADVANCED_SKIPPED_FIELDTYPES = frozenset(
 PICKUP_LINK_DOCTYPES = frozenset({"Country"})
 
 GEOCODING_URL = "https://nominatim.openstreetmap.org/search"
+GEOCODING_MATCH_LIMIT = 5
 
 NUMERIC_FIELDTYPES = frozenset({"Currency", "Float", "Percent"})
 INTEGER_FIELDTYPES = frozenset({"Int", "Check"})
@@ -466,26 +467,43 @@ def save_pickup_address(warehouse: str, values: dict | str):
 
 @frappe.whitelist()
 def find_address_location(query: str):
-	"""Where OpenStreetMap places an address, so the pin starts near the shop instead of mid-ocean."""
+	"""Where OpenStreetMap places an address, best match first, so the pin starts at the shop instead of
+	mid-ocean and the owner can pick another match when the first is wrong."""
 	frappe.has_permission(SETTINGS_DOCTYPE, ptype="read", throw=True)
 
 	query = cstr(query).strip()
 	if not query:
-		return None
+		return []
 
 	try:
 		results = make_get_request(
 			GEOCODING_URL,
-			params={"q": query, "format": "json", "limit": 1},
+			params={"q": query, "format": "json", "limit": GEOCODING_MATCH_LIMIT},
 			headers={"User-Agent": f"Commera ({frappe.local.site})"},
 		)
 	# make_request has already logged whatever went wrong; a failed lookup only means placing the pin by hand.
 	except Exception:
-		return None
+		return []
 
-	if not isinstance(results, list) or not results:
-		return None
-	return {"latitude": flt(results[0].get("lat")), "longitude": flt(results[0].get("lon"))}
+	if not isinstance(results, list):
+		return []
+	return [format_geocoding_match(result) for result in results if result.get("lat") and result.get("lon")]
+
+
+def format_geocoding_match(result: dict) -> dict:
+	bounding_box = result.get("boundingbox") or []
+	bounds = None
+	# Nominatim orders the box south, north, west, east; Leaflet wants [[south, west], [north, east]].
+	if len(bounding_box) == 4:
+		south, north, west, east = (flt(value) for value in bounding_box)
+		bounds = [[south, west], [north, east]]
+
+	return {
+		"label": cstr(result.get("display_name")),
+		"latitude": flt(result.get("lat")),
+		"longitude": flt(result.get("lon")),
+		"bounds": bounds,
+	}
 
 
 PROFILE_FIELDS = ("first_name", "last_name", "user_image")

@@ -128,12 +128,34 @@ class TestAdminLocations(IntegrationTestCase):
 
 	def test_address_lookup_failure_leaves_the_pin_to_the_owner(self):
 		with patch("commera.api.admin.settings.make_get_request", side_effect=ConnectionError):
-			self.assertIsNone(find_address_location("1 Pickup Street, Riyadh"))
+			self.assertEqual(find_address_location("1 Pickup Street, Riyadh"), [])
 
-	def test_address_lookup_returns_the_first_match(self):
-		with patch(
-			"commera.api.admin.settings.make_get_request", return_value=[{"lat": "24.7136", "lon": "46.6753"}]
-		):
-			self.assertEqual(
-				find_address_location("1 Pickup Street, Riyadh"), {"latitude": 24.7136, "longitude": 46.6753}
-			)
+	def test_address_lookup_returns_every_match_in_order_with_leaflet_bounds(self):
+		response = [
+			{
+				"lat": "24.7136",
+				"lon": "46.6753",
+				"display_name": "Pickup Street, Riyadh",
+				"boundingbox": ["24.70", "24.72", "46.66", "46.68"],
+			},
+			{"lat": "21.4858", "lon": "39.1925", "display_name": "Pickup Street, Jeddah"},
+		]
+		with patch("commera.api.admin.settings.make_get_request", return_value=response):
+			matches = find_address_location("Pickup Street")
+
+		self.assertEqual(
+			matches,
+			[
+				{
+					"label": "Pickup Street, Riyadh",
+					"latitude": 24.7136,
+					"longitude": 46.6753,
+					"bounds": [[24.70, 46.66], [24.72, 46.68]],
+				},
+				{"label": "Pickup Street, Jeddah", "latitude": 21.4858, "longitude": 39.1925, "bounds": None},
+			],
+		)
+
+	def test_address_lookup_skips_a_match_without_coordinates(self):
+		with patch("commera.api.admin.settings.make_get_request", return_value=[{"display_name": "Nowhere"}]):
+			self.assertEqual(find_address_location("Nowhere"), [])
