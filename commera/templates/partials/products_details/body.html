@@ -289,7 +289,7 @@
     </div>
     {{ reviews_state() }}
     <div id="product-reviews" class="mt-10 border-t border-gray-200 pt-8 md:mt-16"
-        x-data="reviews_component({{ product_variant.name | tojson }}, {{ reviews | tojson }})">
+        x-data='reviews_component({{ product_variant.name | tojson }}, {{ reviews | tojson }})'>
         <h2 class="mb-6 text-xl font-bold md:text-3xl">{{ _("Customer Reviews") }}</h2>
 
         <div class="mb-8 flex flex-col gap-8 md:flex-row">
