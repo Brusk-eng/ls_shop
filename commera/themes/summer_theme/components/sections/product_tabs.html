@@ -1,4 +1,7 @@
 {# Bootstrap's tab JS is banned, so Alpine toggles the .active/.show classes bootstrap's own CSS keys the panes off. #}
+{% from "templates/macros/reviews.html" import reviews_state, star_svg %}
+{% from "templates/macros/signup_modal.html" import signup_modal %}
+{{ reviews_state() }}
 <section class="content-inner-3 pb-0">
 	<div class="container">
 		<div class="dz-tabs" x-data="{ active_tab: 'description' }">
@@ -16,6 +19,13 @@
 						:class="active_tab === 'specification' ? 'active' : ''"
 						:aria-selected="active_tab === 'specification'"
 						@click="active_tab = 'specification'">{{ _("Specification") }}</button>
+				</li>
+				<li class="nav-item" role="presentation">
+					<button class="nav-link" type="button" role="tab" id="reviews-tab"
+						aria-controls="reviews-tab-pane"
+						:class="active_tab === 'reviews' ? 'active' : ''"
+						:aria-selected="active_tab === 'reviews'"
+						@click="active_tab = 'reviews'">{{ _("Reviews") }} ({{ reviews.review_count }})</button>
 				</li>
 			</ul>
 			<div class="tab-content">
@@ -79,6 +89,113 @@
 							<li>{{ available_sizes | map(attribute="size") | join(", ") }}</li>
 						</ul>
 						{% endif %}
+					</div>
+				</div>
+				<div class="tab-pane fade" id="reviews-tab-pane" role="tabpanel" aria-labelledby="reviews-tab"
+					:class="active_tab === 'reviews' ? 'show active' : ''">
+					<div class="comments-area style-1" x-data='reviews_component({{ product_variant.name | tojson }}, {{ reviews | tojson }})'>
+						<div class="d-flex flex-wrap gap-4 mb-4 align-items-start">
+							<div class="text-center">
+								<h2 class="mb-0" x-text="average_rating.toFixed(1)"></h2>
+								<ul class="dz-rating justify-content-center">
+									<template x-for="star in 5" :key="star">
+										<li :class="star <= Math.round(average_rating) ? 'star-fill' : ''">
+											{{ star_svg() }}
+										</li>
+									</template>
+								</ul>
+								<p class="text-muted mb-0">
+									<span x-text="review_count"></span>
+									<span x-text="review_count === 1 ? '{{ _('review') }}' : '{{ _('reviews') }}'"></span>
+								</p>
+							</div>
+							<div class="flex-grow-1 rating-summary" x-show="review_count > 0" x-cloak>
+								<template x-for="star in [5, 4, 3, 2, 1]" :key="star">
+									<div class="d-flex align-items-center gap-2 mb-1 rating-histogram-row">
+										<span x-text="star"></span>
+										{{ star_svg(classes='text-warning') }}
+										<div class="progress flex-grow-1" style="height:6px">
+											<div class="progress-bar bg-warning" :style="'width:' + histogram_percent(star) + '%'"></div>
+										</div>
+										<span class="text-muted" x-text="histogram[star] || 0"></span>
+									</div>
+								</template>
+							</div>
+						</div>
+
+						<ul class="comment-list" x-show="reviews.length > 0" x-cloak>
+							<template x-for="review in reviews" :key="review.name">
+								<li class="comment">
+									<div class="comment-body">
+										<ul class="dz-rating mb-2">
+											<template x-for="star in 5" :key="star">
+												<li :class="star <= review.rating ? 'star-fill' : ''">
+													{{ star_svg() }}
+												</li>
+											</template>
+										</ul>
+										<span class="fn" x-text="review.reviewer"></span>
+										<span class="badge bg-success" x-show="review.verified_purchase" x-cloak>{{ _("Verified Purchase") }}</span>
+										<span class="text-muted d-block small" x-text="format_relative_time(review.creation)"></span>
+										<p class="fw-bold mb-1" x-show="review.review_title" x-text="review.review_title"></p>
+										<p x-text="review.comment"></p>
+										<div class="seller-reply p-3 ms-4" x-show="review.seller_reply" x-cloak>
+											<p class="fw-bold mb-1 small">{{ _("Response from the seller") }}</p>
+											<p class="mb-0" x-text="review.seller_reply"></p>
+										</div>
+									</div>
+								</li>
+							</template>
+						</ul>
+						<p class="text-muted" x-show="reviews.length === 0" x-cloak>{{ _("No reviews yet.") }}</p>
+
+						<button type="button" class="btn btn-outline-secondary" @click="load_more()" x-show="has_more" x-cloak
+							:disabled="load_more_loading">
+							{{ _("Load more reviews") }}
+						</button>
+
+						<div class="default-form">
+							{% if frappe.session.user == "Guest" %}
+							{% call signup_modal() %}
+							<span class="btn btn-secondary">{{ _("Sign in to write a review") }}</span>
+							{% endcall %}
+							{% else %}
+							<div class="alert alert-success" x-show="submitted" x-cloak>
+								{{ _("Thanks! Your review is waiting for approval.") }}
+							</div>
+							<div class="d-flex align-items-center gap-3 mb-3" x-show="my_review && !editing" x-cloak>
+								<p class="text-muted mb-0" x-show="!submitted">{{ _("You've already reviewed this product.") }}</p>
+								<button type="button" class="btn btn-outline-secondary" @click="edit_review()">{{ _("Edit your review") }}</button>
+							</div>
+							<div class="comment-respond style-1" x-show="editing || (can_review && !submitted)" x-cloak>
+								<h4 class="comment-reply-title" x-text="editing ? '{{ _('Edit your review') }}' : '{{ _('Write a review') }}'"></h4>
+								<form class="comment-form" @submit.prevent="editing ? save_review() : submit_review()">
+									<ul class="dz-rating dz-rating-input mb-3">
+										<template x-for="star in 5" :key="star">
+											<li :class="star <= form_rating ? 'star-fill' : ''">
+												<button type="button" class="btn btn-link p-0" @click="form_rating = star"
+													:aria-pressed="form_rating === star">
+													{{ star_svg() }}
+												</button>
+											</li>
+										</template>
+									</ul>
+									<p class="comment-form-comment w-100">
+										<input type="text" class="form-control mb-3" x-model="form_review_title" maxlength="140"
+											placeholder="{{ _('Review title (optional)') }}">
+										<textarea class="form-control" x-model="form_comment" maxlength="2000" rows="4"
+											placeholder="{{ _('Share your thoughts about this product') }}"></textarea>
+									</p>
+									<p class="form-submit">
+										<button type="submit" class="btn btn-secondary" :disabled="submitting"
+											x-text="editing ? '{{ _('Save changes') }}' : '{{ _('Submit Review') }}'"></button>
+										<button type="button" class="btn btn-link" x-show="editing" x-cloak
+											@click="editing = false">{{ _("Cancel") }}</button>
+									</p>
+								</form>
+							</div>
+							{% endif %}
+						</div>
 					</div>
 				</div>
 			</div>

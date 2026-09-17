@@ -16,6 +16,8 @@ const routes = [
   { path: '/pricing', name: 'Pricing', component: () => import('./pages/Pricing.vue') },
   { path: '/customers', name: 'Customers', component: () => import('./pages/Customers.vue') },
   { path: '/customers/:id', name: 'CustomerDetail', component: () => import('./pages/CustomerDetail.vue') },
+  { path: '/reviews', name: 'Reviews', component: () => import('./pages/Reviews.vue') },
+  { path: '/reviews/:id', name: 'ReviewDetail', component: () => import('./pages/ReviewDetail.vue') },
   // Overview is the dashboard, so /analytics itself holds nothing: it opens
   // the first report.
   { path: '/analytics', redirect: '/analytics/revenue' },

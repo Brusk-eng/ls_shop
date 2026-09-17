@@ -27,6 +27,7 @@ const ITEM = {
   theme: { label: 'Theme', icon: 'lucide-palette', to: '/storefront/theme' },
   navigation: { label: 'Navigation', icon: 'lucide-list-tree', to: '/storefront/navigation' },
   pages: { label: 'Pages', icon: 'lucide-file-text', to: '/storefront/pages' },
+  reviews: { label: 'Reviews', icon: 'lucide-star', to: '/reviews' },
 }
 
 // The daily work sits ungrouped at the top; the two groups below it are the
@@ -38,7 +39,7 @@ export const sections = [
     items: [ITEM.overview, ITEM.search, ITEM.orders, ITEM.customers, ITEM.analytics],
   },
   { id: 'catalog', label: 'Catalog', items: [ITEM.products, ITEM.collections, ITEM.attributes] },
-  { id: 'storefront', label: 'Storefront', items: [ITEM.theme, ITEM.navigation, ITEM.pages] },
+  { id: 'storefront', label: 'Storefront', items: [ITEM.theme, ITEM.navigation, ITEM.pages, ITEM.reviews] },
 ]
 
 // SidebarItem only infers active state from an exact route match, so a detail

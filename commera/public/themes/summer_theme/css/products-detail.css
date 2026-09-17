@@ -100,3 +100,89 @@
 .btn-quantity .bootstrap-touchspin input {
 	display: block;
 }
+
+/* style.css styles .dz-rating / .star-fill / .comments-area only under card wrappers this markup
+   does not use (.dz-shop-card, .dz-product-detail .dz-content), so the bare block renders unstyled. */
+
+.comments-area .dz-rating {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 2px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+/* Only the summary block's stars are centred; a review's own stars sit above its left-aligned name. */
+.comments-area .comment-list .dz-rating,
+.comments-area .dz-rating.dz-rating-input {
+	justify-content: flex-start;
+}
+
+.comments-area .dz-rating li {
+	display: inline-block;
+	font-size: 16px;
+	color: var(--bs-gray-300);
+}
+
+/* Sized in em so font-size stays the one size knob the histogram's smaller stars already turn. */
+.comments-area .dz-rating li svg,
+.comments-area .rating-histogram-row > svg {
+	width: 1em;
+	height: 1em;
+	display: block;
+}
+
+.comments-area .rating-histogram-row > svg {
+	font-size: 12px;
+	flex-shrink: 0;
+}
+
+.comments-area .dz-rating li.star-fill {
+	color: var(--bs-warning);
+}
+
+.comments-area .dz-rating-input li .btn-link {
+	line-height: 1;
+	text-decoration: none;
+}
+
+.comments-area .rating-summary {
+	min-width: 220px;
+}
+
+.comments-area .rating-histogram-row {
+	font-size: 13px;
+	color: var(--bs-secondary-text);
+}
+
+.comments-area .rating-histogram-row .dz-rating li {
+	font-size: 12px;
+}
+
+.comments-area .comment-list > .comment .comment-body {
+	padding: 2px 0 30px 0;
+	min-height: 0;
+}
+
+.comments-area .comment-list > .comment .comment-body .fn {
+	font-family: var(--font-family-title);
+	font-size: 16px;
+	line-height: 21px;
+	color: var(--title);
+	font-weight: 600;
+	display: inline-block;
+	margin-right: 8px;
+}
+
+.comments-area .comment-list > .comment .comment-body p {
+	font-size: 14px;
+	font-family: var(--font-family-base);
+	color: var(--bs-secondary-text);
+}
+
+.comments-area .comment-list > .comment .seller-reply {
+	background: var(--bs-gray-100);
+	border-radius: 10px;
+}
