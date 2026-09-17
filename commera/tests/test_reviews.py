@@ -127,9 +127,7 @@ class TestUpdateReview(ReviewsTestCase):
 
 	def test_editing_a_published_review_sends_it_back_to_moderation(self):
 		name = self.make_review(rating=5, published=True)
-		self.assertEqual(
-			frappe.db.get_value("Style Attribute Variant", self.variant, "review_count"), 1
-		)
+		self.assertEqual(frappe.db.get_value("Style Attribute Variant", self.variant, "review_count"), 1)
 
 		update_review(name, 1, "Rewritten", "Rewritten comment")
 

@@ -172,7 +172,9 @@ def get_own_review(variant: str) -> dict | None:
 	}
 
 
-@frappe.whitelist(allow_guest=True)
+# Guest read is deliberate: a product page must show its reviews to signed-out shoppers, and only
+# is_published rows and their aggregates ever leave here.
+@frappe.whitelist(allow_guest=True)  # nosemgrep: frappe-semgrep-rules.rules.security.guest-whitelisted-method
 def get_reviews(variant: str, start: int = 0, page_length: int = PAGE_LENGTH):
 	"""Published reviews for the storefront, plus the summary, histogram and the session's own
 	review/write state. One query per concern; reviewer names are batched, never fetched per row."""
