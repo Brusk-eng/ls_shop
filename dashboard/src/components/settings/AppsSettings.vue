@@ -9,7 +9,8 @@
  * Every control saves its own field the moment it settles, so there is no Save button.
  */
 import { computed, watch } from 'vue'
-import { SettingsBody, SettingsHeader } from 'frappe-ui'
+import { SettingsBody } from 'frappe-ui'
+import SettingsPanelHeader from './SettingsPanelHeader.vue'
 import EmptyState from '../EmptyState.vue'
 import SettingsFieldRows from './SettingsFieldRows.vue'
 import SettingsSkeleton from './SettingsSkeleton.vue'
@@ -128,7 +129,7 @@ async function commitField(fieldname, value, label) {
 </script>
 
 <template>
-  <SettingsHeader
+  <SettingsPanelHeader
     title="Analytics"
     description="The analytics and marketing services this store reports to."
   />

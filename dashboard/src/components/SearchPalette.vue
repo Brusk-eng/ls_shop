@@ -14,7 +14,7 @@ import {
 import EmptyState from './EmptyState.vue'
 import { useAdminRead } from '../data/api'
 import { money, priceRange } from '../data/format'
-import { openSettings } from '../ia/settings'
+import { SETTINGS_TABS, openSettings } from '../ia/settings'
 import { search } from '../ia/search'
 import { openImport } from '../data/importFlow'
 import { openAddProduct } from '../data/addProduct'
@@ -118,11 +118,18 @@ const CREATE = [
   { id: 'receive', label: 'Receive stock', icon: 'lucide-package-plus', keywords: ['inward', 'grn'], run: () => router.push('/inventory') },
 ]
 
+// Derived from the dialog's own tab registry so a renamed or added tab reaches
+// the palette for free; the bare "Open settings" row stays hand-written because
+// the word "settings" needs one obvious target above the seven panes.
 const SETTINGS = [
   { id: 'settings', label: 'Open settings', icon: 'lucide-settings', keywords: ['preferences', 'config'], run: () => openSettings('general') },
-  { id: 'appearance', label: 'Appearance', icon: 'lucide-sun-moon', keywords: ['theme', 'dark', 'light'], run: () => openSettings('appearance') },
-  { id: 'payments', label: 'Payment providers', icon: 'lucide-credit-card', keywords: ['stripe', 'razorpay', 'gateway'], run: () => openSettings('payments') },
-  { id: 'apps', label: 'Apps and channels', icon: 'lucide-plug', keywords: ['integrations', 'shiprocket'], run: () => openSettings('apps') },
+  ...SETTINGS_TABS.map((tab) => ({
+    id: `settings-${tab.value}`,
+    label: tab.label,
+    icon: tab.icon,
+    keywords: ['settings', ...tab.keywords],
+    run: () => openSettings(tab.value),
+  })),
 ]
 
 const ALL = [
@@ -133,19 +140,29 @@ const ALL = [
 
 // Before you type, the palette is a short menu — the five destinations worth a
 // shortcut. Dumping every command into an empty query is what made it a wall.
+// Settings earns three of those rows because the palette clears its query on
+// close, so ⌘K always lands here and a tab nobody can see is a tab nobody
+// reaches; the total stays inside the list's `max-h-[21rem]`.
+const SUGGESTED_SETTING_IDS = ['settings', 'settings-appearance', 'settings-payments']
+
 const SUGGESTED = [
   { label: 'Jump to', commands: GO_TO.slice(0, 5) },
   { label: 'Create', commands: CREATE.slice(0, 2) },
+  { label: 'Settings', commands: SETTINGS.filter((command) => SUGGESTED_SETTING_IDS.includes(command.id)) },
 ]
 
 // The palette's own filter is off so the record rows can be ranked by hand;
 // the command rows therefore have to filter here.
 const commandGroups = computed(() => {
   if (!needle.value) return SUGGESTED
+  // Both sides lowercased, as frappe-ui's own CommandPalette matcher does.
+  // `needle` itself must stay as typed: it is the `search` param on four API
+  // calls and the words quoted back in the empty state.
+  const lowerNeedle = needle.value.toLowerCase()
   return ALL.map((group) => ({
     label: group.label,
     commands: group.commands.filter((command) =>
-      [command.label, ...command.keywords].some((text) => text.toLowerCase().includes(needle.value)),
+      [command.label, ...command.keywords].some((text) => text.toLowerCase().includes(lowerNeedle)),
     ),
   })).filter((group) => group.commands.length)
 })

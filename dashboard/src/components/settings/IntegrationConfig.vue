@@ -9,7 +9,8 @@
  * file.
  */
 import { reactive, ref } from 'vue'
-import { Badge, Button, SettingsBody, SettingsHeader, SettingsRow, Switch, toast } from 'frappe-ui'
+import { Badge, Button, SettingsBody, SettingsRow, Switch, toast } from 'frappe-ui'
+import SettingsConfigHeader from './SettingsConfigHeader.vue'
 import SettingsFieldRows from './SettingsFieldRows.vue'
 
 const props = defineProps({
@@ -44,9 +45,8 @@ async function copyWebhookUrl() {
 </script>
 
 <template>
-  <SettingsHeader :title="card.label" :description="card.blurb">
+  <SettingsConfigHeader :title="card.label" :description="card.blurb" @back="emit('back')">
     <template #actions>
-      <Button label="Back" icon-left="lucide-arrow-left" @click="emit('back')" />
       <Button
         label="Save"
         variant="solid"
@@ -55,7 +55,7 @@ async function copyWebhookUrl() {
         @click="emit('save', { enabled, values })"
       />
     </template>
-  </SettingsHeader>
+  </SettingsConfigHeader>
 
   <SettingsBody>
     <div class="divide-y divide-outline-gray-1">

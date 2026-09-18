@@ -7,8 +7,9 @@
  * Adding a third kind of integration means a registry on the server and one more instance
  * of this component — nothing else.
  */
-import { computed, ref, watch } from 'vue'
-import { Badge, Button, SettingsBody, SettingsHeader, Skeleton, toast } from 'frappe-ui'
+import { computed, watch } from 'vue'
+import { Badge, Button, SettingsBody, Skeleton, toast } from 'frappe-ui'
+import SettingsPanelHeader from './SettingsPanelHeader.vue'
 import EmptyState from '../EmptyState.vue'
 import IntegrationCard from './IntegrationCard.vue'
 import IntegrationConfig from './IntegrationConfig.vue'
@@ -21,7 +22,10 @@ const props = defineProps({
   active: { type: Boolean, default: false },
 })
 
-const configuring = ref(null)
+// The slug being configured is a model, not local state: configuring takes over the whole
+// panel, and only the panel that hosts this one can drop the content-height wrapper and the
+// section below so the keys form inherits a bounded height and can scroll.
+const configuring = defineModel('configuring', { type: String, default: null })
 const current = computed(
   () => props.store.cards.value.find((card) => card.slug === configuring.value) ?? null,
 )
@@ -49,7 +53,7 @@ async function saveCurrent({ enabled, values }) {
 
 <template>
   <template v-if="!current">
-    <SettingsHeader :title="title" :description="description">
+    <SettingsPanelHeader :title="title" :description="description">
       <template #actions>
         <Badge
           v-if="store.incomplete.value.length"
@@ -58,7 +62,7 @@ async function saveCurrent({ enabled, values }) {
           variant="subtle"
         />
       </template>
-    </SettingsHeader>
+    </SettingsPanelHeader>
     <SettingsBody>
       <!-- A refused read must not read as "this store has no providers". -->
       <div v-if="store.loadError.value" class="py-6 text-base text-ink-gray-5">

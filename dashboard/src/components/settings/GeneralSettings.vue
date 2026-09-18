@@ -8,7 +8,8 @@
  * address is never written and there is nothing to lose by closing the dialog.
  */
 import { computed, watch } from 'vue'
-import { Button, SettingsBody, SettingsHeader, SettingsRow, TextInput } from 'frappe-ui'
+import { Button, SettingsBody, SettingsRow, TextInput } from 'frappe-ui'
+import SettingsPanelHeader from './SettingsPanelHeader.vue'
 import EmptyState from '../EmptyState.vue'
 import SettingsSkeleton from './SettingsSkeleton.vue'
 import { useAdminAction, useAdminRead } from '../../data/api'
@@ -59,7 +60,7 @@ const companyLink = computed(() =>
 </script>
 
 <template>
-  <SettingsHeader
+  <SettingsPanelHeader
     title="General"
     description="How your storefront names itself, and how customers reach you."
   />

@@ -16,12 +16,12 @@ import {
   Button,
   Dropdown,
   SettingsBody,
-  SettingsHeader,
   dialog,
   toast,
 } from 'frappe-ui'
+import SettingsPanelHeader from './SettingsPanelHeader.vue'
 import EmptyState from '../EmptyState.vue'
-import DeliveryOptionDialog from './DeliveryOptionDialog.vue'
+import DeliveryOptionConfig from './DeliveryOptionConfig.vue'
 import DeliveryOptionRow from './DeliveryOptionRow.vue'
 import ImportCarrierServicesDialog from './ImportCarrierServicesDialog.vue'
 import SettingsSkeleton from './SettingsSkeleton.vue'
@@ -34,8 +34,11 @@ const props = defineProps({
 
 const store = useDeliveryOptions()
 
+// Which option's screen is open, and whether it is open at all — a new option has no row to
+// name, so the two cannot be one value. A model rather than local state: the screen takes the
+// whole tab over, so the panel above it has to know to get out of the way.
 const editing = ref(null)
-const editorOpen = ref(false)
+const editorOpen = defineModel('configuring', { type: Boolean, default: false })
 const importProvider = ref(null)
 const importOpen = ref(false)
 
@@ -61,7 +64,12 @@ function edit(option) {
   editorOpen.value = true
 }
 
-// Handed to the dialog rather than called by it, so the dialog owns no knowledge of the
+function closeEditor() {
+  editorOpen.value = false
+  editing.value = null
+}
+
+// Handed to the screen rather than called by it, so it owns no knowledge of the
 // store — it collects answers and reports whether the save stuck.
 async function saveOption(values) {
   return await store.mutate('save_delivery_option', { name: editing.value?.name ?? '', values })
@@ -104,93 +112,98 @@ function confirmDelete(option) {
 </script>
 
 <template>
-  <SettingsHeader
-    title="Delivery options"
-    description="What shoppers pick at checkout."
-  >
-    <template #actions>
-      <Badge
-        v-if="store.options.value.length"
-        :label="`${store.enabledCount.value} of ${store.options.value.length} on`"
-        theme="gray"
-        variant="subtle"
-      />
-      <Dropdown v-if="store.available.value && importActions.length" :options="importActions">
-        <Button label="Import from carrier" icon-right="lucide-chevron-down" />
-      </Dropdown>
-      <Button
-        v-if="store.available.value"
-        label="Add option"
-        icon-left="lucide-plus"
-        variant="solid"
-        theme="gray"
-        @click="create"
-      />
-    </template>
-  </SettingsHeader>
-
-  <SettingsBody>
-    <!-- A refused read must not read as "this store has no delivery options". -->
-    <EmptyState
-      v-if="store.loadError.value"
-      compact
-      icon="lucide-triangle-alert"
-      title="These could not be loaded"
-      description="Shoppers are still offered whatever is stored — this panel just cannot say what."
-    >
-      <Button label="Try again" variant="subtle" theme="gray" @click="store.load()" />
-    </EmptyState>
-
-    <!-- Three lines, because an option row carries its name, its description and its price. -->
-    <SettingsSkeleton
-      v-else-if="store.loading.value && !store.options.value.length"
-      :rows="3"
-      :lines="3"
-    />
-
-    <!-- The app that defines a shipping service is not installed, so there is nothing to
-         list and nothing to create — this is a state of the site, not a failure. -->
-    <EmptyState
-      v-else-if="!store.available.value"
-      compact
-      icon="lucide-package"
-      title="Delivery options arrive with the shipping app"
-      description="Install it to offer shoppers a choice at checkout; until then every order ships on whatever your carrier quotes."
-    />
-
-    <EmptyState
-      v-else-if="!store.options.value.length"
-      compact
-      icon="lucide-truck"
-      title="Checkout offers nothing to pick"
-      description="There are no delivery options yet. Import the services a connected carrier sells, or add one of your own."
-    />
-
-    <div v-else class="divide-y divide-outline-gray-1">
-      <DeliveryOptionRow
-        v-for="option in store.options.value"
-        :key="option.name"
-        :option="option"
-        :busy="store.loading.value"
-        @edit="edit"
-        @delete="confirmDelete"
-        @toggle="toggle(option, $event)"
-      />
-    </div>
-  </SettingsBody>
-
-  <DeliveryOptionDialog
-    v-model:open="editorOpen"
+  <!-- The editor replaces this whole panel rather than opening over it: a dialog on top of the
+       settings dialog stacks two modals and loses the tab you were in. -->
+  <DeliveryOptionConfig
+    v-if="editorOpen"
     :option="editing"
     :groups="store.fieldGroups.value"
     :link-options-path="store.linkOptionsPath.value"
     :submit="saveOption"
+    @back="closeEditor"
   />
 
-  <ImportCarrierServicesDialog
-    v-model:open="importOpen"
-    :provider="importProvider"
-    :fetch-choices="store.carrierServices"
-    :submit="importServices"
-  />
+  <template v-else>
+    <SettingsPanelHeader
+      title="Delivery options"
+      description="What shoppers pick at checkout."
+    >
+      <template #actions>
+        <Badge
+          v-if="store.options.value.length"
+          :label="`${store.enabledCount.value} of ${store.options.value.length} on`"
+          theme="gray"
+          variant="subtle"
+        />
+        <Dropdown v-if="store.available.value && importActions.length" :options="importActions">
+          <Button label="Import from carrier" icon-right="lucide-chevron-down" />
+        </Dropdown>
+        <Button
+          v-if="store.available.value"
+          label="Add option"
+          icon-left="lucide-plus"
+          variant="solid"
+          theme="gray"
+          @click="create"
+        />
+      </template>
+    </SettingsPanelHeader>
+
+    <SettingsBody>
+      <!-- A refused read must not read as "this store has no delivery options". -->
+      <EmptyState
+        v-if="store.loadError.value"
+        compact
+        icon="lucide-triangle-alert"
+        title="These could not be loaded"
+        description="Shoppers are still offered whatever is stored — this panel just cannot say what."
+      >
+        <Button label="Try again" variant="subtle" theme="gray" @click="store.load()" />
+      </EmptyState>
+
+      <!-- Three lines, because an option row carries its name, its description and its price. -->
+      <SettingsSkeleton
+        v-else-if="store.loading.value && !store.options.value.length"
+        :rows="3"
+        :lines="3"
+      />
+
+      <!-- The app that defines a shipping service is not installed, so there is nothing to
+           list and nothing to create — this is a state of the site, not a failure. -->
+      <EmptyState
+        v-else-if="!store.available.value"
+        compact
+        icon="lucide-package"
+        title="Delivery options arrive with the shipping app"
+        description="Install it to offer shoppers a choice at checkout; until then every order ships on whatever your carrier quotes."
+      />
+
+      <EmptyState
+        v-else-if="!store.options.value.length"
+        compact
+        icon="lucide-truck"
+        title="Checkout offers nothing to pick"
+        description="There are no delivery options yet. Import the services a connected carrier sells, or add one of your own."
+      />
+
+      <div v-else class="divide-y divide-outline-gray-1">
+        <DeliveryOptionRow
+          v-for="option in store.options.value"
+          :key="option.name"
+          :option="option"
+          :busy="store.loading.value"
+          @edit="edit"
+          @delete="confirmDelete"
+          @toggle="toggle(option, $event)"
+        />
+      </div>
+    </SettingsBody>
+
+    <ImportCarrierServicesDialog
+      v-model:open="importOpen"
+      :provider="importProvider"
+      :fetch-choices="store.carrierServices"
+      :submit="importServices"
+    />
+  </template>
 </template>

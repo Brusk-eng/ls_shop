@@ -13,12 +13,12 @@ import { computed, ref, watch } from 'vue'
 import {
   Button,
   SettingsBody,
-  SettingsHeader,
   SettingsRow,
   Switch,
   TextInput,
   toast,
 } from 'frappe-ui'
+import SettingsPanelHeader from './SettingsPanelHeader.vue'
 import EmptyState from '../EmptyState.vue'
 import SettingsLinkControl from './SettingsLinkControl.vue'
 import SettingsSkeleton from './SettingsSkeleton.vue'
@@ -88,7 +88,7 @@ function commitNumber(fieldname, event, label) {
 </script>
 
 <template>
-  <SettingsHeader
+  <SettingsPanelHeader
     title="Cash on delivery"
     description="Taking payment at the door, and what it costs to offer it."
   />

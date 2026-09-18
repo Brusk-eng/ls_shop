@@ -7,7 +7,8 @@
  * the same record this writes.
  */
 import { computed, onMounted, reactive, ref, useId } from 'vue'
-import { Button, FormControl, FormLabel, SettingsBody, SettingsHeader, toast } from 'frappe-ui'
+import { Button, FormControl, FormLabel, SettingsBody, toast } from 'frappe-ui'
+import SettingsConfigHeader from './SettingsConfigHeader.vue'
 import LocationMap from '../LocationMap.vue'
 import SettingsLinkControl from './SettingsLinkControl.vue'
 import { useAdminAction } from '../../data/api'
@@ -144,9 +145,12 @@ async function useCurrentLocation() {
 </script>
 
 <template>
-  <SettingsHeader :title="warehouse.warehouse_name" description="Pickup address">
+  <SettingsConfigHeader
+    :title="warehouse.warehouse_name"
+    description="Pickup address"
+    @back="emit('back')"
+  >
     <template #actions>
-      <Button label="Back" icon-left="lucide-arrow-left" @click="emit('back')" />
       <Button
         label="Save"
         type="submit"
@@ -157,7 +161,7 @@ async function useCurrentLocation() {
         :disabled="!values.country"
       />
     </template>
-  </SettingsHeader>
+  </SettingsConfigHeader>
 
   <SettingsBody>
     <form :id="formId" class="flex flex-col gap-4 pt-4" @submit.prevent="emit('save', { ...values })">

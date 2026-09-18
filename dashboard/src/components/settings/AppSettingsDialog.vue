@@ -1,10 +1,9 @@
 <script setup>
-import { watch } from 'vue'
+import { ref, watch } from 'vue'
 import {
   SettingsBody,
   SettingsContent,
   SettingsDialog,
-  SettingsHeader,
   SettingsNavGroup,
   SettingsNavItem,
   SettingsPanel,
@@ -18,6 +17,7 @@ import DeliveryOptionsPanel from './DeliveryOptionsPanel.vue'
 import GeneralSettings from './GeneralSettings.vue'
 import IntegrationsPanel from './IntegrationsPanel.vue'
 import LocationsSettings from './LocationsSettings.vue'
+import SettingsPanelHeader from './SettingsPanelHeader.vue'
 import { paymentIntegrations, shippingIntegrations } from '../../data/integrations'
 import { pickupLocations } from '../../data/pickupLocations'
 import { settings } from '../../ia/settings'
@@ -26,6 +26,13 @@ import { settings } from '../../ia/settings'
 // they cannot claim a provider is live when the site says otherwise.
 const connectedCount = paymentIntegrations.connectedCount
 const shippingConnected = shippingIntegrations.connectedCount
+
+// Which provider each tab has open. The list of providers is short enough to sit at its
+// content height above a second section, but a keys form is not: while one is open the tab
+// is given over to it whole, so it inherits the panel's bounded height and scrolls.
+const configuringPayment = ref(null)
+const configuringCarrier = ref(null)
+const editingDeliveryOption = ref(false)
 
 // Both registries load when the dialog opens, not when their tab is first shown: the
 // counts sit in the sidebar from the start, and an unread registry counts zero, which
@@ -116,12 +123,12 @@ watch(
         <!-- The default slot rather than the title prop: the subtitle told the owner nothing the
              three cards do not, but its height is kept so this tab's header sits level with the
              others in the dialog. -->
-        <SettingsHeader>
+        <SettingsPanelHeader>
           <div class="flex min-w-0 flex-col gap-1">
             <h2 class="text-lg font-semibold text-ink-gray-8">Appearance</h2>
             <p class="text-base" aria-hidden="true">&nbsp;</p>
           </div>
-        </SettingsHeader>
+        </SettingsPanelHeader>
         <SettingsBody>
           <AppearancePicker />
         </SettingsBody>
@@ -132,15 +139,26 @@ watch(
       <SettingsPanel value="payments" class="min-w-0">
         <!-- Same two-step story as Shipping: the gateways a store connects, then the one
              method it settles itself. The tail padding goes for the same reason. -->
-        <div class="flex shrink-0 flex-col [&_[data-slot=scroll-area-viewport]]:pb-0">
+        <div
+          class="flex flex-col"
+          :class="
+            configuringPayment
+              ? 'min-h-0 flex-1'
+              : 'shrink-0 [&_[data-slot=scroll-area-viewport]]:pb-0'
+          "
+        >
           <IntegrationsPanel
+            v-model:configuring="configuringPayment"
             :store="paymentIntegrations"
             :active="settings.tab === 'payments'"
             title="Payments"
             description="Turn on as many providers as you like. Each keeps its own keys."
           />
         </div>
-        <CashOnDeliverySettings :active="settings.open && settings.tab === 'payments'" />
+        <CashOnDeliverySettings
+          v-if="!configuringPayment"
+          :active="settings.open && settings.tab === 'payments'"
+        />
       </SettingsPanel>
 
       <!-- Shipping reads as one story in two steps: connect a carrier, then say what
@@ -151,15 +169,30 @@ watch(
              body drops the 4rem of tail padding a panel ends on; the section below supplies
              its own top spacing. Reached through frappe-ui's own data-slot, which is the
              supported hook — IntegrationsPanel itself stays generic and untouched. -->
-        <div class="flex shrink-0 flex-col [&_[data-slot=scroll-area-viewport]]:pb-0">
+        <!-- A takeover screen below — a delivery option's own form — needs the tab to itself,
+             the same way configuring a carrier does. -->
+        <div
+          v-if="!editingDeliveryOption"
+          class="flex flex-col"
+          :class="
+            configuringCarrier
+              ? 'min-h-0 flex-1'
+              : 'shrink-0 [&_[data-slot=scroll-area-viewport]]:pb-0'
+          "
+        >
           <IntegrationsPanel
+            v-model:configuring="configuringCarrier"
             :store="shippingIntegrations"
             :active="settings.tab === 'shipping'"
             title="Shipping"
             description="Carriers this store books with. Each quotes its own rates at checkout."
           />
         </div>
-        <DeliveryOptionsPanel :active="settings.open && settings.tab === 'shipping'" />
+        <DeliveryOptionsPanel
+          v-if="!configuringCarrier"
+          v-model:configuring="editingDeliveryOption"
+          :active="settings.open && settings.tab === 'shipping'"
+        />
       </SettingsPanel>
 
       <SettingsPanel value="apps" class="min-w-0">
