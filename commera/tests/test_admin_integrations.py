@@ -75,13 +75,19 @@ class TestAdminPaymentIntegrations(IntegrationTestCase):
 			save_payment_integration(SLUG, 0, {"key_secret": None})
 
 	def test_enabling_with_a_required_field_blank_throws(self):
-		credentials = FULL_CREDENTIALS | {"webhook_secret": None}
+		credentials = FULL_CREDENTIALS | {"key_id": None}
 
 		with self.assertRaises(frappe.ValidationError) as raised:
 			save_payment_integration(SLUG, 1, credentials)
 
-		self.assertIn("Webhook Secret", str(raised.exception))
+		self.assertIn("Key ID", str(raised.exception))
 		self.assertFalse(frappe.db.get_value("Payment Gateway Profile", GATEWAY, "enabled"))
+
+	def test_enabling_without_a_webhook_secret_is_allowed(self):
+		card = save_payment_integration(SLUG, 1, {"key_id": "rzp_test_zz", "key_secret": KEY_SECRET})
+
+		self.assertTrue(card["enabled"])
+		self.assertEqual(card["missing"], [])
 
 	def test_unknown_fieldname_throws(self):
 		with self.assertRaises(frappe.ValidationError) as raised:
