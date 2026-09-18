@@ -29,25 +29,18 @@ const routes = [
   { path: '/storefront/theme', name: 'StorefrontTheme', component: () => import('./pages/storefront/Theme.vue') },
   { path: '/storefront/navigation', name: 'StorefrontNavigation', component: () => import('./pages/storefront/Navigation.vue') },
   { path: '/storefront/pages', name: 'StorefrontPages', component: () => import('./pages/storefront/Pages.vue') },
-  // A Shop Web Page is named by its title, so the create path shadows a page
-  // literally titled "new" — rare enough to live with, and the editor is still
-  // reachable from the list row.
+  // A Shop Web Page is named by its title, so this shadows a page literally titled "new" —
+  // rare enough to live with, and the editor is still reachable from the list row.
   { path: '/storefront/pages/new', name: 'StorefrontPageNew', component: () => import('./pages/storefront/PageDetail.vue') },
   { path: '/storefront/pages/:name', name: 'StorefrontPageDetail', component: () => import('./pages/storefront/PageDetail.vue') },
-  // Settings is a dialog with a URL. These two records carry no component on
-  // purpose: vue-router accepts a record with no component as long as it is
-  // named, and RouterView skips a matched record that has no `components` and
-  // renders nothing — which is what we want, because App.vue hands RouterView
-  // the location the dialog was opened over so that page stays mounted behind
-  // the modal. Giving this route a component would tear that page down.
+  // No component on purpose: RouterView renders nothing for a matched record without one,
+  // so the page App.vue hands it stays mounted behind the modal.
   { path: '/settings', redirect: `/settings/${DEFAULT_SETTINGS_TAB}` },
   {
     path: '/settings/:tab',
     name: SETTINGS_ROUTE_NAME,
-    // A tab the dialog does not render would leave the panel column blank with
-    // nothing lit in the sidebar, so a typo'd or stale link lands on the first
-    // tab instead. beforeEnter rather than `redirect`: a redirect function must
-    // always return a location, and this one only sometimes redirects.
+    // beforeEnter, not `redirect`: a redirect function must always return a location,
+    // and an unknown tab is the only case that moves.
     beforeEnter: (to) => {
       const known = SETTINGS_TABS.some((settingsTab) => settingsTab.value === to.params.tab)
       return known ? true : { path: `/settings/${DEFAULT_SETTINGS_TAB}`, replace: true }

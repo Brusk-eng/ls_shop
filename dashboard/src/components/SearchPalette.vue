@@ -33,11 +33,8 @@ useKeyboardShortcut({
 
 const needle = computed(() => query.value.trim())
 
-// `immediate: false` keeps this idle on mount — the palette is always in the DOM behind ⌘K, so an
-// eager fetch would hit the backend on every page load before anyone has typed anything.
-// `refetch: true` re-runs the call whenever `needle` changes the request's params, which is the
-// only trigger this needs — no debounce here, matching how every other search box in this app
-// (Products.vue, Customers.vue) fires on each keystroke.
+// `immediate: false`: the palette is always in the DOM, so an eager fetch would hit the backend
+// on every page load. No debounce, matching Products.vue and Customers.vue.
 const productsRequest = useAdminRead('catalog.get_products', {
   params: () => ({ search: needle.value || undefined, page_length: LIMIT }),
   immediate: false,
@@ -66,9 +63,8 @@ const orderHits = computed(() => (needle.value ? (ordersRequest.data?.orders ?? 
 const customerHits = computed(() => (needle.value ? (customersRequest.data?.customers ?? []) : []))
 const collectionHits = computed(() => (needle.value ? (collectionsRequest.data?.collections ?? []) : []))
 
-// Four requests re-fire on every keystroke, and a hit list that is briefly empty
-// mid-flight is not a miss — without this the palette would flash "nothing matches"
-// between every letter typed.
+// A hit list that is briefly empty mid-flight is not a miss: without this the palette flashes
+// "nothing matches" between letters.
 const searching = computed(
   () =>
     productsRequest.loading ||
@@ -96,9 +92,7 @@ const noMatchState = computed(() => ({
   description: 'Try a product name, an order number, or a customer.',
 }))
 
-// Everything reachable by keyboard, including the screens the sidebar does not
-// list — stock, prices and product types are reached from the catalogue, but
-// they are still real destinations.
+// Includes the screens the sidebar does not list but that are still real destinations.
 const GO_TO = [
   { id: 'go-home', label: 'Overview', icon: 'lucide-layout-dashboard', keywords: ['home', 'dashboard'], run: () => router.push('/') },
   { id: 'go-orders', label: 'Orders', icon: 'lucide-shopping-bag', keywords: ['sales'], run: () => router.push('/orders') },
@@ -118,9 +112,6 @@ const CREATE = [
   { id: 'receive', label: 'Receive stock', icon: 'lucide-package-plus', keywords: ['inward', 'grn'], run: () => router.push('/inventory') },
 ]
 
-// Derived from the dialog's own tab registry so a renamed or added tab reaches
-// the palette for free; the bare "Open settings" row stays hand-written because
-// the word "settings" needs one obvious target above the seven panes.
 const SETTINGS = [
   { id: 'settings', label: 'Open settings', icon: 'lucide-settings', keywords: ['preferences', 'config'], run: () => openSettings('general') },
   ...SETTINGS_TABS.map((tab) => ({
@@ -140,9 +131,6 @@ const ALL = [
 
 // Before you type, the palette is a short menu — the five destinations worth a
 // shortcut. Dumping every command into an empty query is what made it a wall.
-// Settings earns three of those rows because the palette clears its query on
-// close, so ⌘K always lands here and a tab nobody can see is a tab nobody
-// reaches; the total stays inside the list's `max-h-[21rem]`.
 const SUGGESTED_SETTING_IDS = ['settings', 'settings-appearance', 'settings-payments']
 
 const SUGGESTED = [
@@ -155,9 +143,8 @@ const SUGGESTED = [
 // the command rows therefore have to filter here.
 const commandGroups = computed(() => {
   if (!needle.value) return SUGGESTED
-  // Both sides lowercased, as frappe-ui's own CommandPalette matcher does.
-  // `needle` itself must stay as typed: it is the `search` param on four API
-  // calls and the words quoted back in the empty state.
+  // `needle` itself must stay as typed: it is the `search` param on four API calls
+  // and the words quoted back in the empty state.
   const lowerNeedle = needle.value.toLowerCase()
   return ALL.map((group) => ({
     label: group.label,
@@ -167,10 +154,8 @@ const commandGroups = computed(() => {
   })).filter((group) => group.commands.length)
 })
 
-// Every id here is a real record name straight off the admin API (catalog.get_products'
-// item_template, orders.get_orders' Sales Order name, customers.get_customers' Customer name) —
-// the same class of link the Dashboard's recent-orders/top-products rows needed fixing for, since
-// this palette is reachable from every screen at all times.
+// Every id here is a real record name straight off the admin API — item_template, the Sales
+// Order name, the Customer name — never a display string.
 function onSelect(value) {
   if (value.kind === 'product') return router.push(`/products/${value.id}`)
   if (value.kind === 'order') return router.push(`/orders/${value.id}`)
@@ -257,10 +242,8 @@ function onSelect(value) {
         </CommandPaletteItem>
       </CommandPaletteGroup>
 
-      <!-- Commands that match the query still render below, and a group of them reads as
-           a result list — so the miss has to be said out loud. When nothing matches at all
-           the palette itself reports empty and the state moves to CommandPaletteEmpty
-           below, which is why this one waits for a command group to sit under. -->
+      <!-- Waits for a command group to sit under: with nothing at all, the palette reports
+           empty itself through CommandPaletteEmpty below. -->
       <EmptyState v-if="noRecordHits && commandGroups.length" v-bind="noMatchState" />
 
       <CommandPaletteGroup v-for="group in commandGroups" :key="group.label" :label="group.label">
@@ -296,10 +279,7 @@ function onSelect(value) {
 </template>
 
 <style scoped>
-/* The parts style themselves now that their source is scanned; this is the one
-   place the palette wants to read tighter than the default — group headings
-   closer to the rows they title. Styled through `data-slot`, per the library's
-   contract; there are no class props to pass. */
+/* Styled through `data-slot`, per the library's contract: there are no class props to pass. */
 .palette :deep([data-slot='command-palette-group']) {
   margin-top: 0.75rem;
   margin-bottom: 0.25rem;

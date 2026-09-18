@@ -1,13 +1,4 @@
 <script setup>
-/**
- * Creating or editing one delivery option, as a screen that takes the panel over — the same
- * shape as a gateway's keys or a warehouse's pickup address. Settings never opens a dialog on
- * top of the settings dialog.
- *
- * Every field below the title is the server's description of the doctype, rendered by the
- * same meta-driven rows as the carrier keys and the advanced tab — so a docfield added to
- * the shipping service reaches this form without a line changing here.
- */
 import { computed, reactive, ref, useId } from 'vue'
 import { Button, FormControl, SettingsBody, SettingsRow, toast } from 'frappe-ui'
 import SettingsConfigHeader from './SettingsConfigHeader.vue'
@@ -25,14 +16,12 @@ const props = defineProps({
 
 const emit = defineEmits(['back'])
 
-// The submit button sits in the header, outside the form, so `form` is what makes the browser
-// run each field's `required` check.
+// The submit button sits outside the form, so `form` is what runs each field's `required`.
 const formId = useId()
 
 const isEdit = computed(() => Boolean(props.option))
 
-// The title is what an order stores against its shipment, so renaming it after the fact
-// would rewrite history the shopper already agreed to. It is set once, then read.
+// An order stores this title, so it is set once and then read-only.
 const editableGroups = computed(() =>
   props.groups
     .map((group) => ({
@@ -45,8 +34,6 @@ const editableGroups = computed(() =>
 const title = ref(props.option?.title ?? '')
 const saving = ref(false)
 
-// Built once here rather than reset on open: the screen is mounted when the row is picked and
-// torn down on Back, so it cannot carry the previous row's answers the way the dialog could.
 const values = reactive(
   Object.fromEntries(
     props.groups.flatMap((group) =>
@@ -65,8 +52,7 @@ const values = reactive(
 async function save() {
   saving.value = true
   try {
-    // The title is only sent while creating — the server treats it as read-only after,
-    // and sending it back would invite a refusal on an otherwise valid edit.
+    // The server refuses a title on an edit: it is read-only once an order can carry it.
     const payload = isEdit.value ? { ...values } : { ...values, title: title.value.trim() }
     const saved = await props.submit(payload)
     if (!saved) return

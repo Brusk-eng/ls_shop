@@ -1,15 +1,4 @@
 <script setup>
-/**
- * What a shopper is actually offered at checkout.
- *
- * The carrier cards above this are a connection — an account with keys. This is the other
- * half of the same story: the named, priced choices that connection makes possible. They
- * are kept apart because they change on different clocks. A carrier is connected once; the
- * options under it are renamed, repriced and switched off all week.
- *
- * A sibling of IntegrationsPanel rather than a mode of it: that panel is deliberately
- * generic and shared with Payments, and payments have no equivalent of this list.
- */
 import { computed, ref, watch } from 'vue'
 import {
   Badge,
@@ -34,9 +23,7 @@ const props = defineProps({
 
 const store = useDeliveryOptions()
 
-// Which option's screen is open, and whether it is open at all — a new option has no row to
-// name, so the two cannot be one value. A model rather than local state: the screen takes the
-// whole tab over, so the panel above it has to know to get out of the way.
+// Two values: a new option has no row to name. A model, because the tab above has to know.
 const editing = ref(null)
 const editorOpen = defineModel('configuring', { type: Boolean, default: false })
 const importProvider = ref(null)
@@ -112,8 +99,7 @@ function confirmDelete(option) {
 </script>
 
 <template>
-  <!-- The editor replaces this whole panel rather than opening over it: a dialog on top of the
-       settings dialog stacks two modals and loses the tab you were in. -->
+  <!-- In-panel, not a dialog: Settings never stacks a second modal. -->
   <DeliveryOptionConfig
     v-if="editorOpen"
     :option="editing"

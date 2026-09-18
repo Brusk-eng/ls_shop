@@ -27,9 +27,8 @@ import { settings } from '../../ia/settings'
 const connectedCount = paymentIntegrations.connectedCount
 const shippingConnected = shippingIntegrations.connectedCount
 
-// Both registries load when the dialog opens, not when their tab is first shown: the
-// counts sit in the sidebar from the start, and an unread registry counts zero, which
-// reads as "nothing is connected" rather than "not looked yet".
+// Both load when the dialog opens, not when their tab is shown: an unread registry counts
+// zero, which reads as "nothing is connected".
 watch(
   () => settings.open,
   (isOpen) => {
@@ -95,11 +94,8 @@ watch(
       </SettingsNavGroup>
     </SettingsSidebar>
 
-    <!-- min-w-0 on the content column and every panel: frappe-ui gives them `flex-1`
-         with no min-width, so a flex item's `auto` floor keeps the column at its
-         min-content width (530px here) and the surplus is clipped by the dialog's
-         own overflow-hidden. Below roughly 780px of viewport that cut the right-hand
-         controls — Configure, Save, the theme cards — clean off the edge. -->
+    <!-- min-w-0 on the column and every panel: frappe-ui gives them `flex-1` with no
+         min-width, so below ~780px the right-hand controls are clipped clean off. -->
     <SettingsContent class="min-w-0">
       <SettingsPanel value="general" class="min-w-0">
         <GeneralSettings :active="settings.open && settings.tab === 'general'" />
@@ -109,13 +105,8 @@ watch(
         <LocationsSettings :active="settings.open && settings.tab === 'locations'" />
       </SettingsPanel>
 
-      <!-- Light and dark are a property of this browser, not of the store, so
-           Appearance sits with the other personal settings and nowhere near
-           the storefront theme. -->
       <SettingsPanel value="appearance" class="min-w-0">
-        <!-- The default slot rather than the title prop: the subtitle told the owner nothing the
-             three cards do not, but its height is kept so this tab's header sits level with the
-             others in the dialog. -->
+        <!-- The blank line keeps this tab's header level with the others. -->
         <SettingsPanelHeader>
           <div class="flex min-w-0 flex-col gap-1">
             <h2 class="text-lg font-semibold text-ink-gray-8">Appearance</h2>
@@ -127,9 +118,6 @@ watch(
         </SettingsBody>
       </SettingsPanel>
 
-      <!-- Payments: several gateways can run side by side, each with its own keys and
-           environment. Only the checkout default is exclusive. Then the one method the store
-           settles itself, which no gateway is involved in. -->
       <SettingsPanel value="payments" class="min-w-0">
         <IntegrationTabPanel
           :store="paymentIntegrations"
@@ -141,8 +129,6 @@ watch(
         </IntegrationTabPanel>
       </SettingsPanel>
 
-      <!-- Shipping reads as one story in two steps: connect a carrier, then say what shoppers
-           may pick from it. -->
       <SettingsPanel value="shipping" class="min-w-0">
         <IntegrationTabPanel
           v-slot="{ takeover, setTakeover }"

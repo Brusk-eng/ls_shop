@@ -1,12 +1,4 @@
 <script setup>
-/**
- * The store's own contact details, which this screen writes, beside the company record, which it
- * only reads. Company, currency, tax id and financial year belong to the books — this shows what
- * they say and hands off to Desk for the rest.
- *
- * Every box saves itself, committed when it is left rather than per keystroke, so a half-typed
- * address is never written and there is nothing to lose by closing the dialog.
- */
 import { computed, watch } from 'vue'
 import { Button, SettingsBody, SettingsRow, TextInput } from 'frappe-ui'
 import SettingsPanelHeader from './SettingsPanelHeader.vue'

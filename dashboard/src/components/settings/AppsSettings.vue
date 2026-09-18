@@ -1,13 +1,4 @@
 <script setup>
-/**
- * The analytics services this store reports to.
- *
- * Each is the same shape — a switch, public ids, and one credential the server keeps — so they are
- * described as docfields and rendered by the same row renderer the provider screens use, rather
- * than hand-built a third time.
- *
- * Every control saves its own field the moment it settles, so there is no Save button.
- */
 import { computed, watch } from 'vue'
 import { SettingsBody } from 'frappe-ui'
 import SettingsPanelHeader from './SettingsPanelHeader.vue'
@@ -117,9 +108,8 @@ const groups = computed(() => [
   },
 ])
 
-// A blank secret means "keep the stored one": it matches the blank this panel adopted, so it is
-// never submitted. Whether a secret is stored is read off the loaded settings rather than off the
-// save's answer, so a freshly stored credential only stops reading as missing once they are re-read.
+// A blank secret means "keep the stored one", so it is never submitted. `is_set` comes from the
+// loaded settings, not the save's answer, so a new credential reads as missing until a re-read.
 async function commitField(fieldname, value, label) {
   const isSecret = SECRET_FIELDS.includes(fieldname)
   await commit(fieldname, value, label, (saved) =>

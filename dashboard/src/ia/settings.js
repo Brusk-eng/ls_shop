@@ -1,18 +1,9 @@
-// Settings is a route, not local state: /commera/settings/payments is a real URL
-// (see the record in router.js), so `settings.open` and `settings.tab` are derived
-// from it in ia/settingsRoute rather than kept as a second copy that can drift.
-// Re-exported here because this is still the door the rest of the app knocks on.
+// Derived from the URL in ia/settingsRoute; re-exported because this is still the door the
+// rest of the app knocks on.
 export { openSettings, settings } from './settingsRoute'
 
-// The dialog's sidebar, in its own order, as data — so the search palette can
-// offer every tab without a second hand-maintained copy drifting out of sync
-// (it already called `apps` "Apps and channels" long after the sidebar renamed
-// it). `value` must stay identical to AppSettingsDialog's SettingsNavItem
-// values; the labels and icons mirror what that sidebar shows.
-//
-// `keywords` carries the weight here: the palette matches a plain substring
-// per field with no tokenising or stemming, so a merchant who types the
-// provider's name rather than ours only lands if that exact word is listed.
+// `value` must stay identical to AppSettingsDialog's SettingsNavItem values. The palette
+// matches a plain substring per keyword — no tokenising — so list the words people type.
 export const SETTINGS_TABS = [
   {
     value: 'general',

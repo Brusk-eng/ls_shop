@@ -1,7 +1,4 @@
 <script setup>
-/**
- * The store's warehouses, and which of them shoppers can collect an order from.
- */
 import { computed, ref, watch } from 'vue'
 import {
   Badge,

@@ -1,14 +1,4 @@
 <script setup>
-/**
- * Cash on delivery: the one payment method the store settles itself.
- *
- * It sits under the gateway cards rather than beside them because it is not a connection —
- * there are no keys and nothing to test. It is a switch and two amounts, so it reads as the
- * second half of the Payments story the way delivery options do for Shipping.
- *
- * Every control saves itself, the way the theme fields do: committed on change rather than
- * per keystroke, so a half-typed amount is never written.
- */
 import { computed, ref, watch } from 'vue'
 import {
   Button,

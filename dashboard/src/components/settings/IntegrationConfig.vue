@@ -1,13 +1,4 @@
 <script setup>
-/**
- * Configuring one provider takes over the panel, so the keys of several providers never
- * share a scroll.
- *
- * Every row here is derived from the settings doctype's own meta, in Desk layout order —
- * never a hardcoded field list. Add a docfield to a gateway or carrier Single and it shows
- * up here with its label, its description and its required flag, with no change to this
- * file.
- */
 import { reactive, ref } from 'vue'
 import { Badge, Button, SettingsBody, SettingsRow, Switch, toast } from 'frappe-ui'
 import SettingsConfigHeader from './SettingsConfigHeader.vue'
