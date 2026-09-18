@@ -1,5 +1,5 @@
 <script setup>
-import { ref, watch } from 'vue'
+import { watch } from 'vue'
 import {
   SettingsBody,
   SettingsContent,
@@ -15,7 +15,7 @@ import AppsSettings from './AppsSettings.vue'
 import CashOnDeliverySettings from './CashOnDeliverySettings.vue'
 import DeliveryOptionsPanel from './DeliveryOptionsPanel.vue'
 import GeneralSettings from './GeneralSettings.vue'
-import IntegrationsPanel from './IntegrationsPanel.vue'
+import IntegrationTabPanel from './IntegrationTabPanel.vue'
 import LocationsSettings from './LocationsSettings.vue'
 import SettingsPanelHeader from './SettingsPanelHeader.vue'
 import { paymentIntegrations, shippingIntegrations } from '../../data/integrations'
@@ -26,13 +26,6 @@ import { settings } from '../../ia/settings'
 // they cannot claim a provider is live when the site says otherwise.
 const connectedCount = paymentIntegrations.connectedCount
 const shippingConnected = shippingIntegrations.connectedCount
-
-// Which provider each tab has open. The list of providers is short enough to sit at its
-// content height above a second section, but a keys form is not: while one is open the tab
-// is given over to it whole, so it inherits the panel's bounded height and scrolls.
-const configuringPayment = ref(null)
-const configuringCarrier = ref(null)
-const editingDeliveryOption = ref(false)
 
 // Both registries load when the dialog opens, not when their tab is first shown: the
 // counts sit in the sidebar from the start, and an unread registry counts zero, which
@@ -134,65 +127,36 @@ watch(
         </SettingsBody>
       </SettingsPanel>
 
-      <!-- Payments: several gateways can run side by side, each with its own
-           keys and environment. Only the checkout default is exclusive. -->
+      <!-- Payments: several gateways can run side by side, each with its own keys and
+           environment. Only the checkout default is exclusive. Then the one method the store
+           settles itself, which no gateway is involved in. -->
       <SettingsPanel value="payments" class="min-w-0">
-        <!-- Same two-step story as Shipping: the gateways a store connects, then the one
-             method it settles itself. The tail padding goes for the same reason. -->
-        <div
-          class="flex flex-col"
-          :class="
-            configuringPayment
-              ? 'min-h-0 flex-1'
-              : 'shrink-0 [&_[data-slot=scroll-area-viewport]]:pb-0'
-          "
+        <IntegrationTabPanel
+          :store="paymentIntegrations"
+          :active="settings.tab === 'payments'"
+          title="Payments"
+          description="Turn on as many providers as you like. Each keeps its own keys."
         >
-          <IntegrationsPanel
-            v-model:configuring="configuringPayment"
-            :store="paymentIntegrations"
-            :active="settings.tab === 'payments'"
-            title="Payments"
-            description="Turn on as many providers as you like. Each keeps its own keys."
-          />
-        </div>
-        <CashOnDeliverySettings
-          v-if="!configuringPayment"
-          :active="settings.open && settings.tab === 'payments'"
-        />
+          <CashOnDeliverySettings :active="settings.open && settings.tab === 'payments'" />
+        </IntegrationTabPanel>
       </SettingsPanel>
 
-      <!-- Shipping reads as one story in two steps: connect a carrier, then say what
-           shoppers may pick from it. The carrier list is short and fixed, so it takes
-           only the height it needs and the options below get the rest of the scroll. -->
+      <!-- Shipping reads as one story in two steps: connect a carrier, then say what shoppers
+           may pick from it. -->
       <SettingsPanel value="shipping" class="min-w-0">
-        <!-- The carrier list is the first of two sections rather than a whole panel, so its
-             body drops the 4rem of tail padding a panel ends on; the section below supplies
-             its own top spacing. Reached through frappe-ui's own data-slot, which is the
-             supported hook — IntegrationsPanel itself stays generic and untouched. -->
-        <!-- A takeover screen below — a delivery option's own form — needs the tab to itself,
-             the same way configuring a carrier does. -->
-        <div
-          v-if="!editingDeliveryOption"
-          class="flex flex-col"
-          :class="
-            configuringCarrier
-              ? 'min-h-0 flex-1'
-              : 'shrink-0 [&_[data-slot=scroll-area-viewport]]:pb-0'
-          "
+        <IntegrationTabPanel
+          v-slot="{ takeover, setTakeover }"
+          :store="shippingIntegrations"
+          :active="settings.tab === 'shipping'"
+          title="Shipping"
+          description="Carriers this store books with. Each quotes its own rates at checkout."
         >
-          <IntegrationsPanel
-            v-model:configuring="configuringCarrier"
-            :store="shippingIntegrations"
-            :active="settings.tab === 'shipping'"
-            title="Shipping"
-            description="Carriers this store books with. Each quotes its own rates at checkout."
+          <DeliveryOptionsPanel
+            :configuring="takeover"
+            :active="settings.open && settings.tab === 'shipping'"
+            @update:configuring="setTakeover"
           />
-        </div>
-        <DeliveryOptionsPanel
-          v-if="!configuringCarrier"
-          v-model:configuring="editingDeliveryOption"
-          :active="settings.open && settings.tab === 'shipping'"
-        />
+        </IntegrationTabPanel>
       </SettingsPanel>
 
       <SettingsPanel value="apps" class="min-w-0">

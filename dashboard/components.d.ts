@@ -41,6 +41,7 @@ declare module 'vue' {
     IntegrationConfig: typeof import('./src/components/settings/IntegrationConfig.vue')['default']
     IntegrationLogo: typeof import('./src/components/integrations/IntegrationLogo.vue')['default']
     IntegrationsPanel: typeof import('./src/components/settings/IntegrationsPanel.vue')['default']
+    IntegrationTabPanel: typeof import('./src/components/settings/IntegrationTabPanel.vue')['default']
     ListPagination: typeof import('./src/components/ListPagination.vue')['default']
     ListSkeleton: typeof import('./src/components/ListSkeleton.vue')['default']
     LocationMap: typeof import('./src/components/LocationMap.vue')['default']
