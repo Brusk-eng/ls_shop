@@ -1,13 +1,7 @@
 <script setup>
-/**
- * The long tail of store setup: every remaining Commera Settings field, grouped by the section it
- * sits under in Desk and rendered from that doctype's own meta. Add a field to the doctype and it
- * appears here; nothing about this screen names a field.
- *
- * Every control saves its own field the moment it settles, so there is no Save button.
- */
 import { watch } from 'vue'
-import { Alert, Button, SettingsBody, SettingsHeader, dialog, toast } from 'frappe-ui'
+import { Alert, Button, SettingsBody, dialog, toast } from 'frappe-ui'
+import SettingsPanelHeader from './SettingsPanelHeader.vue'
 import SettingsFieldRows from './SettingsFieldRows.vue'
 import SettingsSkeleton from './SettingsSkeleton.vue'
 import { useAdminAction, useAdminRead } from '../../data/api'
@@ -69,7 +63,7 @@ function confirmInstallDemoData() {
 </script>
 
 <template>
-  <SettingsHeader
+  <SettingsPanelHeader
     title="Advanced"
     description="Every remaining store setting, grouped as it appears in your books."
   />

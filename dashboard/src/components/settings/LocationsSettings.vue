@@ -1,17 +1,14 @@
 <script setup>
-/**
- * The store's warehouses, and which of them shoppers can collect an order from.
- */
 import { computed, ref, watch } from 'vue'
 import {
   Badge,
   Button,
   SettingsBody,
-  SettingsHeader,
   SettingsRow,
   Switch,
   toast,
 } from 'frappe-ui'
+import SettingsPanelHeader from './SettingsPanelHeader.vue'
 import EmptyState from '../EmptyState.vue'
 import PickupAddressConfig from './PickupAddressConfig.vue'
 import SettingsSkeleton from './SettingsSkeleton.vue'
@@ -65,7 +62,7 @@ async function saveAddress(values) {
   />
 
   <template v-else>
-    <SettingsHeader
+    <SettingsPanelHeader
       title="Pickup locations"
       description="Your warehouses, and where shoppers can collect their order."
     />

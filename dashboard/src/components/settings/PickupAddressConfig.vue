@@ -1,13 +1,7 @@
 <script setup>
-/**
- * Editing one warehouse's pickup address takes over the panel, the way configuring a payment
- * provider does, so Settings never stacks a second dialog on top of itself.
- *
- * The address is a plain Address of type Shop linked to the warehouse, so Desk and checkout read
- * the same record this writes.
- */
 import { computed, onMounted, reactive, ref, useId } from 'vue'
-import { Button, FormControl, FormLabel, SettingsBody, SettingsHeader, toast } from 'frappe-ui'
+import { Button, FormControl, FormLabel, SettingsBody, toast } from 'frappe-ui'
+import SettingsConfigHeader from './SettingsConfigHeader.vue'
 import LocationMap from '../LocationMap.vue'
 import SettingsLinkControl from './SettingsLinkControl.vue'
 import { useAdminAction } from '../../data/api'
@@ -82,9 +76,8 @@ onMounted(async () => {
 // or took from their device, is theirs and a later address edit must not move it.
 const pinFollowsAddress = computed(() => !hasPin.value || pinSource.value === 'match')
 
-// Runs when focus leaves an address field, never per keystroke: OpenStreetMap's free lookup
-// forbids search-as-you-type and allows one request a second. It waits for a city or postal code,
-// because a street name alone tabbed away from matches the same street in any city in the country.
+// On blur, never per keystroke: OpenStreetMap's free lookup forbids search-as-you-type and
+// allows one request a second. Waits for a city or postal code, or the street matches anywhere.
 async function placeFromAddress() {
   if (!pinFollowsAddress.value || (!values.city && !values.pincode)) return
   if (searchText.value === lastSearched) return
@@ -144,9 +137,12 @@ async function useCurrentLocation() {
 </script>
 
 <template>
-  <SettingsHeader :title="warehouse.warehouse_name" description="Pickup address">
+  <SettingsConfigHeader
+    :title="warehouse.warehouse_name"
+    description="Pickup address"
+    @back="emit('back')"
+  >
     <template #actions>
-      <Button label="Back" icon-left="lucide-arrow-left" @click="emit('back')" />
       <Button
         label="Save"
         type="submit"
@@ -157,7 +153,7 @@ async function useCurrentLocation() {
         :disabled="!values.country"
       />
     </template>
-  </SettingsHeader>
+  </SettingsConfigHeader>
 
   <SettingsBody>
     <form :id="formId" class="flex flex-col gap-4 pt-4" @submit.prevent="emit('save', { ...values })">

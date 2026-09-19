@@ -1,10 +1,50 @@
-import { reactive } from 'vue'
+// Derived from the URL in ia/settingsRoute; re-exported because this is still the door the
+// rest of the app knocks on.
+export { openSettings, settings } from './settingsRoute'
 
-// Settings is a dialog, not a route: it is opened from the workspace menu and
-// the sidebar, and it should never lose the page behind it.
-export const settings = reactive({ open: false, tab: 'general' })
-
-export function openSettings(tab = 'general') {
-  settings.tab = tab
-  settings.open = true
-}
+// `value` must stay identical to AppSettingsDialog's SettingsNavItem values. The palette
+// matches a plain substring per keyword — no tokenising — so list the words people type.
+export const SETTINGS_TABS = [
+  {
+    value: 'general',
+    label: 'General',
+    icon: 'lucide-store',
+    keywords: ['store', 'shop', 'name', 'address', 'currency', 'timezone', 'contact'],
+  },
+  {
+    value: 'appearance',
+    label: 'Appearance',
+    icon: 'lucide-sun-moon',
+    keywords: ['theme', 'dark', 'light', 'colour', 'color', 'logo', 'brand'],
+  },
+  {
+    value: 'payments',
+    label: 'Payments',
+    icon: 'lucide-credit-card',
+    keywords: ['stripe', 'razorpay', 'upi', 'card', 'keys', 'gateway', 'checkout', 'cash on delivery', 'cod', 'refund'],
+  },
+  {
+    value: 'shipping',
+    label: 'Shipping',
+    icon: 'lucide-truck',
+    keywords: ['carrier', 'shiprocket', 'aftership', 'rates', 'courier', 'delivery', 'tracking', 'free shipping'],
+  },
+  {
+    value: 'locations',
+    label: 'Pickup locations',
+    icon: 'lucide-map-pin',
+    keywords: ['pickup', 'warehouse', 'collect', 'store pickup', 'branch', 'address'],
+  },
+  {
+    value: 'apps',
+    label: 'Analytics',
+    icon: 'lucide-chart-line',
+    keywords: ['ga4', 'google analytics', 'pixel', 'tracking', 'meta', 'apps', 'integrations'],
+  },
+  {
+    value: 'advanced',
+    label: 'Advanced',
+    icon: 'lucide-sliders-horizontal',
+    keywords: ['developer', 'api', 'reset', 'danger', 'cache', 'debug'],
+  },
+]

@@ -14,7 +14,7 @@ import {
 import EmptyState from './EmptyState.vue'
 import { useAdminRead } from '../data/api'
 import { money, priceRange } from '../data/format'
-import { openSettings } from '../ia/settings'
+import { SETTINGS_TABS, openSettings } from '../ia/settings'
 import { search } from '../ia/search'
 import { openImport } from '../data/importFlow'
 import { openAddProduct } from '../data/addProduct'
@@ -33,11 +33,8 @@ useKeyboardShortcut({
 
 const needle = computed(() => query.value.trim())
 
-// `immediate: false` keeps this idle on mount — the palette is always in the DOM behind ⌘K, so an
-// eager fetch would hit the backend on every page load before anyone has typed anything.
-// `refetch: true` re-runs the call whenever `needle` changes the request's params, which is the
-// only trigger this needs — no debounce here, matching how every other search box in this app
-// (Products.vue, Customers.vue) fires on each keystroke.
+// `immediate: false`: the palette is always in the DOM, so an eager fetch would hit the backend
+// on every page load. No debounce, matching Products.vue and Customers.vue.
 const productsRequest = useAdminRead('catalog.get_products', {
   params: () => ({ search: needle.value || undefined, page_length: LIMIT }),
   immediate: false,
@@ -66,9 +63,8 @@ const orderHits = computed(() => (needle.value ? (ordersRequest.data?.orders ?? 
 const customerHits = computed(() => (needle.value ? (customersRequest.data?.customers ?? []) : []))
 const collectionHits = computed(() => (needle.value ? (collectionsRequest.data?.collections ?? []) : []))
 
-// Four requests re-fire on every keystroke, and a hit list that is briefly empty
-// mid-flight is not a miss — without this the palette would flash "nothing matches"
-// between every letter typed.
+// A hit list that is briefly empty mid-flight is not a miss: without this the palette flashes
+// "nothing matches" between letters.
 const searching = computed(
   () =>
     productsRequest.loading ||
@@ -96,9 +92,7 @@ const noMatchState = computed(() => ({
   description: 'Try a product name, an order number, or a customer.',
 }))
 
-// Everything reachable by keyboard, including the screens the sidebar does not
-// list — stock, prices and product types are reached from the catalogue, but
-// they are still real destinations.
+// Includes the screens the sidebar does not list but that are still real destinations.
 const GO_TO = [
   { id: 'go-home', label: 'Overview', icon: 'lucide-layout-dashboard', keywords: ['home', 'dashboard'], run: () => router.push('/') },
   { id: 'go-orders', label: 'Orders', icon: 'lucide-shopping-bag', keywords: ['sales'], run: () => router.push('/orders') },
@@ -120,9 +114,13 @@ const CREATE = [
 
 const SETTINGS = [
   { id: 'settings', label: 'Open settings', icon: 'lucide-settings', keywords: ['preferences', 'config'], run: () => openSettings('general') },
-  { id: 'appearance', label: 'Appearance', icon: 'lucide-sun-moon', keywords: ['theme', 'dark', 'light'], run: () => openSettings('appearance') },
-  { id: 'payments', label: 'Payment providers', icon: 'lucide-credit-card', keywords: ['stripe', 'razorpay', 'gateway'], run: () => openSettings('payments') },
-  { id: 'apps', label: 'Apps and channels', icon: 'lucide-plug', keywords: ['integrations', 'shiprocket'], run: () => openSettings('apps') },
+  ...SETTINGS_TABS.map((tab) => ({
+    id: `settings-${tab.value}`,
+    label: tab.label,
+    icon: tab.icon,
+    keywords: ['settings', ...tab.keywords],
+    run: () => openSettings(tab.value),
+  })),
 ]
 
 const ALL = [
@@ -133,27 +131,31 @@ const ALL = [
 
 // Before you type, the palette is a short menu — the five destinations worth a
 // shortcut. Dumping every command into an empty query is what made it a wall.
+const SUGGESTED_SETTING_IDS = ['settings', 'settings-appearance', 'settings-payments']
+
 const SUGGESTED = [
   { label: 'Jump to', commands: GO_TO.slice(0, 5) },
   { label: 'Create', commands: CREATE.slice(0, 2) },
+  { label: 'Settings', commands: SETTINGS.filter((command) => SUGGESTED_SETTING_IDS.includes(command.id)) },
 ]
 
 // The palette's own filter is off so the record rows can be ranked by hand;
 // the command rows therefore have to filter here.
 const commandGroups = computed(() => {
   if (!needle.value) return SUGGESTED
+  // `needle` itself must stay as typed: it is the `search` param on four API calls
+  // and the words quoted back in the empty state.
+  const lowerNeedle = needle.value.toLowerCase()
   return ALL.map((group) => ({
     label: group.label,
     commands: group.commands.filter((command) =>
-      [command.label, ...command.keywords].some((text) => text.toLowerCase().includes(needle.value)),
+      [command.label, ...command.keywords].some((text) => text.toLowerCase().includes(lowerNeedle)),
     ),
   })).filter((group) => group.commands.length)
 })
 
-// Every id here is a real record name straight off the admin API (catalog.get_products'
-// item_template, orders.get_orders' Sales Order name, customers.get_customers' Customer name) —
-// the same class of link the Dashboard's recent-orders/top-products rows needed fixing for, since
-// this palette is reachable from every screen at all times.
+// Every id here is a real record name straight off the admin API — item_template, the Sales
+// Order name, the Customer name — never a display string.
 function onSelect(value) {
   if (value.kind === 'product') return router.push(`/products/${value.id}`)
   if (value.kind === 'order') return router.push(`/orders/${value.id}`)
@@ -240,10 +242,8 @@ function onSelect(value) {
         </CommandPaletteItem>
       </CommandPaletteGroup>
 
-      <!-- Commands that match the query still render below, and a group of them reads as
-           a result list — so the miss has to be said out loud. When nothing matches at all
-           the palette itself reports empty and the state moves to CommandPaletteEmpty
-           below, which is why this one waits for a command group to sit under. -->
+      <!-- Waits for a command group to sit under: with nothing at all, the palette reports
+           empty itself through CommandPaletteEmpty below. -->
       <EmptyState v-if="noRecordHits && commandGroups.length" v-bind="noMatchState" />
 
       <CommandPaletteGroup v-for="group in commandGroups" :key="group.label" :label="group.label">
@@ -279,10 +279,7 @@ function onSelect(value) {
 </template>
 
 <style scoped>
-/* The parts style themselves now that their source is scanned; this is the one
-   place the palette wants to read tighter than the default — group headings
-   closer to the rows they title. Styled through `data-slot`, per the library's
-   contract; there are no class props to pass. */
+/* Styled through `data-slot`, per the library's contract: there are no class props to pass. */
 .palette :deep([data-slot='command-palette-group']) {
   margin-top: 0.75rem;
   margin-bottom: 0.25rem;

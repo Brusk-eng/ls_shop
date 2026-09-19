@@ -1,14 +1,7 @@
 <script setup>
-/**
- * The list of providers a store can turn on, and the screen behind each one.
- *
- * Payments and shipping are the same screen twice: the backend engine behind both
- * registries is provider-agnostic, so this panel only needs telling which store to read.
- * Adding a third kind of integration means a registry on the server and one more instance
- * of this component — nothing else.
- */
-import { computed, ref, watch } from 'vue'
-import { Badge, Button, SettingsBody, SettingsHeader, Skeleton, toast } from 'frappe-ui'
+import { computed, watch } from 'vue'
+import { Badge, Button, SettingsBody, Skeleton, toast } from 'frappe-ui'
+import SettingsPanelHeader from './SettingsPanelHeader.vue'
 import EmptyState from '../EmptyState.vue'
 import IntegrationCard from './IntegrationCard.vue'
 import IntegrationConfig from './IntegrationConfig.vue'
@@ -21,7 +14,8 @@ const props = defineProps({
   active: { type: Boolean, default: false },
 })
 
-const configuring = ref(null)
+// A model: the host panel has to know a takeover screen is open to give it a bounded height.
+const configuring = defineModel('configuring', { type: String, default: null })
 const current = computed(
   () => props.store.cards.value.find((card) => card.slug === configuring.value) ?? null,
 )
@@ -49,7 +43,7 @@ async function saveCurrent({ enabled, values }) {
 
 <template>
   <template v-if="!current">
-    <SettingsHeader :title="title" :description="description">
+    <SettingsPanelHeader :title="title" :description="description">
       <template #actions>
         <Badge
           v-if="store.incomplete.value.length"
@@ -58,15 +52,14 @@ async function saveCurrent({ enabled, values }) {
           variant="subtle"
         />
       </template>
-    </SettingsHeader>
+    </SettingsPanelHeader>
     <SettingsBody>
       <!-- A refused read must not read as "this store has no providers". -->
       <div v-if="store.loadError.value" class="py-6 text-base text-ink-gray-5">
         These could not be loaded.
         <Button label="Try again" variant="ghost" @click="store.load()" />
       </div>
-      <!-- Shaped like IntegrationCard's own row — plate, two lines, the two controls —
-           so the list does not shift when the real cards land. First load only: a
+      <!-- Shaped like IntegrationCard's row so the list does not shift. First load only: a
            save keeps `cards` populated and must not blank the list under the switch. -->
       <div
         v-else-if="store.loading.value && !store.cards.value.length"

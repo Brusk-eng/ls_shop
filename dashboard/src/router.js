@@ -1,4 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import { SETTINGS_TABS } from './ia/settings'
+import { attachSettingsRouter, DEFAULT_SETTINGS_TAB, SETTINGS_ROUTE_NAME } from './ia/settingsRoute'
 
 const routes = [
   { path: '/', name: 'Dashboard', component: () => import('./pages/Dashboard.vue') },
@@ -27,11 +29,23 @@ const routes = [
   { path: '/storefront/theme', name: 'StorefrontTheme', component: () => import('./pages/storefront/Theme.vue') },
   { path: '/storefront/navigation', name: 'StorefrontNavigation', component: () => import('./pages/storefront/Navigation.vue') },
   { path: '/storefront/pages', name: 'StorefrontPages', component: () => import('./pages/storefront/Pages.vue') },
-  // A Shop Web Page is named by its title, so the create path shadows a page
-  // literally titled "new" — rare enough to live with, and the editor is still
-  // reachable from the list row.
+  // A Shop Web Page is named by its title, so this shadows a page literally titled "new" —
+  // rare enough to live with, and the editor is still reachable from the list row.
   { path: '/storefront/pages/new', name: 'StorefrontPageNew', component: () => import('./pages/storefront/PageDetail.vue') },
   { path: '/storefront/pages/:name', name: 'StorefrontPageDetail', component: () => import('./pages/storefront/PageDetail.vue') },
+  // No component on purpose: RouterView renders nothing for a matched record without one,
+  // so the page App.vue hands it stays mounted behind the modal.
+  { path: '/settings', redirect: `/settings/${DEFAULT_SETTINGS_TAB}` },
+  {
+    path: '/settings/:tab',
+    name: SETTINGS_ROUTE_NAME,
+    // beforeEnter, not `redirect`: a redirect function must always return a location,
+    // and an unknown tab is the only case that moves.
+    beforeEnter: (to) => {
+      const known = SETTINGS_TABS.some((settingsTab) => settingsTab.value === to.params.tab)
+      return known ? true : { path: `/settings/${DEFAULT_SETTINGS_TAB}`, replace: true }
+    },
+  },
   // Last, so it only catches what nothing above claimed: without it an unknown path rendered the
   // shell with an empty content area, which reads as a screen that failed to load.
   { path: '/:pathMatch(.*)*', name: 'NotFound', component: () => import('./pages/NotFound.vue') },
@@ -42,3 +56,7 @@ export const router = createRouter({
   routes,
   scrollBehavior: () => ({ top: 0 }),
 })
+
+// ia/settingsRoute derives the dialog's open/tab state from the URL, and needs the
+// instance to push and to remember the page the dialog was opened over.
+attachSettingsRouter(router)

@@ -1,24 +1,14 @@
 <script setup>
-/**
- * Cash on delivery: the one payment method the store settles itself.
- *
- * It sits under the gateway cards rather than beside them because it is not a connection —
- * there are no keys and nothing to test. It is a switch and two amounts, so it reads as the
- * second half of the Payments story the way delivery options do for Shipping.
- *
- * Every control saves itself, the way the theme fields do: committed on change rather than
- * per keystroke, so a half-typed amount is never written.
- */
 import { computed, ref, watch } from 'vue'
 import {
   Button,
   SettingsBody,
-  SettingsHeader,
   SettingsRow,
   Switch,
   TextInput,
   toast,
 } from 'frappe-ui'
+import SettingsPanelHeader from './SettingsPanelHeader.vue'
 import EmptyState from '../EmptyState.vue'
 import SettingsLinkControl from './SettingsLinkControl.vue'
 import SettingsSkeleton from './SettingsSkeleton.vue'
@@ -88,7 +78,7 @@ function commitNumber(fieldname, event, label) {
 </script>
 
 <template>
-  <SettingsHeader
+  <SettingsPanelHeader
     title="Cash on delivery"
     description="Taking payment at the door, and what it costs to offer it."
   />

@@ -87,11 +87,7 @@ const revenueByMonth = computed(() => revenueRequest.data?.months ?? [])
 </script>
 
 <template>
-  <AppPageHeader title="Overview">
-    <template #actions>
-      <Button label="Add product" icon-left="lucide-plus" variant="solid" theme="gray" route="/products" />
-    </template>
-  </AppPageHeader>
+  <AppPageHeader title="Overview" />
 
   <PageBody width="narrow">
     <ReportStats
