@@ -1,12 +1,12 @@
 from contextlib import contextmanager
 
 import frappe
-from bwh_payments.bwh_payments.utils import resolve_payment_mode
+from bwh_payments.bwh_payments.utils import get_available_payment_modes, resolve_payment_mode
 from erpnext.accounts.doctype.journal_entry.journal_entry import get_default_bank_cash_account
 from erpnext.accounts.doctype.payment_entry.payment_entry import get_payment_entry
 from erpnext.accounts.doctype.pricing_rule.utils import validate_coupon_code
 from frappe import _
-from frappe.utils import getdate
+from frappe.utils import getdate, validate_email_address
 from frappe.utils.data import flt
 
 from commera.analytics.events import log_purchase, set_attribution_fields
@@ -48,24 +48,35 @@ def get_charge_amount(quotation) -> float:
 
 
 def get_open_gateway_payment_request(quotation_name: str) -> str | None:
-	"""The Gateway Payment Request still holding this cart, if the shopper has a checkout in flight."""
-	return frappe.db.get_value(
-		"Gateway Payment Request",
-		{
-			"ref_doctype": "Quotation",
-			"ref_docname": quotation_name,
-			"status": ["in", ("Pending", "Paid")],
-		},
-		"name",
-	)
+	for status in ("Paid", "Pending"):
+		open_request = frappe.db.get_value(
+			"Gateway Payment Request",
+			{"ref_doctype": "Quotation", "ref_docname": quotation_name, "status": status},
+			"name",
+		)
+		if open_request:
+			return open_request
+
+	return None
 
 
 def validate_cart_is_not_in_checkout(quotation_name: str):
-	"""Refuse to edit a cart that a gateway session is already priced against."""
-	# ponytail: an abandoned checkout keeps the cart locked until the gateway expires the session and a
-	# status sync moves it off Pending; give the shopper a "cancel this payment" action if that bites.
-	if not quotation_name or not get_open_gateway_payment_request(quotation_name):
+	if not quotation_name:
 		return
+
+	open_request = get_open_gateway_payment_request(quotation_name)
+	if not open_request:
+		return
+
+	payment_request = frappe.get_doc("Gateway Payment Request", open_request)
+	if payment_request.release_if_unpaid():
+		return
+
+	if payment_request.status == "Paid":
+		frappe.throw(
+			_("This order has already been paid. Open it from your account rather than changing the cart."),
+			title=_("Already Paid"),
+		)
 
 	frappe.throw(
 		_("A payment is already in progress for this order. Finish or cancel it before changing your cart."),
@@ -80,6 +91,18 @@ def get_confirmation_url(reference_id: str, payment_mode: str | None = None) -> 
 	return url
 
 
+def refuse_payment(message: str, quotation: str | None = None, **context):
+	details = {"quotation": quotation, "user": frappe.session.user, **context}
+	frappe.log_error(
+		title=f"Checkout refused: {message}"[:140],
+		message="\n".join(f"{key}: {value}" for key, value in details.items()),
+		reference_doctype="Quotation" if quotation else None,
+		reference_name=quotation,
+		defer_insert=True,
+	)
+	frappe.throw(message)
+
+
 @frappe.whitelist()
 def initiate_checkout_with_mode(payment_mode: str):
 	quotation = _get_cart_quotation()
@@ -88,12 +111,17 @@ def initiate_checkout_with_mode(payment_mode: str):
 
 	if is_cod(payment_mode):
 		if not frappe.db.get_single_value("Commera Settings", "cod_enabled"):
-			frappe.throw(_("Cash on delivery is not available."))
+			refuse_payment(_("Cash on delivery is not available."), quotation.name)
 		return {"order_url": get_confirmation_url(quotation.name, payment_mode=COD_PAYMENT_MODE)}
 
 	gateway = resolve_payment_mode(payment_mode)
 	if not gateway:
-		frappe.throw(_("Please select a valid payment mode."))
+		refuse_payment(
+			_("Please select a valid payment mode."),
+			quotation.name,
+			requested=payment_mode,
+			available=get_available_payment_modes(),
+		)
 
 	customer_contact = (
 		frappe.db.get_value(
@@ -123,12 +151,23 @@ def initiate_checkout_with_mode(payment_mode: str):
 			"customer_phone": customer_phone,
 			"customer_forenames": customer_contact.first_name,
 			"customer_surname": customer_contact.last_name,
-			"customer_email": customer_contact.email_id,
+			"customer_email": get_gateway_email(customer_contact.email_id),
 			"customer_address": quotation.customer_address,
 		}
 	).insert(ignore_permissions=True)
 
 	return {"order_url": payment_request.order_url}
+
+
+def get_gateway_email(contact_email: str | None) -> str | None:
+	if valid_email := validate_email_address(contact_email or "", throw=False):
+		return valid_email
+
+	if frappe.session.user == "Guest":
+		return None
+
+	user_email = frappe.db.get_value("User", frappe.session.user, "email")
+	return validate_email_address(user_email or "", throw=False) or None
 
 
 def gateway_mode_of_payment(gateway: str) -> str:
@@ -393,7 +432,11 @@ def confirm_payment(reference_id: str, payment_mode: str | None = None):
 		validate_reference_owner(payment_request.ref_doctype, payment_request.ref_docname)
 		if is_cod(payment_mode):
 			# payment_mode is attacker-controlled: without this, &payment_mode=COD double-books a paid cart.
-			frappe.throw(_("A card payment is already in progress for this order."))
+			refuse_payment(
+				_("A card payment is already in progress for this order."),
+				payment_request.ref_docname,
+				payment_request=payment_request.name,
+			)
 		if payment_request.status == "Pending":
 			payment_request.sync_status()
 		return {"status": payment_request.status, **purchase_summary(payment_request)}
@@ -403,9 +446,9 @@ def confirm_payment(reference_id: str, payment_mode: str | None = None):
 		return {"status": "Paid", **quotation_purchase_summary(reference_id)}
 
 	if not is_cod(payment_mode):
-		frappe.throw(_("No payment record found for this order."))
+		refuse_payment(_("No payment record found for this order."), reference_id)
 	if not frappe.db.get_single_value("Commera Settings", "cod_enabled"):
-		frappe.throw(_("Cash on delivery is not available."))
+		refuse_payment(_("Cash on delivery is not available."), reference_id)
 
 	sales_order = place_cod_order(reference_id)
 	return {"status": "Paid", **sales_order_purchase_summary(sales_order)}

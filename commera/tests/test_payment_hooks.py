@@ -15,7 +15,11 @@ from frappe.utils import add_to_date, get_year_ending, get_year_start, getdate, 
 from frappe.utils.data import flt
 
 from commera.api.payment_hooks import on_payment_request_update
-from commera.api.payments import confirm_payment
+from commera.api.payments import (
+	confirm_payment,
+	get_open_gateway_payment_request,
+	validate_cart_is_not_in_checkout,
+)
 from commera.jobs import sync_pending_gateway_payments
 
 COMPANY = "Lifestyle Demo"
@@ -468,6 +472,49 @@ class TestPaymentHookIdempotency(IntegrationTestCase):
 		)
 		self.assertEqual(reference.ref_doctype, "Sales Order")
 		self.assertEqual(reference.ref_docname, self.submitted_sales_orders()[0])
+
+	def create_abandoned_payment_request(self, quotation):
+		payment_request = self.create_pending_payment_request(quotation)
+		FakeStripeClient.sessions[payment_request.order_ref].update(
+			{"payment_status": "unpaid", "status": "open", "payment_intent": None}
+		)
+		return payment_request
+
+	def test_an_abandoned_checkout_releases_the_cart_instead_of_refusing_it(self):
+		quotation = self.create_cart_quotation()
+		payment_request = self.create_abandoned_payment_request(quotation)
+
+		validate_cart_is_not_in_checkout(quotation.name)
+
+		payment_request.reload()
+		self.assertEqual(payment_request.status, "Cancelled")
+		self.assertEqual(FakeStripeClient.sessions[payment_request.order_ref]["status"], "expired")
+
+	def test_a_cart_whose_payment_the_gateway_still_honours_stays_locked(self):
+		quotation = self.create_cart_quotation()
+		payment_request = self.create_pending_payment_request(quotation)
+
+		with self.assertRaises(frappe.ValidationError) as raised:
+			validate_cart_is_not_in_checkout(quotation.name)
+
+		self.assertIn("already been paid", str(raised.exception))
+		payment_request.reload()
+		self.assertEqual(payment_request.status, "Paid")
+
+	def test_a_released_cart_is_free_for_every_later_edit(self):
+		quotation = self.create_cart_quotation()
+		self.create_abandoned_payment_request(quotation)
+		validate_cart_is_not_in_checkout(quotation.name)
+
+		validate_cart_is_not_in_checkout(quotation.name)
+
+		self.assertIsNone(get_open_gateway_payment_request(quotation.name))
+
+	def test_a_paid_request_outranks_an_abandoned_one_on_the_same_cart(self):
+		paid_request = self.create_paid_payment_request(self.quotation)
+		self.create_abandoned_payment_request(self.quotation)
+
+		self.assertEqual(get_open_gateway_payment_request(self.quotation.name), paid_request.name)
 
 	# -- pending payment sweep --------------------------------------------------------------------
 
