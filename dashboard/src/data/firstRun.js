@@ -1,5 +1,4 @@
-// The one list every welcome variant renders. `done` is not wired to the server
-// yet: no endpoint reports store setup state, so the preview drives it.
+// `done` is not wired to the server yet — no endpoint reports setup state.
 export const SETUP_STEPS = [
   {
     key: 'product',

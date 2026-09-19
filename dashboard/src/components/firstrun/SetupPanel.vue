@@ -11,18 +11,14 @@ const props = defineProps({ steps: { type: Array, required: true } })
 
 const router = useRouter()
 
-// LMS's help panel, in its geometry: docked to the right edge, full height, and
-// collapsing drops it to the floor so only the header strip is left showing.
-//
-// Radius is numeric here. frappe-ui's preset drops Tailwind's named scale, so
-// `rounded-lg` and bare `rounded` compile to nothing and the corners go square —
-// `rounded-4` is the 8px LMS uses, `rounded-1` the 4px on its rows.
+// Radius must be numeric: frappe-ui's preset drops Tailwind's named scale, so
+// `rounded-lg` and bare `rounded` compile to nothing and the corners go square.
 const shown = useReveal(150)
 const collapsed = ref(false)
 const closed = ref(false)
 
-// Skipping and resetting are local: no endpoint reports store setup state yet,
-// so a skip lives as long as the panel does. `null` means "defer to the step".
+// Skips are local because no endpoint reports setup state yet, so one lives as
+// long as the panel does. `null` means "defer to the step".
 const overrides = ref({})
 
 const rows = computed(() =>

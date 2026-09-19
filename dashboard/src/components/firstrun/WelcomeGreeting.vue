@@ -4,22 +4,16 @@ import { prefersReducedMotion, REVEAL_EASE } from '../../utils/reveal'
 
 const emit = defineEmits(['exiting', 'dismiss'])
 
-// The greeting shows no steps, so it takes none.
 defineOptions({ inheritAttrs: false })
 
-// Apple's hello, done the way Apple does it: one continuous cursive path, drawn
-// by walking stroke-dashoffset down to zero. Because the path is authored in
-// writing order, the word writes itself left to right for free.
-//
-// One driver and one only. No blur, no translate, no scale, and no artificial
-// pause: motion research is unanimous that padding a splash so the animation can
-// be admired is what makes it read cheap.
+// The path is authored in writing order, so walking stroke-dashoffset to zero
+// writes the word left to right. Re-authoring it out of order breaks that.
 const DRAW_MS = 1400
 const HOLD_MS = 260
 const EXIT_MS = 560
 
-// Deliberately shorter than the exit, so the panel is already moving while the
-// greeting clears. Sequencing them leaves a dead gap that reads as stop-start.
+// Shorter than the exit on purpose: the panel moves while the greeting clears,
+// because sequencing the two leaves a dead gap.
 const HANDOVER_MS = 220
 
 const stage = ref(null)
@@ -28,9 +22,8 @@ const wordmark = ref(null)
 const timers = []
 let leaving = false
 
-// Clearing the inline transform matters beyond tidiness: it is what stops #app
-// being a containing block for everything fixed inside it. It also runs on
-// unmount, because the timer below is cancelled if the greeting leaves first.
+// Clearing the transform is what stops #app being a containing block for
+// everything fixed inside it. Also runs on unmount, since the timer is cancelled.
 function resetPage() {
   const root = document.getElementById('app')
   if (!root) return
@@ -40,10 +33,8 @@ function resetPage() {
   root.style.opacity = ''
 }
 
-// The page sits behind an opaque sheet, so on its own it is merely uncovered.
-// Easing it up from 0.985 makes it arrive instead. #app is the target rather than
-// a wrapper because the greeting and the panel are both teleported to body — a
-// transformed ancestor would otherwise capture their fixed positioning.
+// #app is the target rather than a wrapper: greeting and panel are teleported to
+// body, and a transformed ancestor would capture their fixed positioning.
 function arrivePage(duration) {
   const root = document.getElementById('app')
   if (!root) return
