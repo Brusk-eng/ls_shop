@@ -83,6 +83,7 @@ declare module 'vue' {
     SettingsLinkControl: typeof import('./src/components/settings/SettingsLinkControl.vue')['default']
     SettingsPanelHeader: typeof import('./src/components/settings/SettingsPanelHeader.vue')['default']
     SettingsSkeleton: typeof import('./src/components/settings/SettingsSkeleton.vue')['default']
+    SetupBanner: typeof import('./src/components/firstrun/SetupBanner.vue')['default']
     SetupPanel: typeof import('./src/components/firstrun/SetupPanel.vue')['default']
     SourceStep: typeof import('./src/components/import/steps/SourceStep.vue')['default']
     StatusBadge: typeof import('./src/components/StatusBadge.vue')['default']

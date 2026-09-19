@@ -3,6 +3,7 @@ import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { Badge, Button } from 'frappe-ui'
 import commeraLogo from '../../assets/commera.svg'
+import { dismissSetup, skipSetup } from '../../ia/firstRun'
 import { REVEAL_EASE, useReveal } from '../../utils/reveal'
 import MaximizeIcon from './MaximizeIcon.vue'
 import MinimizeIcon from './MinimizeIcon.vue'
@@ -11,14 +12,11 @@ const props = defineProps({ steps: { type: Array, required: true } })
 
 const router = useRouter()
 
-// Radius must be numeric: frappe-ui's preset drops Tailwind's named scale, so
+// Radius is numeric: frappe-ui's preset drops Tailwind's named scale, so
 // `rounded-lg` and bare `rounded` compile to nothing and the corners go square.
 const shown = useReveal(150)
 const collapsed = ref(false)
-const closed = ref(false)
 
-// Skips are local because no endpoint reports setup state yet, so one lives as
-// long as the panel does. `null` means "defer to the step".
 const overrides = ref({})
 
 const rows = computed(() =>
@@ -42,7 +40,6 @@ function openStep(step) {
 <template>
   <Teleport to="body">
   <div
-    v-if="!closed"
     class="fixed right-0 z-40 m-5 mt-[62px] flex w-80 flex-col gap-2 rounded-4 bg-surface-elevation-2 p-3 shadow-2xl transition-all duration-500"
     :class="[
       collapsed ? 'top-[calc(100%-112px)] border border-outline-gray-2' : 'top-0 h-[calc(100%-80px)]',
@@ -66,7 +63,7 @@ function openStep(step) {
           variant="ghost"
           icon="lucide-x"
           aria-label="Close setup"
-          @click="closed = true"
+          @click="dismissSetup"
         />
       </div>
     </div>
@@ -84,7 +81,7 @@ function openStep(step) {
         <Badge size="lg" :label="`${percent}% completed`" :theme="allDone ? 'green' : 'amber'" />
         <div class="flex">
           <Button v-if="percent" variant="ghost" label="Reset all" @click="setAll(false)" />
-          <Button v-if="!allDone" variant="ghost" label="Skip all" @click="setAll(true)" />
+          <Button v-if="!allDone" variant="ghost" label="Skip all" @click="skipSetup" />
         </div>
       </div>
 
