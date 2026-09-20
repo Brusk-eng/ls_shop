@@ -106,6 +106,13 @@ def refuse_payment(message: str, quotation: str | None = None, **context):
 @frappe.whitelist()
 def initiate_checkout_with_mode(payment_mode: str):
 	quotation = _get_cart_quotation()
+	with cart_write_lock(quotation):
+		return open_checkout(quotation, payment_mode)
+
+
+def open_checkout(quotation, payment_mode: str):
+	"""Held under the cart lock start to finish: an option picked between the repricing and the gateway
+	session would bill the shopper for a cart the session was never priced against."""
 	validate_cart_is_not_in_checkout(quotation.name)
 	update_delivery_charges(quotation)
 
@@ -195,6 +202,21 @@ def system_user_session():
 		frappe.local.cache = {}
 		frappe.local.role_permissions = {}
 		frappe.local.user_perms = None
+
+
+@contextmanager
+def cart_write_lock(quotation):
+	"""Serialise writes to one cart: every checkout endpoint is a read-modify-write on the same
+	Quotation, and the page fires them a click apart."""
+	if quotation.is_new():
+		yield quotation
+		return
+
+	# FOR UPDATE, not a plain reload: this request's repeatable-read snapshot predates the other
+	# writer's commit, so a plain re-read hands the same stale timestamp straight back.
+	quotation.flags.for_update = True
+	quotation.reload()
+	yield quotation
 
 
 def save_cart_quotation(quotation):
@@ -353,6 +375,11 @@ def set_cod_charges(quotation):
 @frappe.whitelist()
 def update_quotation_address(address: dict):
 	quotation = _get_cart_quotation()
+	with cart_write_lock(quotation):
+		return save_quotation_address(quotation, address)
+
+
+def save_quotation_address(quotation, address: dict):
 	validate_cart_is_not_in_checkout(quotation.name)
 	update_quotation_payment_terms_due_date(quotation)
 	if address.get("is_store_pickup", False):

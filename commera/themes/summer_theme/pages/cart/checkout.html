@@ -436,7 +436,7 @@
 								</div>
 							</div>
 							<button type="button" class="btn btn-secondary w-100"
-								:disabled="!terms_accepted || !payment_mode || order_loading" @click="save_order()">
+								:disabled="!terms_accepted || !payment_mode || order_loading || shipping_option_saving" @click="save_order()">
 								<span x-show="!order_loading">{{ _("Place Order") }}</span>
 								<span x-show="order_loading" x-cloak>{{ _("Placing...") }}</span>
 							</button>
@@ -499,6 +499,8 @@
 				shipping_options_message: "",
 				selected_shipping_option: null,
 				selected_shipping_charge: 0,
+				shipping_option_saving: false,
+				pending_shipping_option: null,
 
 				async init() {
 					this.set_available_payment_mode();
@@ -550,6 +552,7 @@
 					this.shipping_options_message = "";
 					this.selected_shipping_option = null;
 					this.selected_shipping_charge = 0;
+					this.pending_shipping_option = null;
 				},
 
 				async load_shipping_options() {
@@ -578,12 +581,26 @@
 				},
 
 				async select_shipping_option(title) {
-					const response = await frappe_call(
-						"/api/v2/method/commera.api.shipping.set_delivery_option",
-						{ delivery_option: title },
-					);
-					this.selected_shipping_option = response.data.delivery_option;
-					this.selected_shipping_charge = Number(response.data.delivery_charge) || 0;
+					if (title === this.selected_shipping_option) return;
+// One cart write at a time: a second pick mid-save races the first, so queue it for this loop instead.
+					this.pending_shipping_option = title;
+					if (this.shipping_option_saving) return;
+
+					this.shipping_option_saving = true;
+					try {
+						while (this.pending_shipping_option) {
+							const next_option = this.pending_shipping_option;
+							this.pending_shipping_option = null;
+							const response = await frappe_call(
+								"/api/v2/method/commera.api.shipping.set_delivery_option",
+								{ delivery_option: next_option },
+							);
+							this.selected_shipping_option = response.data.delivery_option;
+							this.selected_shipping_charge = Number(response.data.delivery_charge) || 0;
+						}
+					} finally {
+						this.shipping_option_saving = false;
+					}
 				},
 
 				get_address_errors(address, label) {

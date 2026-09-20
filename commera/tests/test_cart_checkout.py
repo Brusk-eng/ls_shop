@@ -10,11 +10,14 @@ from frappe.tests import IntegrationTestCase
 from commera.api.cart import get_detail_for_cart_items, get_stock_shortfalls, validate_stock_available
 from commera.api.checkout import apply_shipping_rule
 from commera.api.payments import (
+	COD_PAYMENT_MODE,
 	generate_quotation_for_cart,
+	initiate_checkout_with_mode,
+	save_cart_quotation,
 	update_delivery_charges,
 	update_quotation_address,
 )
-from commera.api.shipping import set_delivery_option
+from commera.api.shipping import get_cart_fingerprint, set_delivery_option
 from commera.core import _get_cart_quotation
 from commera.utils import get_pickup_addresses
 from commera.www.cart.checkout import get_store_pickup_addresses
@@ -192,6 +195,55 @@ class TestCartCheckout(IntegrationTestCase):
 
 		self.assertTrue(users_at_save, "the cart was never saved")
 		self.assertEqual(set(users_at_save), {"Administrator"})
+
+	# -- overlapping cart writes ------------------------------------------------------------------
+
+	def stale_cart_snapshot(self):
+		"""The cart as one request still holds it, after a second request has already saved it."""
+		snapshot = frappe.get_doc("Quotation", _get_cart_quotation().name)
+		save_cart_quotation(_get_cart_quotation())
+
+		self.assertNotEqual(
+			str(snapshot.modified),
+			str(frappe.db.get_value("Quotation", snapshot.name, "modified")),
+			"the snapshot is not stale, so the test would pass without the lock",
+		)
+		return snapshot
+
+	def test_a_delivery_option_survives_a_cart_saved_after_its_snapshot(self):
+		frappe.set_user(self.shopper)
+		generate_quotation_for_cart({"items": [self.cart_line(self.discounted_item, 1)]})
+		snapshot = self.stale_cart_snapshot()
+		modified_before = frappe.db.get_value("Quotation", snapshot.name, "modified")
+
+		with patch("commera.api.shipping._get_cart_quotation", return_value=snapshot):
+			set_delivery_option()
+
+		self.assertGreater(frappe.db.get_value("Quotation", snapshot.name, "modified"), modified_before)
+
+	def test_checkout_survives_a_cart_saved_after_its_snapshot(self):
+		frappe.set_user(self.shopper)
+		generate_quotation_for_cart({"items": [self.cart_line(self.discounted_item, 1)]})
+		update_quotation_address(self.address_payload())
+		frappe.db.set_single_value("Commera Settings", "cod_enabled", 1)
+		snapshot = self.stale_cart_snapshot()
+
+		with patch("commera.api.payments._get_cart_quotation", return_value=snapshot):
+			checkout = initiate_checkout_with_mode(COD_PAYMENT_MODE)
+
+		self.assertIn(snapshot.name, checkout["order_url"])
+
+	def test_the_rate_cache_key_holds_still_for_an_unchanged_cart(self):
+		"""A key that moves on every call is a cache that never hits, and a live carrier quote per click."""
+		frappe.set_user(self.shopper)
+		generate_quotation_for_cart({"items": [self.cart_line(self.discounted_item, 1)]})
+		quotation = _get_cart_quotation()
+		fingerprint = get_cart_fingerprint(quotation)
+
+		self.assertEqual(fingerprint, get_cart_fingerprint(quotation))
+
+		quotation.items[0].qty = 2
+		self.assertNotEqual(fingerprint, get_cart_fingerprint(quotation))
 
 	# -- stock ------------------------------------------------------------------------------------
 
