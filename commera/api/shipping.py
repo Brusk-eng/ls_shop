@@ -163,14 +163,14 @@ def set_delivery_option(delivery_option: str | None = None) -> dict:
 
 	The price comes from a fresh server-side quote, never the request: a client could ship for nothing.
 	"""
-	from commera.api.payments import validate_cart_is_not_in_checkout
+	from commera.api.payments import save_cart_quotation, validate_cart_is_not_in_checkout
 
 	quotation = _get_cart_quotation()
 	validate_cart_is_not_in_checkout(quotation.name)
 
 	if not delivery_option:
 		clear_delivery_option(quotation)
-		quotation.save(ignore_permissions=True)
+		save_cart_quotation(quotation)
 		return get_delivery_summary(quotation)
 
 	if quotation.custom_is_store_pickup:
@@ -180,7 +180,7 @@ def set_delivery_option(delivery_option: str | None = None) -> dict:
 
 	option = find_option(quotation, delivery_option)
 	apply_delivery_option(quotation, option)
-	quotation.save(ignore_permissions=True)
+	save_cart_quotation(quotation)
 	return get_delivery_summary(quotation)
 
 

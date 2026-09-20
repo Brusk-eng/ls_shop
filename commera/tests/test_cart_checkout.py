@@ -1,7 +1,10 @@
 # Copyright (c) 2026, company@bwhstudios.com and Contributors
 # The storefront checkout writes as the shopper, who has no Account read; see payments.save_cart_quotation.
 
+from unittest.mock import patch
+
 import frappe
+from frappe.model.document import Document
 from frappe.tests import IntegrationTestCase
 
 from commera.api.cart import get_detail_for_cart_items, get_stock_shortfalls, validate_stock_available
@@ -11,6 +14,7 @@ from commera.api.payments import (
 	update_delivery_charges,
 	update_quotation_address,
 )
+from commera.api.shipping import set_delivery_option
 from commera.core import _get_cart_quotation
 from commera.utils import get_pickup_addresses
 from commera.www.cart.checkout import get_store_pickup_addresses
@@ -169,6 +173,25 @@ class TestCartCheckout(IntegrationTestCase):
 
 		self.assertEqual(frappe.session.user, self.shopper)
 		self.assertEqual(frappe.local.session, session_before)
+
+	def test_the_delivery_option_save_runs_elevated(self):
+		"""A cart save left in the shopper's session is refused by ERPNext's own Account and Item reads."""
+		frappe.set_user(self.shopper)
+		generate_quotation_for_cart({"items": [self.cart_line(self.discounted_item, 1)]})
+
+		users_at_save = []
+		unpatched_save = Document.save
+
+		def record_saving_user(document, *args, **kwargs):
+			if document.doctype == "Quotation":
+				users_at_save.append(frappe.session.user)
+			return unpatched_save(document, *args, **kwargs)
+
+		with patch.object(Document, "save", record_saving_user):
+			set_delivery_option()
+
+		self.assertTrue(users_at_save, "the cart was never saved")
+		self.assertEqual(set(users_at_save), {"Administrator"})
 
 	# -- stock ------------------------------------------------------------------------------------
 
