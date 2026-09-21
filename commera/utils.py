@@ -529,12 +529,12 @@ def get_page_size():
 def can_return(order_name, return_period_days):
 	"""Check if the order is still within the return period."""
 
-	invoices = frappe.get_all("Sales Invoice", {"sales_order": order_name}, ["name", "creation"], limit=1)
-	if not invoices:
+	delivered_on = [
+		line.creation for line in get_delivery_note_lines(order_name, docstatus=1) if not line.is_return
+	]
+	if not delivered_on:
 		return False
-	invoice_creation_date = invoices[0].creation
-	creation = get_datetime(invoice_creation_date)
-	return_deadline = add_days(creation, int(return_period_days))
+	return_deadline = add_days(get_datetime(max(delivered_on)), cint(return_period_days))
 	return now_datetime() <= return_deadline
 
 
@@ -632,14 +632,17 @@ def update_so_status_from_related_doc(doc, method):
 	elif doc.doctype == "Delivery Note":
 		sales_orders.update([d.against_sales_order for d in doc.items if d.against_sales_order])
 
-	elif doc.doctype == "Shipment":
-		for dn in doc.shipment_delivery_note:
-			so_names = frappe.get_all(
-				"Delivery Note Item",
-				filters={"parent": dn.delivery_note},
-				pluck="against_sales_order",
+	elif doc.doctype == "Shipping Request":
+		if doc.ref_doctype == "Sales Order" and doc.ref_docname:
+			sales_orders.add(doc.ref_docname)
+		elif doc.delivery_note:
+			sales_orders.update(
+				frappe.get_all(
+					"Delivery Note Item",
+					filters={"parent": doc.delivery_note, "against_sales_order": ["is", "set"]},
+					pluck="against_sales_order",
+				)
 			)
-			sales_orders.update([so for so in so_names if so])
 	for so in sales_orders:
 		frappe.enqueue(
 			"commera.utils.update_sales_order_ecommerce_status",
@@ -648,37 +651,84 @@ def update_so_status_from_related_doc(doc, method):
 		)
 
 
+SHIPMENT_STATUS_LADDER = {
+	"Draft": "Preparing for Shipment",
+	"Ready To Ship": "Preparing for Shipment",
+	"Pickup Scheduled": "Shipped",
+	"In Transit": "Shipped",
+	"Out For Delivery": "Shipped",
+	"Undelivered": "Shipped",
+	"Lost": "Shipped",
+	"Delivered": "Delivered",
+	"RTO": "Returned",
+}
+
+
 def update_sales_order_ecommerce_status(sales_order_name):
-	sales_order = frappe.get_doc("Sales Order", sales_order_name)
+	docstatus = frappe.db.get_value("Sales Order", sales_order_name, "docstatus")
 
-	if sales_order.docstatus == 2:
+	if docstatus == 2:
 		new_status = "Cancelled"
-	elif sales_order.docstatus == 0:
+	elif docstatus == 0:
 		new_status = "Waiting for Approval"
-	elif sales_order.docstatus == 1:
-		dn_exists = frappe.db.exists("Delivery Note Item", {"against_sales_order": sales_order.name})
-		shipment_exists = frappe.db.exists(
-			"Shipment Delivery Note",
-			{
-				"delivery_note": [
-					"in",
-					frappe.get_all(
-						"Delivery Note",
-						{"against_sales_order": sales_order.name},
-						pluck="name",
-					),
-				]
-			},
+	else:
+		new_status = get_fulfilment_status(sales_order_name)
+
+	frappe.db.set_value("Sales Order", sales_order_name, "custom_ecommerce_status", new_status)
+
+
+def get_fulfilment_status(sales_order_name) -> str:
+	delivery_lines = get_delivery_note_lines(sales_order_name)
+	submitted_lines = [line for line in delivery_lines if line.docstatus == 1]
+	delivered_qty = sum(flt(line.qty) for line in submitted_lines if not line.is_return)
+	returned_qty = abs(sum(flt(line.qty) for line in submitted_lines if line.is_return))
+
+	if delivered_qty and returned_qty >= delivered_qty:
+		return "Returned"
+	if returned_qty:
+		return "Partially Returned"
+
+	if carrier_status := get_carrier_status(sales_order_name):
+		return carrier_status
+
+	if delivered_qty:
+		return "Delivered"
+
+	if any(line.docstatus == 0 and not line.is_return for line in delivery_lines):
+		return "Preparing for Shipment"
+
+	return "Order Received"
+
+
+def get_carrier_status(sales_order_name) -> str | None:
+	requests = frappe.get_all(
+		"Shipping Request",
+		filters={"ref_doctype": "Sales Order", "ref_docname": sales_order_name, "docstatus": ["<", 2]},
+		fields=["status"],
+		order_by="creation desc",
+		limit=1,
+	)
+	if not requests:
+		return None
+	return SHIPMENT_STATUS_LADDER.get(cstr(requests[0].status))
+
+
+def get_delivery_note_lines(sales_order_name, docstatus=None) -> list[dict]:
+	delivery_note = DocType("Delivery Note")
+	delivery_note_item = DocType("Delivery Note Item")
+	query = (
+		frappe.qb.from_(delivery_note_item)
+		.join(delivery_note)
+		.on(delivery_note.name == delivery_note_item.parent)
+		.select(
+			delivery_note.name,
+			delivery_note.docstatus,
+			delivery_note.is_return,
+			delivery_note.creation,
+			delivery_note_item.qty,
 		)
-		invoice_exists = frappe.db.exists("Sales Invoice Item", {"sales_order": sales_order.name})
-
-		if invoice_exists:
-			new_status = "Delivered"
-		elif shipment_exists:
-			new_status = "Shipped"
-		elif dn_exists:
-			new_status = "Preparing for Shipment"
-		else:
-			new_status = "Order Received"
-
-	frappe.db.set_value("Sales Order", sales_order.name, "custom_ecommerce_status", new_status)
+		.where((delivery_note_item.against_sales_order == sales_order_name) & (delivery_note.docstatus < 2))
+	)
+	if docstatus is not None:
+		query = query.where(delivery_note.docstatus == docstatus)
+	return query.run(as_dict=True)
