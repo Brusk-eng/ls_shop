@@ -130,6 +130,10 @@
 }
 
 /* The drawer keeps the 90px box, so a square mark renders at 180px while Pixio's wide one reads small. */
+.mo-left .header-nav .logo-header {
+	padding-top: 10px;
+}
+
 .mo-left .header-nav .logo-header img {
 	width: auto;
 	height: 60px;
