@@ -2,8 +2,10 @@
 {% from "components/macros/swatch.html" import swatch_dot %}
 {% set attribute_facets = ["brands", "colors", "sizes"] %}
 
+{# style.css right-aligns .widget_categories li for Pixio's trailing post count and floats only the <a> back
+   left, so a heading span needs text-start; ms-0 cancels the nested ul's negative margin that eats its indent. #}
 {% macro category_facet_list(nodes) %}
-<ul>
+<ul class="ms-0">
 	{% for node in nodes %}
 	<li class="cat-item">
 		{% if node.is_leaf %}
@@ -11,7 +13,7 @@
 			:class='{ "selected": is_selected("subcategory", {{ node.item_groups | tojson }}) }'
 			@click='toggle_filter("subcategory", {{ node.item_groups | tojson }})'>{{ _(node.display_name) }}</a>
 		{% else %}
-		<span class="cat-parent">{{ _(node.display_name) }}</span>
+		<span class="cat-parent text-start">{{ _(node.display_name) }}</span>
 		{% endif %}
 		{% if node.children %}{{ category_facet_list(node.children) }}{% endif %}
 	</li>
