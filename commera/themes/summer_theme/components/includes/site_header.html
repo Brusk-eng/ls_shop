@@ -30,7 +30,7 @@
 <script src="/assets/commera/js/vendor/alpinejs/plugins/focus.js"></script>
 <script src="{{ shop_theme_asset_url('js/summer_header.js') }}"></script>
 
-<header class="site-header mo-left header style-1 header-transparent" x-data="summer_header"
+<header class="site-header mo-left header {{ header_class | default('') }}" x-data="summer_header"
 	@open-search.window="open_search()"
 	@open-cart.window="open_cart()"
 	@open-mobile-menu.window="open_mobile_menu()">

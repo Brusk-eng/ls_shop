@@ -1,6 +1,8 @@
 {% extends "components/theme_layout.html" %}
 
 {% set settings = shop_theme_config() %}
+{# Only the home page runs a full-bleed hero under the bar; every other page gets Pixio's plain inner-page header. #}
+{% set header_class = "style-1 header-transparent" %}
 
 {% block head %}
 	{{ super() }}

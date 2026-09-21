@@ -114,6 +114,28 @@
 	object-fit: contain;
 }
 
+/* --- Header logo --- */
+
+/* Under 992px style.css boxes the logo at 90px tall inside a 65-80px bar. Pixio's wide logo hides
+   the overflow in its own letterbox; a square mark hangs out of the bar. */
+.site-header .main-bar .container-fluid > .logo-header a {
+	display: flex;
+	align-items: center;
+	height: 100%;
+	padding-block: 10px;
+}
+
+.site-header .main-bar .container-fluid > .logo-header img {
+	max-height: 100%;
+}
+
+/* The drawer keeps the 90px box, so a square mark renders at 180px while Pixio's wide one reads small. */
+.mo-left .header-nav .logo-header img {
+	width: auto;
+	height: 60px;
+	max-width: 180px;
+}
+
 /* --- Header gaps left by the vendor JS this theme does not load --- */
 
 /* style.css puts this column's geometry on the .bootstrap-select wrapper and .dropdown-toggle

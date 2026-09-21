@@ -100,11 +100,6 @@
 	cursor: pointer;
 }
 
-/* .sticky-top pins the summary under the transparent header, which overlays the page. */
-.order-detail.sticky-top {
-	top: 100px;
-}
-
 @media only screen and (max-width: 1199px) {
 	.order-detail.sticky-top {
 		position: static;
