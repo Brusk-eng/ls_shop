@@ -172,14 +172,15 @@
 	}
 }
 
-/* --- Language switcher: an icon-cluster item that opens a panel --- */
+/* --- Language switcher and account menu: icon-cluster items that open a panel --- */
 
 /* The cluster's icon rule (.extra-nav .extra-cell ul li a/button) is a descendant selector, so it
-   also squashes the language panel's buttons into a centred 40px icon slot. */
+   also squashes a panel's items into a centred 40px icon slot; li.login-link a adds its underline. */
 .site-header .extra-nav .extra-cell ul li .dropdown-menu .dropdown-item {
 	display: block;
 	min-width: 100%;
 	padding: 6px 20px;
+	border-bottom: 0;
 	line-height: 1.5;
 	text-align: start;
 }
@@ -200,7 +201,7 @@
 /* Below 767px .extra-nav is the fixed 50px bar on the viewport's bottom edge, so a panel that
    drops below its toggle opens off-screen. */
 @media only screen and (max-width: 767px) {
-	.site-header .extra-nav .extra-cell ul li.language-link .dropdown-menu[data-bs-popper] {
+	.site-header .extra-nav .extra-cell ul li.dropdown .dropdown-menu[data-bs-popper] {
 		top: auto;
 		bottom: 100%;
 		margin-top: 0;
