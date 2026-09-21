@@ -1,7 +1,7 @@
 import frappe
 from frappe import _
 
-from commera.utils import validate_document_access
+from commera.utils import can_return, validate_document_access
 
 
 @frappe.whitelist()
@@ -15,9 +15,34 @@ def return_items(sales_order_id: str, items: list | str):
 	if not isinstance(items, list) or not all(isinstance(item, dict) for item in items):
 		frappe.throw(_("Items to return must be a list of objects."))
 
+	return_period = frappe.get_cached_value("Commera Settings", "Commera Settings", "return_period")
+	if not return_period or not can_return(sales_order_id, return_period):
+		frappe.throw(_("This order is not delivered yet or its return period has expired."))
+
+	already_returned = set(
+		frappe.get_all(
+			"Delivery Note Item",
+			filters={
+				"against_sales_order": sales_order_id,
+				"parenttype": "Delivery Note",
+				"docstatus": ["<", 2],
+				"qty": ["<", 0],
+			},
+			pluck="item_code",
+		)
+	)
+	if already_returned.intersection(item.get("item_code") for item in items):
+		frappe.throw(_("Some of these items have already been returned."))
+
+	# Return lines carry negative quantities, so qty > 0 keeps a return note from being returned again.
 	delivery_note_item = frappe.get_all(
 		"Delivery Note Item",
-		filters={"against_sales_order": sales_order_id},
+		filters={
+			"against_sales_order": sales_order_id,
+			"parenttype": "Delivery Note",
+			"docstatus": 1,
+			"qty": [">", 0],
+		},
 		fields=["parent", "item_code", "qty"],
 		order_by="creation asc",
 	)
@@ -29,6 +54,8 @@ def return_items(sales_order_id: str, items: list | str):
 	original_dn = frappe.get_doc("Delivery Note", dn_name)
 
 	return_dn = frappe.copy_doc(original_dn)
+	# copy_doc keeps docstatus under tests, which would book the return without staff review.
+	return_dn.docstatus = 0
 	return_dn.set("is_return", 1)
 	return_dn.set("return_against", dn_name)
 	return_dn.set("items", [])

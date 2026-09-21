@@ -237,7 +237,7 @@
 			"name": "Sales Order-custom_ecommerce_status",
 			"no_copy": 0,
 			"non_negative": 0,
-			"options": "Waiting for Approval\nOrder Received\nPreparing for Shipment\nShipped\nDelivered\nCancelled\nReturned",
+			"options": "Waiting for Approval\nOrder Received\nPreparing for Shipment\nShipped\nDelivered\nPartially Returned\nCancelled\nReturned",
 			"owner": "Administrator",
 			"permlevel": 0,
 			"placeholder": null,

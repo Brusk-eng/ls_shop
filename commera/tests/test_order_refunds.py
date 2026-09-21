@@ -9,12 +9,18 @@ from frappe.utils.data import flt
 from frappe.utils.file_lock import release_document_locks
 
 from commera.api.orders import (
+	cancel_order,
 	create_refund_payment_entry,
 	get_order_payments,
 	get_sales_order_refund_status,
 )
 from commera.api.payments import create_sales_invoice
 from commera.tests.test_admin_orders import COMPANY, make_test_sales_order
+
+try:
+	from erpnext.selling.doctype.sales_order.mapper import make_delivery_note
+except ImportError:
+	from erpnext.selling.doctype.sales_order.sales_order import make_delivery_note
 
 GATEWAY = "ZZ Refund Gateway"
 CASH_ACCOUNT = "Cash - LSD"
@@ -165,3 +171,60 @@ class TestOrderRefunds(IntegrationTestCase):
 
 		self.assertTrue(status["can_refund"])
 		self.assertEqual(status["amount_refunded"], 0.0)
+
+	def refunds_for(self, sales_order):
+		return frappe.get_all(
+			"Payment Entry",
+			filters={"payment_type": "Pay", "party": sales_order.customer, "docstatus": 1},
+			fields=["paid_amount", "reference_no"],
+		)
+
+	def test_a_paid_order_can_be_cancelled_and_is_refunded(self):
+		"""Checkout invoices at payment, and ERPNext will not cancel a billed order on its own."""
+		sales_order = self.make_paid_order()
+		invoice_name = frappe.get_all(
+			"Sales Invoice Item", filters={"sales_order": sales_order.name}, pluck="parent", limit=1
+		)[0]
+		capture_name = get_order_payments(sales_order.name)[0].name
+
+		cancel_order(sales_order.name)
+
+		self.assertEqual(frappe.db.get_value("Sales Order", sales_order.name, "docstatus"), 2)
+		self.assertEqual(frappe.db.get_value("Sales Invoice", invoice_name, "docstatus"), 2)
+		self.assertEqual(frappe.db.get_value("Payment Entry", capture_name, "docstatus"), 1)
+		refunds = self.refunds_for(sales_order)
+		self.assertEqual(len(refunds), 1)
+		self.assertAlmostEqual(flt(refunds[0].paid_amount), flt(sales_order.grand_total))
+		self.assertEqual(refunds[0].reference_no, self.gateway_reference)
+
+	def test_the_customer_owes_nothing_after_a_cancelled_paid_order(self):
+		sales_order = self.make_paid_order()
+
+		cancel_order(sales_order.name)
+
+		ledger = frappe.get_all(
+			"GL Entry",
+			filters={"party_type": "Customer", "party": sales_order.customer, "is_cancelled": 0},
+			fields=["debit", "credit"],
+		)
+		self.assertTrue(ledger)
+		self.assertAlmostEqual(sum(flt(row.debit) - flt(row.credit) for row in ledger), 0)
+
+	def test_an_order_being_packed_is_refused_before_any_refund(self):
+		sales_order = self.make_paid_order()
+		delivery_note = make_delivery_note(sales_order.name)
+		delivery_note.flags.ignore_permissions = True
+		delivery_note.insert()
+
+		with self.assertRaises(frappe.ValidationError):
+			cancel_order(sales_order.name)
+		self.assertEqual(self.refunds_for(sales_order), [])
+		self.assertEqual(frappe.db.get_value("Sales Order", sales_order.name, "docstatus"), 1)
+
+	def test_a_cod_order_is_cancelled_without_a_refund(self):
+		sales_order = self.make_cod_order()
+
+		cancel_order(sales_order.name)
+
+		self.assertEqual(frappe.db.get_value("Sales Order", sales_order.name, "docstatus"), 2)
+		self.assertEqual(self.refunds_for(sales_order), [])

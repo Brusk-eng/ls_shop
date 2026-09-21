@@ -151,8 +151,14 @@ doc_events = {
 		"on_trash": "commera.search.sync.on_trash",
 	},
 	"Sales Invoice": {"on_submit": "commera.utils.update_so_status_from_related_doc"},
-	"Delivery Note": {"on_submit": "commera.utils.update_so_status_from_related_doc"},
-	"Shipment": {"on_submit": "commera.utils.update_so_status_from_related_doc"},
+	"Delivery Note": {
+		"after_insert": "commera.utils.update_so_status_from_related_doc",
+		"on_submit": "commera.utils.update_so_status_from_related_doc",
+		"on_cancel": "commera.utils.update_so_status_from_related_doc",
+		"on_trash": "commera.utils.update_so_status_from_related_doc",
+	},
+	# bwh_shipping, not ERPNext's Shipment: carrier webhooks land here.
+	"Shipping Request": {"on_update": "commera.utils.update_so_status_from_related_doc"},
 }
 
 jinja = {

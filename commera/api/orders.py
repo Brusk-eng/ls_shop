@@ -1,4 +1,5 @@
 import frappe
+from erpnext.accounts.utils import unlink_ref_doc_from_payment_entries
 from frappe import _
 from frappe.utils import flt
 
@@ -8,19 +9,56 @@ from commera.utils import validate_document_access
 
 @frappe.whitelist()
 def cancel_order(order_id: str):
-	order_doc = frappe.get_doc("Sales Order", order_id)
+	# A row lock, not Document.lock(): cancel() refuses a file-locked document. A second click waits here,
+	# then reads the order already cancelled.
+	order_doc = frappe.get_doc("Sales Order", order_id, for_update=True)
 	validate_can_cancel(order_doc)
-	if order_doc.custom_ecommerce_payment_mode != "COD":
-		# The helper still clamps: a staff partial refund then this cancellation would pay out twice.
-		make_refund_payment_entry(order_id)
 
-	order_doc.flags.ignore_permissions = True
-	if order_doc.docstatus == 1:
-		order_doc.cancel()
-	elif order_doc.docstatus == 0:
-		order_doc.submit()
-		order_doc.reload()
-		order_doc.cancel()
+	try:
+		# Planned while the invoice still links the capture: cancelling it unlinks the payment.
+		refund = None
+		if order_doc.custom_ecommerce_payment_mode != "COD":
+			refund = get_refund_plan(order_id)
+
+		if cancel_order_invoices(order_id):
+			# Cancelling an invoice rewrites the order's billing, so the loaded copy is stale.
+			order_doc.reload()
+
+		order_doc.flags.ignore_permissions = True
+		if order_doc.docstatus == 1:
+			order_doc.cancel()
+		elif order_doc.docstatus == 0:
+			order_doc.submit()
+			order_doc.reload()
+			order_doc.cancel()
+
+		# Last, because the gateway call commits: anything that throws after it cannot roll the money back.
+		if refund:
+			submit_refund_payment_entry(order_id, *refund)
+	except Exception:
+		frappe.log_error(
+			title="Order cancellation failed", reference_doctype="Sales Order", reference_name=order_id
+		)
+		raise
+
+
+def cancel_order_invoices(order_id: str):
+	"""Checkout invoices a prepaid order at payment, and ERPNext refuses to cancel an order that is billed."""
+	invoice_names = frappe.get_all(
+		"Sales Invoice Item",
+		filters={"sales_order": order_id, "docstatus": 1},
+		pluck="parent",
+		distinct=True,
+	)
+	with system_user_session():
+		for invoice_name in invoice_names:
+			sales_invoice = frappe.get_doc("Sales Invoice", invoice_name)
+			# Accounts Settings may keep the capture allocated, which blocks the cancel with a link error.
+			unlink_ref_doc_from_payment_entries(sales_invoice)
+			sales_invoice.flags.ignore_permissions = True
+			sales_invoice.cancel()
+
+	return invoice_names
 
 
 def resolve_refund_amount(refundable_amount: float, amount: float | None) -> float:
@@ -51,6 +89,11 @@ def make_refund_payment_entry(order_id: str, amount: float | None = None) -> str
 
 def build_refund_payment_entry(order_id: str, amount: float | None = None) -> str:
 	"""The refund itself. Call make_refund_payment_entry, which holds the lock around this."""
+	return submit_refund_payment_entry(order_id, *get_refund_plan(order_id, amount))
+
+
+def get_refund_plan(order_id: str, amount: float | None = None) -> tuple:
+	"""The capture to reverse and how much of it, checked before anything is written."""
 	refund_status = get_refund_status(order_id)
 	if not refund_status.get("can_refund"):
 		frappe.throw(_("This order cannot be refunded."))
@@ -68,6 +111,10 @@ def build_refund_payment_entry(order_id: str, amount: float | None = None) -> st
 	if payment_entry_doc.paid_from_account_currency != payment_entry_doc.paid_to_account_currency:
 		frappe.throw(_("This payment crossed currencies; refund it from the accounts desk instead."))
 
+	return payment_entry_doc, refund_amount
+
+
+def submit_refund_payment_entry(order_id: str, payment_entry_doc, refund_amount: float) -> str:
 	with system_user_session():
 		new_payment_entry = frappe.get_doc(
 			{
@@ -112,6 +159,9 @@ def validate_can_cancel(order_doc):
 
 	if order_doc.status == "Completed":
 		frappe.throw(_("Order already delivered!"))
+
+	if frappe.db.exists("Delivery Note Item", {"against_sales_order": order_doc.name, "docstatus": ["<", 2]}):
+		frappe.throw(_("This order is already being prepared for shipment."))
 
 	if order_doc.owner != frappe.session.user:
 		frappe.throw(_("Action not allowed"))
