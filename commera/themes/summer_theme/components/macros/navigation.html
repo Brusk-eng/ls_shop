@@ -7,7 +7,7 @@
 
 
 {% macro menu_branch(node) %}
-<li{% if node.children %} class="menu-item-has-children"{% endif %}>
+<li>
 	<a href="{{ node.href or 'javascript:void(0);' }}"{% if node.children %} class="menu-title"{% endif %}>{{ node.label }}</a>
 	{% if node.children %}
 	<ul>

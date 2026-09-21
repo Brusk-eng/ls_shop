@@ -114,6 +114,32 @@
 	object-fit: contain;
 }
 
+/* --- Header logo --- */
+
+/* Under 992px style.css boxes the logo at 90px tall inside a 65-80px bar. Pixio's wide logo hides
+   the overflow in its own letterbox; a square mark hangs out of the bar. */
+.site-header .main-bar .container-fluid > .logo-header a {
+	display: flex;
+	align-items: center;
+	height: 100%;
+	padding-block: 10px;
+}
+
+.site-header .main-bar .container-fluid > .logo-header img {
+	max-height: 100%;
+}
+
+/* The drawer keeps the 90px box, so a square mark renders at 180px while Pixio's wide one reads small. */
+.mo-left .header-nav .logo-header {
+	padding-top: 10px;
+}
+
+.mo-left .header-nav .logo-header img {
+	width: auto;
+	height: 60px;
+	max-width: 180px;
+}
+
 /* --- Header gaps left by the vendor JS this theme does not load --- */
 
 /* style.css puts this column's geometry on the .bootstrap-select wrapper and .dropdown-toggle
@@ -172,14 +198,15 @@
 	}
 }
 
-/* --- Language switcher: an icon-cluster item that opens a panel --- */
+/* --- Language switcher and account menu: icon-cluster items that open a panel --- */
 
 /* The cluster's icon rule (.extra-nav .extra-cell ul li a/button) is a descendant selector, so it
-   also squashes the language panel's buttons into a centred 40px icon slot. */
+   also squashes a panel's items into a centred 40px icon slot; li.login-link a adds its underline. */
 .site-header .extra-nav .extra-cell ul li .dropdown-menu .dropdown-item {
 	display: block;
 	min-width: 100%;
 	padding: 6px 20px;
+	border-bottom: 0;
 	line-height: 1.5;
 	text-align: start;
 }
@@ -200,7 +227,7 @@
 /* Below 767px .extra-nav is the fixed 50px bar on the viewport's bottom edge, so a panel that
    drops below its toggle opens off-screen. */
 @media only screen and (max-width: 767px) {
-	.site-header .extra-nav .extra-cell ul li.language-link .dropdown-menu[data-bs-popper] {
+	.site-header .extra-nav .extra-cell ul li.dropdown .dropdown-menu[data-bs-popper] {
 		top: auto;
 		bottom: 100%;
 		margin-top: 0;
@@ -215,14 +242,6 @@
 .header-nav.w3menu .nav > li .mega-menu,
 .header-nav.w3menu .nav > li .sub-menu {
 	text-align: start;
-}
-
-/* The child-menu marker is a Font Awesome chevron-right floated right: a glyph cannot be made
-   logical, so Arabic needs the mirrored codepoint (\f053) on the opposite edge. */
-[dir="rtl"] .header-nav .nav > li .mega-menu .menu-item-has-children > a:before,
-[dir="rtl"] .header-nav .nav > li .sub-menu .menu-item-has-children > a:before {
-	content: "\f053";
-	float: left;
 }
 
 /* The subscribe button is absolutely positioned at right: 0, which in Arabic parks it on top of
@@ -286,4 +305,73 @@
 	height: 14px;
 	border-radius: 50%;
 	margin-right: 6px;
+}
+
+/* --- Product card copy: name, rating, then price, stacked --- */
+
+.shop-card:not([class*="style-"]) .dz-content,
+.shop-card.style-2 .dz-content {
+	flex-direction: column;
+	align-items: stretch;
+	justify-content: flex-start;
+	gap: 6px;
+}
+
+.shop-card .dz-content .shop-card-title {
+	width: 100%;
+	display: -webkit-box;
+	-webkit-box-orient: vertical;
+	-webkit-line-clamp: 2;
+	line-clamp: 2;
+	overflow: hidden;
+}
+
+/* style-2 right-aligns its price and drops the MRP onto a line of its own. */
+.shop-card .dz-content .shop-card-price {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	column-gap: 8px;
+	text-align: start;
+}
+
+.shop-card .dz-content .shop-card-price del {
+	margin: 0;
+}
+
+.shop-card .shop-card-rating {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	font-size: 13px;
+	line-height: 1;
+	color: var(--bs-secondary-text);
+}
+
+.shop-card .shop-card-rating-average {
+	color: var(--title);
+	font-weight: 600;
+}
+
+.shop-card .shop-card-rating .dz-rating {
+	display: flex;
+	gap: 2px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.shop-card .shop-card-rating .dz-rating li {
+	font-size: 14px;
+	color: var(--bs-gray-300);
+}
+
+.shop-card .shop-card-rating .dz-rating li svg {
+	width: 1em;
+	height: 1em;
+	display: block;
+}
+
+.shop-card .shop-card-rating .dz-rating li.star-fill {
+	color: var(--bs-warning);
 }

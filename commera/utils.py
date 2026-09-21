@@ -123,6 +123,8 @@ def get_product_list_qb(filters=None, product_list=None, page=1, page_length=30,
 			style_attribute_variant.attribute_value.as_("color"),
 			style_attribute_variant.item_group,
 			style_attribute_variant.modified,
+			style_attribute_variant.average_rating,
+			style_attribute_variant.review_count,
 			item.brand,
 			item.item_name,
 			item.is_stock_item,
@@ -170,6 +172,8 @@ def shape_product_cards(cards):
 		for column in SqliteProductSearch.PRODUCT_DETAIL_COLUMNS:
 			if column != "doc_id":
 				card.setdefault(column, None)
+		card.setdefault("average_rating", None)
+		card.setdefault("review_count", None)
 		# Mirrors record_builder.aggregate_prices so both grids agree on the price they filter and sort by.
 		if card["effective_price"] is None:
 			card["effective_price"] = (

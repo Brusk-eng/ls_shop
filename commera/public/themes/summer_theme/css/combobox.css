@@ -1,0 +1,30 @@
+/* Bootstrap places .dropdown-menu through Popper; the combobox list is positioned by hand. */
+.summer-combobox .dropdown-menu {
+	top: 100%;
+	left: 0;
+	max-height: 260px;
+	overflow-y: auto;
+}
+
+/* Saved-address labels run to a full postal address, so an option may take two lines. */
+.summer-combobox .dropdown-item {
+	display: -webkit-box;
+	-webkit-box-orient: vertical;
+	-webkit-line-clamp: 2;
+	overflow: hidden;
+	white-space: normal;
+	cursor: pointer;
+}
+
+.summer-combobox .form-control {
+	padding-right: 44px;
+}
+
+.summer-combobox .summer-combobox-icon {
+	position: absolute;
+	top: 50%;
+	right: 20px;
+	transform: translateY(-50%);
+	color: var(--title);
+	pointer-events: none;
+}

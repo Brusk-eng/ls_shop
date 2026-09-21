@@ -1,5 +1,6 @@
 
 {% extends "components/theme_layout.html" %}
+{% from "components/macros/combobox.html" import combobox, country_combobox %}
 
 {% set language = frappe.lang or "en" %}
 {% set currency_symbol = get_currency_symbol() %}
@@ -21,7 +22,18 @@
 {% block head %}
 	{{ super() }}
 	<link rel="stylesheet" href="{{ shop_theme_asset_url('css/checkout.css') }}">
+	<link rel="stylesheet" href="{{ shop_theme_asset_url('css/combobox.css') }}">
+	<script src="{{ shop_theme_asset_url('js/summer_combobox.js') }}"></script>
 {% endblock %}
+
+{% macro saved_address_combobox(prefix, addresses) %}
+	{%- set options = [] -%}
+	{%- for address in addresses -%}
+		{%- set appended = options.append({"value": address.name, "label": address.title ~ " — " ~ address.display}) -%}
+	{%- endfor -%}
+	{{ combobox(prefix ~ "_address_id", prefix ~ "_address_id", options, _("Saved addresses") ~ " *",
+		placeholder=_("Search by name, city or postcode"), empty_message=_("No matching address")) }}
+{% endmacro %}
 
 {% macro address_fields(prefix, heading) %}
 	<div class="col-md-12">
@@ -63,13 +75,7 @@
 	</div>
 	<div class="col-md-6">
 		<div class="m-b25">
-			<label class="label-title" for="{{ prefix }}_country">{{ _("Country / Region") }} *</label>
-			<select class="default-select form-select w-100" id="{{ prefix }}_country" x-model="{{ prefix }}.country" required>
-				<option value="">{{ _("Select a country") }}</option>
-				{% for country in country_list %}
-					<option value="{{ country.name }}">{{ country.name }}</option>
-				{% endfor %}
-			</select>
+			{{ country_combobox(prefix ~ "_country", prefix ~ ".country", country_list, _("Country / Region") ~ " *") }}
 		</div>
 	</div>
 	<div class="col-md-6">
@@ -184,14 +190,7 @@
 									<template x-if="billing_use_address === 'saved_address'">
 										<div class="col-md-12">
 											<div class="m-b25">
-												<label class="label-title" for="billing_address_id">{{ _("Saved addresses") }} *</label>
-												<select class="default-select form-select w-100" id="billing_address_id"
-													x-model="billing_address_id">
-													<option value="">{{ _("Select an address") }}</option>
-													{% for address in billing_addresses %}
-														<option value="{{ address.name }}">{{ address.title }} &mdash; {{ address.display }}</option>
-													{% endfor %}
-												</select>
+												{{ saved_address_combobox("billing", billing_addresses) }}
 											</div>
 										</div>
 									</template>
@@ -237,14 +236,7 @@
 												<template x-if="shipping_use_address === 'saved_address'">
 													<div class="col-md-12">
 														<div class="m-b25">
-															<label class="label-title" for="shipping_address_id">{{ _("Saved addresses") }} *</label>
-															<select class="default-select form-select w-100" id="shipping_address_id"
-																x-model="shipping_address_id">
-																<option value="">{{ _("Select an address") }}</option>
-																{% for address in shipping_addresses %}
-																	<option value="{{ address.name }}">{{ address.title }} &mdash; {{ address.display }}</option>
-																{% endfor %}
-															</select>
+															{{ saved_address_combobox("shipping", shipping_addresses) }}
 														</div>
 													</div>
 												</template>

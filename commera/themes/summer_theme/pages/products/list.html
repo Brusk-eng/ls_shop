@@ -30,7 +30,8 @@
 	<div class="container">
 		<div class="row">
 			<div class="col-xl-3 col-lg-12">
-				<div class="sticky-xl-top">
+				<div class="sticky-xl-top" x-data="filter_column" @scroll.passive="set_fades()"
+					:class="{ 'fade-top': fade_top, 'fade-bottom': fade_bottom }">
 					<a href="javascript:void(0);" class="panel-close-btn" :class="{ 'active': panel_open }"
 						@click="panel_open = false" aria-label="{{ _('Close filters') }}">
 						<svg width="35" height="35" viewBox="0 0 51 50" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -162,6 +163,24 @@
 					}
 					this.query_state.page = page;
 					window.location.reload();
+				},
+			}));
+
+			Alpine.data('filter_column', () => ({
+				fade_top: false,
+				fade_bottom: false,
+
+				init() {
+					const observer = new ResizeObserver(() => this.set_fades());
+					for (const element of [this.$el, ...this.$el.children]) {
+						observer.observe(element);
+					}
+				},
+
+				set_fades() {
+					const { scrollTop, scrollHeight, clientHeight } = this.$el;
+					this.fade_top = scrollTop > 1;
+					this.fade_bottom = scrollTop + clientHeight < scrollHeight - 1;
 				},
 			}));
 
