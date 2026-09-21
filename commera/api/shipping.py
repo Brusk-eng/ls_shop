@@ -1,6 +1,6 @@
 import frappe
 from frappe import _
-from frappe.utils.data import flt
+from frappe.utils.data import flt, sha256_hash
 
 from commera.core import _get_cart_quotation
 from commera.utils import validate_document_access
@@ -71,7 +71,7 @@ def get_cart_fingerprint(quotation) -> str:
 		quotation.currency or "",
 		get_services_stamp(),
 	)
-	return frappe.generate_hash("|".join(parts), 12)
+	return sha256_hash("|".join(parts))[:12]
 
 
 def get_services_stamp() -> str:
@@ -163,25 +163,27 @@ def set_delivery_option(delivery_option: str | None = None) -> dict:
 
 	The price comes from a fresh server-side quote, never the request: a client could ship for nothing.
 	"""
-	from commera.api.payments import save_cart_quotation, validate_cart_is_not_in_checkout
+	from commera.api.payments import cart_write_lock, save_cart_quotation, validate_cart_is_not_in_checkout
 
 	quotation = _get_cart_quotation()
-	validate_cart_is_not_in_checkout(quotation.name)
 
-	if not delivery_option:
-		clear_delivery_option(quotation)
+	with cart_write_lock(quotation):
+		validate_cart_is_not_in_checkout(quotation.name)
+
+		if not delivery_option:
+			clear_delivery_option(quotation)
+			save_cart_quotation(quotation)
+			return get_delivery_summary(quotation)
+
+		if quotation.custom_is_store_pickup:
+			frappe.throw(_("This order is a store pickup, so it has no delivery option."))
+		if not is_connector_installed():
+			frappe.throw(_("Delivery options are not available on this store."))
+
+		option = find_option(quotation, delivery_option)
+		apply_delivery_option(quotation, option)
 		save_cart_quotation(quotation)
 		return get_delivery_summary(quotation)
-
-	if quotation.custom_is_store_pickup:
-		frappe.throw(_("This order is a store pickup, so it has no delivery option."))
-	if not is_connector_installed():
-		frappe.throw(_("Delivery options are not available on this store."))
-
-	option = find_option(quotation, delivery_option)
-	apply_delivery_option(quotation, option)
-	save_cart_quotation(quotation)
-	return get_delivery_summary(quotation)
 
 
 def find_option(quotation, delivery_option: str) -> dict:
