@@ -135,11 +135,54 @@
 	background-position: left 12px center;
 }
 
+@property --fade-top-size {
+	syntax: "<length>";
+	inherits: false;
+	initial-value: 0px;
+}
+
+@property --fade-bottom-size {
+	syntax: "<length>";
+	inherits: false;
+	initial-value: 0px;
+}
+
+/* Only at xl: below it .shop-filter is a position:fixed offcanvas inside this column, and a mask
+   on an ancestor would clip it. */
 @media (min-width: 1200px) {
 	.content-inner-3 .sticky-xl-top {
 		max-height: calc(100vh - 120px);
 		overflow-y: auto;
 		padding: 4px 4px 4px 2px;
+		scrollbar-width: none;
+		/* A mask fades the content itself, so it needs no page colour and adds no overlay to eat clicks. */
+		mask-image: linear-gradient(
+			to bottom,
+			transparent,
+			#000 var(--fade-top-size),
+			#000 calc(100% - var(--fade-bottom-size)),
+			transparent
+		);
+	}
+
+	.content-inner-3 .sticky-xl-top::-webkit-scrollbar {
+		display: none;
+	}
+
+	.content-inner-3 .sticky-xl-top.fade-top {
+		--fade-top-size: 48px;
+	}
+
+	.content-inner-3 .sticky-xl-top.fade-bottom {
+		--fade-bottom-size: 48px;
+	}
+}
+
+@media (min-width: 1200px) and (prefers-reduced-motion: no-preference) {
+	.content-inner-3 .sticky-xl-top {
+		transition:
+			--fade-top-size 0.2s ease,
+			--fade-bottom-size 0.2s ease;
 	}
 }
 
