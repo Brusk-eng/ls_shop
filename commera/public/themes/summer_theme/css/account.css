@@ -38,16 +38,8 @@
 	}
 }
 
-/* .total-icon is sized for the reference's three inline SVGs; the wishlist counter has no
-   upstream SVG and uses the feather heart the product card already uses. */
-.total-contain .total-icon i {
-	font-size: 26px;
-	line-height: 1;
-	color: var(--primary);
-}
-
-/* .total-contain is a plain div upstream. The wishlist card links through, and an anchor
-   would otherwise pick up the global link colour and underline on hover. */
+/* .total-contain is a plain div upstream. As an anchor it stays inline above md, hence d-flex d-md-block
+   in the markup, and picks up the global link colour and hover underline. */
 a.total-contain,
 a.total-contain:hover {
 	color: inherit;
