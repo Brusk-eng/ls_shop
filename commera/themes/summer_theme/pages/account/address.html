@@ -1,12 +1,15 @@
 
 {% extends "components/theme_layout.html" %}
 {% from "components/core/account_shell.html" import account_shell %}
+{% from "components/macros/combobox.html" import country_combobox %}
 
 {% set address_type_labels = {"Billing": _("Billing Address"), "Shipping": _("Shipping Address")} %}
 
 {% block head %}
 	{{ super() }}
 	<link rel="stylesheet" href="{{ shop_theme_asset_url('css/account.css') }}">
+	<link rel="stylesheet" href="{{ shop_theme_asset_url('css/combobox.css') }}">
+	<script src="{{ shop_theme_asset_url('js/summer_combobox.js') }}"></script>
 {% endblock %}
 
 {% block uncontained_body %}
@@ -127,13 +130,7 @@
 				</div>
 				<div class="col-lg-6">
 					<div class="form-group m-b25">
-						<label class="label-title" for="country">{{ _("Country") }}</label>
-						<select id="country" class="form-control" required x-model="form.country">
-							<option value="">{{ _("Select a country") }}</option>
-							{% for country in country_list %}
-							<option value="{{ country.name | e }}">{{ country.name | e }}</option>
-							{% endfor %}
-						</select>
+						{{ country_combobox("country", "form.country", country_list, _("Country")) }}
 					</div>
 				</div>
 				<div class="col-lg-6">
