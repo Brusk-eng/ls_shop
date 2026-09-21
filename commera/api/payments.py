@@ -111,8 +111,6 @@ def initiate_checkout_with_mode(payment_mode: str):
 
 
 def open_checkout(quotation, payment_mode: str):
-	"""Held under the cart lock start to finish: an option picked between the repricing and the gateway
-	session would bill the shopper for a cart the session was never priced against."""
 	validate_cart_is_not_in_checkout(quotation.name)
 	update_delivery_charges(quotation)
 
@@ -206,14 +204,10 @@ def system_user_session():
 
 @contextmanager
 def cart_write_lock(quotation):
-	"""Serialise writes to one cart: every checkout endpoint is a read-modify-write on the same
-	Quotation, and the page fires them a click apart."""
 	if quotation.is_new():
 		yield quotation
 		return
 
-	# FOR UPDATE, not a plain reload: this request's repeatable-read snapshot predates the other
-	# writer's commit, so a plain re-read hands the same stale timestamp straight back.
 	quotation.flags.for_update = True
 	quotation.reload()
 	yield quotation

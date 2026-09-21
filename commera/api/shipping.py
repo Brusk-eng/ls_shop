@@ -71,8 +71,6 @@ def get_cart_fingerprint(quotation) -> str:
 		quotation.currency or "",
 		get_services_stamp(),
 	)
-	# Not generate_hash: it ignores the text handed to it and returns a random token, so every call
-	# minted a new key and the cache never hit - one live carrier quote per cart write.
 	return sha256_hash("|".join(parts))[:12]
 
 

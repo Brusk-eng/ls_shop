@@ -582,7 +582,6 @@
 
 				async select_shipping_option(title) {
 					if (title === this.selected_shipping_option) return;
-// One cart write at a time: a second pick mid-save races the first, so queue it for this loop instead.
 					this.pending_shipping_option = title;
 					if (this.shipping_option_saving) return;
 

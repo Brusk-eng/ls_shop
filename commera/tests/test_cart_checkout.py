@@ -196,10 +196,7 @@ class TestCartCheckout(IntegrationTestCase):
 		self.assertTrue(users_at_save, "the cart was never saved")
 		self.assertEqual(set(users_at_save), {"Administrator"})
 
-	# -- overlapping cart writes ------------------------------------------------------------------
-
 	def stale_cart_snapshot(self):
-		"""The cart as one request still holds it, after a second request has already saved it."""
 		snapshot = frappe.get_doc("Quotation", _get_cart_quotation().name)
 		save_cart_quotation(_get_cart_quotation())
 
@@ -234,7 +231,6 @@ class TestCartCheckout(IntegrationTestCase):
 		self.assertIn(snapshot.name, checkout["order_url"])
 
 	def test_the_rate_cache_key_holds_still_for_an_unchanged_cart(self):
-		"""A key that moves on every call is a cache that never hits, and a live carrier quote per click."""
 		frappe.set_user(self.shopper)
 		generate_quotation_for_cart({"items": [self.cart_line(self.discounted_item, 1)]})
 		quotation = _get_cart_quotation()
