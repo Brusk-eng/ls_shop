@@ -527,8 +527,8 @@ def get_page_size():
 
 
 def can_return(order_name, return_period_days):
-	"""Check if the order has been delivered and is still within the return period."""
-	# The invoice is raised at payment, so only a submitted outward Delivery Note starts the window.
+	"""Check if the order is still within the return period."""
+
 	delivered_on = [
 		line.creation for line in get_delivery_note_lines(order_name, docstatus=1) if not line.is_return
 	]
@@ -633,7 +633,6 @@ def update_so_status_from_related_doc(doc, method):
 		sales_orders.update([d.against_sales_order for d in doc.items if d.against_sales_order])
 
 	elif doc.doctype == "Shipping Request":
-		# A request booked straight off a Delivery Note carries no order reference of its own.
 		if doc.ref_doctype == "Sales Order" and doc.ref_docname:
 			sales_orders.add(doc.ref_docname)
 		elif doc.delivery_note:
@@ -652,7 +651,6 @@ def update_so_status_from_related_doc(doc, method):
 		)
 
 
-# Cancelled is absent on purpose: a void booking hands the order back to the Delivery Notes.
 SHIPMENT_STATUS_LADDER = {
 	"Draft": "Preparing for Shipment",
 	"Ready To Ship": "Preparing for Shipment",
@@ -680,12 +678,8 @@ def update_sales_order_ecommerce_status(sales_order_name):
 
 
 def get_fulfilment_status(sales_order_name) -> str:
-	# Checkout submits the invoice the moment the gateway confirms payment, so an invoice means billed,
-	# never delivered: only Delivery Notes and the carrier move an order along.
 	delivery_lines = get_delivery_note_lines(sales_order_name)
 	submitted_lines = [line for line in delivery_lines if line.docstatus == 1]
-	# per_delivered cannot answer this: ERPNext nets a return note off it, so a fully returned order
-	# reads as undelivered.
 	delivered_qty = sum(flt(line.qty) for line in submitted_lines if not line.is_return)
 	returned_qty = abs(sum(flt(line.qty) for line in submitted_lines if line.is_return))
 
@@ -720,7 +714,6 @@ def get_carrier_status(sales_order_name) -> str | None:
 
 
 def get_delivery_note_lines(sales_order_name, docstatus=None) -> list[dict]:
-	"""Draft and submitted Delivery Note lines against the order, outward and return alike."""
 	delivery_note = DocType("Delivery Note")
 	delivery_note_item = DocType("Delivery Note Item")
 	query = (

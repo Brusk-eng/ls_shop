@@ -180,7 +180,6 @@ class TestOrderRefunds(IntegrationTestCase):
 		)
 
 	def test_a_paid_order_can_be_cancelled_and_is_refunded(self):
-		"""Checkout invoices at payment, and ERPNext will not cancel a billed order on its own."""
 		sales_order = self.make_paid_order()
 		invoice_name = frappe.get_all(
 			"Sales Invoice Item", filters={"sales_order": sales_order.name}, pluck="parent", limit=1

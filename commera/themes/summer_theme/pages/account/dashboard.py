@@ -3,7 +3,7 @@ import frappe
 from commera.www.account import dashboard
 from commera.www.account.orders.index import get_orders_list
 
-# What update_sales_order_ecommerce_status assigns before an order is delivered, returned or cancelled.
+# What update_sales_order_ecommerce_status assigns short of Delivered, Cancelled and Returned.
 OPEN_ORDER_STATUSES = ("Waiting for Approval", "Order Received", "Preparing for Shipment", "Shipped")
 
 RECENT_ORDER_COUNT = 5

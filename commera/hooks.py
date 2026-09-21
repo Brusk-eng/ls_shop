@@ -157,7 +157,6 @@ doc_events = {
 		"on_cancel": "commera.utils.update_so_status_from_related_doc",
 		"on_trash": "commera.utils.update_so_status_from_related_doc",
 	},
-	# bwh_shipping, not ERPNext's Shipment: carrier webhooks land here.
 	"Shipping Request": {"on_update": "commera.utils.update_so_status_from_related_doc"},
 }
 

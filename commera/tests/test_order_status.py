@@ -19,7 +19,6 @@ return_items = frappe.get_module("commera.api.return").return_items
 
 
 def make_paid_order():
-	"""Billed the way checkout bills it: the invoice is submitted before anything ships."""
 	sales_order = make_test_sales_order()
 	sales_invoice = make_sales_invoice(sales_order.name, ignore_permissions=True)
 	sales_invoice.flags.ignore_permissions = True
@@ -48,7 +47,6 @@ class TestOrderStatus(IntegrationTestCase):
 		return sales_return
 
 	def book_parcel(self, sales_order, status):
-		# db_insert: this tests commera's reading of the carrier status, not bwh_shipping's booking rules.
 		frappe.get_doc(
 			{
 				"doctype": "Shipping Request",
@@ -110,7 +108,6 @@ class TestOrderStatus(IntegrationTestCase):
 		self.assertEqual(self.status_of(sales_order), "Partially Returned")
 
 	def test_returning_everything_is_a_return(self):
-		"""per_delivered nets the return off to 0, which must not slide the order back down the ladder."""
 		sales_order = make_paid_order()
 		delivery_note = deliver(sales_order)
 		self.make_return(delivery_note)

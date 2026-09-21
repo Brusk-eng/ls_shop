@@ -9,19 +9,15 @@ from commera.utils import validate_document_access
 
 @frappe.whitelist()
 def cancel_order(order_id: str):
-	# A row lock, not Document.lock(): cancel() refuses a file-locked document. A second click waits here,
-	# then reads the order already cancelled.
 	order_doc = frappe.get_doc("Sales Order", order_id, for_update=True)
 	validate_can_cancel(order_doc)
 
 	try:
-		# Planned while the invoice still links the capture: cancelling it unlinks the payment.
 		refund = None
 		if order_doc.custom_ecommerce_payment_mode != "COD":
 			refund = get_refund_plan(order_id)
 
 		if cancel_order_invoices(order_id):
-			# Cancelling an invoice rewrites the order's billing, so the loaded copy is stale.
 			order_doc.reload()
 
 		order_doc.flags.ignore_permissions = True
@@ -32,7 +28,6 @@ def cancel_order(order_id: str):
 			order_doc.reload()
 			order_doc.cancel()
 
-		# Last, because the gateway call commits: anything that throws after it cannot roll the money back.
 		if refund:
 			submit_refund_payment_entry(order_id, *refund)
 	except Exception:
@@ -43,7 +38,6 @@ def cancel_order(order_id: str):
 
 
 def cancel_order_invoices(order_id: str):
-	"""Checkout invoices a prepaid order at payment, and ERPNext refuses to cancel an order that is billed."""
 	invoice_names = frappe.get_all(
 		"Sales Invoice Item",
 		filters={"sales_order": order_id, "docstatus": 1},
@@ -53,7 +47,6 @@ def cancel_order_invoices(order_id: str):
 	with system_user_session():
 		for invoice_name in invoice_names:
 			sales_invoice = frappe.get_doc("Sales Invoice", invoice_name)
-			# Accounts Settings may keep the capture allocated, which blocks the cancel with a link error.
 			unlink_ref_doc_from_payment_entries(sales_invoice)
 			sales_invoice.flags.ignore_permissions = True
 			sales_invoice.cancel()
@@ -93,7 +86,6 @@ def build_refund_payment_entry(order_id: str, amount: float | None = None) -> st
 
 
 def get_refund_plan(order_id: str, amount: float | None = None) -> tuple:
-	"""The capture to reverse and how much of it, checked before anything is written."""
 	refund_status = get_refund_status(order_id)
 	if not refund_status.get("can_refund"):
 		frappe.throw(_("This order cannot be refunded."))

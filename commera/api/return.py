@@ -34,7 +34,6 @@ def return_items(sales_order_id: str, items: list | str):
 	if already_returned.intersection(item.get("item_code") for item in items):
 		frappe.throw(_("Some of these items have already been returned."))
 
-	# Return lines carry negative quantities, so qty > 0 keeps a return note from being returned again.
 	delivery_note_item = frappe.get_all(
 		"Delivery Note Item",
 		filters={
@@ -54,7 +53,6 @@ def return_items(sales_order_id: str, items: list | str):
 	original_dn = frappe.get_doc("Delivery Note", dn_name)
 
 	return_dn = frappe.copy_doc(original_dn)
-	# copy_doc keeps docstatus under tests, which would book the return without staff review.
 	return_dn.docstatus = 0
 	return_dn.set("is_return", 1)
 	return_dn.set("return_against", dn_name)
