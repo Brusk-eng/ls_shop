@@ -1,4 +1,5 @@
 {# Quick View and Add To Cart link to the product page: the cart store refuses an item without a chosen size variant. #}
+{% from "templates/macros/reviews.html" import star_svg %}
 
 {% macro variant_display_name(variant) -%}
 {%- set base_name = variant.item_name if frappe.lang == "en" else (variant.custom_item_name_ar or variant.item_name) -%}
@@ -13,6 +14,22 @@
 {%- endmacro %}
 
 
+{% macro card_rating(average_rating, review_count) -%}
+{%- if review_count %}
+<div class="shop-card-rating">
+	<span class="visually-hidden">{{ _("Rated {0} out of 5 from {1} reviews").format("%.1f" | format(average_rating), review_count) }}</span>
+	<span class="shop-card-rating-average" aria-hidden="true">{{ "%.1f" | format(average_rating) }}</span>
+	<ul class="dz-rating" aria-hidden="true">
+		{%- for star in range(1, 6) %}
+		<li{% if star - 0.5 <= average_rating %} class="star-fill"{% endif %}>{{ star_svg() }}</li>
+		{%- endfor %}
+	</ul>
+	<span class="shop-card-rating-count" aria-hidden="true">({{ review_count }})</span>
+</div>
+{%- endif %}
+{%- endmacro %}
+
+
 {% macro product_card(
     image,
     product_name,
@@ -22,7 +39,9 @@
     route="",
     style="",
     wow_delay="",
-    product_obj=None
+    product_obj=None,
+    average_rating=0,
+    review_count=0
 ) %}
 {% set product_url = "/" ~ (frappe.lang or "en") ~ "/products/" ~ route %}
 <div class="shop-card {{ style }} wow fadeInUp" data-wow-delay="{{ wow_delay }}">
@@ -57,22 +76,23 @@
 	</div>
 	<div class="dz-content">
 		{% if style == "style-2" %}
-		<div>
-			{% if discount %}<span class="sale-title">{{ _("up to {0}% off").format(discount | round | int) }}</span>{% endif %}
-			<h5 class="title"><a href="{{ product_url }}">{{ product_name }}</a></h5>
-		</div>
-		<h6 class="price">{{ card_price(formatted_price, original_price, discount) }}</h6>
+		{% if discount %}<span class="sale-title">{{ _("up to {0}% off").format(discount | round | int) }}</span>{% endif %}
+		<h5 class="title shop-card-title"><a href="{{ product_url }}">{{ product_name }}</a></h5>
+		{{ card_rating(average_rating, review_count) }}
+		<h6 class="price shop-card-price">{{ card_price(formatted_price, original_price, discount) }}</h6>
 		{% elif style == "style-4" %}
 		<div>
 			<h6 class="title"><a href="{{ product_url }}">{{ product_name }}</a></h6>
+			{{ card_rating(average_rating, review_count) }}
 			{% if discount %}<span class="sale-title">{{ _("Up to {0}% Off").format(discount | round | int) }}</span>{% endif %}
 		</div>
 		<div class="d-flex align-items-center">
 			<h6 class="price">{{ card_price(formatted_price, original_price, discount) }}</h6>
 		</div>
 		{% else %}
-		<h5 class="title"><a href="{{ product_url }}">{{ product_name }}</a></h5>
-		<h5 class="price">{{ card_price(formatted_price, original_price, discount) }}</h5>
+		<h5 class="title shop-card-title"><a href="{{ product_url }}">{{ product_name }}</a></h5>
+		{{ card_rating(average_rating, review_count) }}
+		<h5 class="price shop-card-price">{{ card_price(formatted_price, original_price, discount) }}</h5>
 		{% endif %}
 	</div>
 	{% if not style and discount %}
@@ -94,6 +114,8 @@
     route=variant.route,
     style=style,
     wow_delay=wow_delay,
-    product_obj=variant
+    product_obj=variant,
+    average_rating=variant.average_rating,
+    review_count=variant.review_count
 ) }}
 {% endmacro %}

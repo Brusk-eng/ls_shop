@@ -302,3 +302,72 @@
 	border-radius: 50%;
 	margin-right: 6px;
 }
+
+/* --- Product card copy: name, rating, then price, stacked --- */
+
+.shop-card:not([class*="style-"]) .dz-content,
+.shop-card.style-2 .dz-content {
+	flex-direction: column;
+	align-items: stretch;
+	justify-content: flex-start;
+	gap: 6px;
+}
+
+.shop-card .dz-content .shop-card-title {
+	width: 100%;
+	display: -webkit-box;
+	-webkit-box-orient: vertical;
+	-webkit-line-clamp: 2;
+	line-clamp: 2;
+	overflow: hidden;
+}
+
+/* style-2 right-aligns its price and drops the MRP onto a line of its own. */
+.shop-card .dz-content .shop-card-price {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	column-gap: 8px;
+	text-align: start;
+}
+
+.shop-card .dz-content .shop-card-price del {
+	margin: 0;
+}
+
+.shop-card .shop-card-rating {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	font-size: 13px;
+	line-height: 1;
+	color: var(--bs-secondary-text);
+}
+
+.shop-card .shop-card-rating-average {
+	color: var(--title);
+	font-weight: 600;
+}
+
+.shop-card .shop-card-rating .dz-rating {
+	display: flex;
+	gap: 2px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.shop-card .shop-card-rating .dz-rating li {
+	font-size: 14px;
+	color: var(--bs-gray-300);
+}
+
+.shop-card .shop-card-rating .dz-rating li svg {
+	width: 1em;
+	height: 1em;
+	display: block;
+}
+
+.shop-card .shop-card-rating .dz-rating li.star-fill {
+	color: var(--bs-warning);
+}
