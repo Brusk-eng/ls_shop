@@ -39,6 +39,6 @@ def get_context(context):
 			"currency_symbol": get_reporting_currency_symbol(currency),
 		}
 	)
-	frappe.db.commit()  # nosemgrep: frappe-semgrep-rules.rules.frappe-manual-commit
+	frappe.db.commit()  # nosemgrep
 
 	context.no_cache = 1
