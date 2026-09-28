@@ -6,6 +6,7 @@ import Thumb from './Thumb.vue'
 import EditableValue from './EditableValue.vue'
 import EmptyState from './EmptyState.vue'
 import VariantDialog from './VariantDialog.vue'
+import EditOptionsDialog from './EditOptionsDialog.vue'
 import SwatchDot from './SwatchDot.vue'
 import { useAdminAction, useAdminRead } from '../data/api'
 import { stockTone } from '../data/format'
@@ -30,12 +31,8 @@ function openVariant(variant) {
   showVariant.value = true
 }
 
-// Every real option (Style Attribute Variant) already carries its own single
-// attribute value — Color, say — set at product creation. commera has no
-// endpoint to add a further axis to an existing product (create_product only
-// takes option_attribute/size_attribute once, at insert), so unlike the
-// prototype's options[] this list is read-only: it names the one axis this
-// product already has and shows its values, nothing more.
+const showEditOptions = ref(false)
+
 const optionValues = computed(() => [...new Set(props.product.variants.map((v) => v.option))])
 
 const optionValuesRequest = useAdminRead('catalog.get_attribute_values', {
@@ -161,9 +158,14 @@ const columns = ['minmax(7rem,1.3fr)', 'minmax(5rem,1fr)', '6.5rem', '5rem', '4.
   <section class="space-y-5">
     <!-- The axis, first: the matrix below is nothing but its values. -->
     <div id="product-options" class="rounded-5 border border-outline-gray-1">
-      <div class="px-4 py-3">
-        <h2 class="text-lg-semibold text-ink-gray-8">Options</h2>
-        <p class="mt-1 text-p-sm text-ink-gray-5">{{ product.option_attribute ?? 'Option' }}, set at creation.</p>
+      <div class="flex items-start justify-between gap-3 px-4 py-3">
+        <div>
+          <h2 class="text-lg-semibold text-ink-gray-8">Options</h2>
+          <p class="mt-1 text-p-sm text-ink-gray-5">
+            Add a {{ (product.option_attribute ?? 'option').toLowerCase() }} or size, or take one off sale.
+          </p>
+        </div>
+        <Button label="Edit" icon-left="lucide-pencil" @click="showEditOptions = true" />
       </div>
 
       <div v-if="optionValues.length" class="border-t border-outline-gray-1 px-4 py-3">
@@ -312,6 +314,7 @@ const columns = ['minmax(7rem,1.3fr)', 'minmax(5rem,1fr)', '6.5rem', '5rem', '4.
     </div>
   </section>
 
+  <EditOptionsDialog v-model:open="showEditOptions" :product="product" @saved="emit('saved')" />
   <VariantDialog v-model:open="showVariant" :variant="editing" :product="product" @saved="emit('saved')" />
 </template>
 
