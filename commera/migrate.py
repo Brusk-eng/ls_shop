@@ -2,6 +2,7 @@ import traceback
 
 import frappe
 from bwh_payments.bwh_payments.utils import get_available_payment_modes
+from frappe.model.sync import sync_for
 
 from commera.api.payments import COD_PAYMENT_MODE
 from commera.commera_ecommerce.doctype.commera_settings.navbar.navbar_manager import (
@@ -18,6 +19,8 @@ ROBOTS_MARKER = "# managed by commera"
 
 
 def after_install():
+	# install_app syncs before commera is in installed_apps, so our importable_doctypes hook is skipped.
+	sync_for("commera")
 	create_payment_modes()
 	try:
 		create_default_email_templates()
