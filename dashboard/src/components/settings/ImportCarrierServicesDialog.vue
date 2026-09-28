@@ -135,7 +135,7 @@ async function importSelected() {
 
         <!-- A carrier lists dozens of services across its accounts, so the list scrolls and
              the price below it — and the Import button under that — stay in reach. -->
-        <ScrollArea class="mt-4 max-h-96 border-y border-outline-gray-1" viewport-class="pr-3">
+        <ScrollArea v-scroll-fade class="mt-4 max-h-96 border-y border-outline-gray-1" viewport-class="pr-3">
           <div v-for="account in accounts" :key="account.carrier" class="pt-3">
             <p class="text-sm text-ink-gray-5">{{ account.description || account.carrier }}</p>
             <div class="mt-1 divide-y divide-outline-gray-1">

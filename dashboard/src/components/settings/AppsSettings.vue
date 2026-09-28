@@ -124,7 +124,7 @@ async function commitField(fieldname, value, label) {
     description="The analytics and marketing services this store reports to."
   />
 
-  <SettingsBody>
+  <SettingsBody v-scroll-fade>
     <!-- The refusal itself is already toasted by useAdminRead. This says why the panel is
          empty, so an empty screen never reads as "nothing is connected". -->
     <EmptyState

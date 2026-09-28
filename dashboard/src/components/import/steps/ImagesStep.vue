@@ -203,7 +203,7 @@ onMounted(() => {
             <span class="text-base-semibold text-ink-gray-8">Files we could not place</span>
             <Badge :label="String(unplacedFiles.length)" theme="amber" variant="subtle" />
           </div>
-          <div class="max-h-72 divide-y divide-outline-gray-1 overflow-y-auto">
+          <div v-scroll-fade class="max-h-72 divide-y divide-outline-gray-1 overflow-y-auto">
             <div v-for="file in unplacedFiles" :key="file.file_url" class="flex items-center gap-3 px-4 py-3">
               <img
                 :src="file.file_url"

@@ -113,7 +113,7 @@ watch(
             <p class="text-base" aria-hidden="true">&nbsp;</p>
           </div>
         </SettingsPanelHeader>
-        <SettingsBody>
+        <SettingsBody v-scroll-fade>
           <AppearancePicker />
         </SettingsBody>
       </SettingsPanel>

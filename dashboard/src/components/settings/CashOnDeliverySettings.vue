@@ -83,7 +83,7 @@ function commitNumber(fieldname, event, label) {
     description="Taking payment at the door, and what it costs to offer it."
   />
 
-  <SettingsBody>
+  <SettingsBody v-scroll-fade>
     <!-- A refused read must not read as "cash on delivery is off". -->
     <EmptyState
       v-if="settings.error"

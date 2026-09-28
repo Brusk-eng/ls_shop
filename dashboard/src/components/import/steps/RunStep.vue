@@ -152,7 +152,7 @@ const NEXT = [
         <div class="border-b border-outline-gray-1 px-4 py-3 text-base-semibold text-ink-gray-8">
           Rows that did not import
         </div>
-        <div class="max-h-56 divide-y divide-outline-gray-1 overflow-y-auto">
+        <div v-scroll-fade class="max-h-56 divide-y divide-outline-gray-1 overflow-y-auto">
           <div v-for="e in imp.runRowErrors" :key="e.row" class="flex items-start gap-3 px-4 py-2.5">
             <span class="shrink-0 text-sm tabular-nums text-ink-gray-5">Row {{ e.row }}</span>
             <span class="text-sm text-ink-gray-7">{{ e.message }}</span>
@@ -164,7 +164,7 @@ const NEXT = [
         <div class="border-b border-outline-gray-1 px-4 py-3 text-base-semibold text-ink-gray-8">
           Rows whose photos did not attach
         </div>
-        <div class="max-h-56 divide-y divide-outline-gray-1 overflow-y-auto">
+        <div v-scroll-fade class="max-h-56 divide-y divide-outline-gray-1 overflow-y-auto">
           <div v-for="e in imp.runImageErrors" :key="e.row + e.message" class="flex items-start gap-3 px-4 py-2.5">
             <span v-if="e.row" class="shrink-0 text-sm tabular-nums text-ink-gray-5">Row {{ e.row }}</span>
             <span class="text-sm text-ink-gray-7">{{ e.message }}</span>

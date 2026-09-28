@@ -129,7 +129,7 @@ async function save() {
       />
     </div>
 
-    <div class="min-h-0 flex-1 overflow-y-auto px-5 pb-8 pt-5">
+    <div v-scroll-fade class="min-h-0 flex-1 overflow-y-auto px-5 pb-8 pt-5">
       <div class="space-y-4">
         <FormControl v-model="form.label" label="Menu label" required />
 
