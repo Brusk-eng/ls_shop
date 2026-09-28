@@ -135,7 +135,7 @@ function confirmDelete(option) {
       </template>
     </SettingsPanelHeader>
 
-    <SettingsBody>
+    <SettingsBody v-scroll-fade>
       <!-- A refused read must not read as "this store has no delivery options". -->
       <EmptyState
         v-if="store.loadError.value"

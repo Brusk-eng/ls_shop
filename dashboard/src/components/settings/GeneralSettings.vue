@@ -57,7 +57,7 @@ const companyLink = computed(() =>
     description="How your storefront names itself, and how customers reach you."
   />
 
-  <SettingsBody>
+  <SettingsBody v-scroll-fade>
     <SettingsSkeleton v-if="store.loading && !store.data" :rows="4" />
 
     <div v-else class="divide-y divide-outline-gray-1">

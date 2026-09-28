@@ -64,7 +64,7 @@ const headerMenu = [
                 <img :src="logoUrl" alt="" class="h-full w-full object-cover" />
               </template>
             </SidebarHeader>
-            <ScrollArea class="min-h-0 flex-1" viewport-class="pt-1 pb-10">
+            <ScrollArea v-scroll-fade class="min-h-0 flex-1" viewport-class="pt-1 pb-10">
               <NavSection v-for="section in sections" :key="section.id" :section="section" :active-target="activeTarget" />
             </ScrollArea>
             <SetupBanner />

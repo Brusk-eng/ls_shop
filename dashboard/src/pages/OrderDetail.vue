@@ -135,7 +135,7 @@ const loadFailure = computed(() =>
     <!-- Two panes, each with its own scroll: the order is worked down the left,
          and who it is for stays put on the right. -->
     <div class="flex min-h-0 flex-1 overflow-hidden">
-      <ScrollArea class="min-w-0 flex-1">
+      <ScrollArea v-scroll-fade class="min-w-0 flex-1">
         <PageBody width="narrow">
       <div class="flex flex-wrap items-center gap-2">
         <StatusBadge
@@ -220,7 +220,7 @@ const loadFailure = computed(() =>
       </ScrollArea>
 
       <aside class="hidden w-[19rem] shrink-0 flex-col border-l border-outline-gray-1 lg:flex">
-        <ScrollArea class="min-h-0 flex-1">
+        <ScrollArea v-scroll-fade class="min-h-0 flex-1">
           <OrderCustomerPanel :order="order" />
         </ScrollArea>
       </aside>
@@ -244,7 +244,7 @@ const loadFailure = computed(() =>
     />
 
     <div class="flex min-h-0 flex-1 overflow-hidden">
-      <ScrollArea class="min-w-0 flex-1">
+      <ScrollArea v-scroll-fade class="min-w-0 flex-1">
         <PageBody width="narrow">
           <div class="flex flex-wrap items-center gap-2">
             <Skeleton class="h-5 w-20 rounded-4" />

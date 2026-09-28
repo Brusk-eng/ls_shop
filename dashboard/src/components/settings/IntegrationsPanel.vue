@@ -53,7 +53,7 @@ async function saveCurrent({ enabled, values }) {
         />
       </template>
     </SettingsPanelHeader>
-    <SettingsBody>
+    <SettingsBody v-scroll-fade>
       <!-- A refused read must not read as "this store has no providers". -->
       <div v-if="store.loadError.value" class="py-6 text-base text-ink-gray-5">
         These could not be loaded.

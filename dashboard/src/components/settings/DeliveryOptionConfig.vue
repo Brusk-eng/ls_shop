@@ -83,7 +83,7 @@ async function save() {
     </template>
   </SettingsConfigHeader>
 
-  <SettingsBody>
+  <SettingsBody v-scroll-fade>
     <form :id="formId" @submit.prevent="save">
       <div class="divide-y divide-outline-gray-1">
         <SettingsRow

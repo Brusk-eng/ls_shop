@@ -155,7 +155,7 @@ async function useCurrentLocation() {
     </template>
   </SettingsConfigHeader>
 
-  <SettingsBody>
+  <SettingsBody v-scroll-fade>
     <form :id="formId" class="flex flex-col gap-4 pt-4" @submit.prevent="emit('save', { ...values })">
       <FormControl
         v-model="values.address_title"

@@ -67,7 +67,7 @@ async function saveAddress(values) {
       description="Your warehouses, and where shoppers can collect their order."
     />
 
-    <SettingsBody>
+    <SettingsBody v-scroll-fade>
       <EmptyState
         v-if="loadError && !screen"
         compact
