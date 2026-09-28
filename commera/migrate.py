@@ -38,7 +38,15 @@ def after_install():
 	setup_robots_txt()
 	seed_llms_txt()
 	seed_default_routes()
+	activate_summer_theme()
 	seed_menu_when_empty()
+
+
+def activate_summer_theme():
+	settings = frappe.get_doc("Shop Theme Settings")
+	settings.active_theme = "Summer Theme"
+	settings.dynamic_pages_enabled = 1
+	settings.save(ignore_permissions=True)
 
 
 def after_migrate():
