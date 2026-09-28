@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref } from 'vue'
-import { Badge, Button, Dropdown, dialog, toast } from 'frappe-ui'
+import { Badge, Button, Dropdown, Tooltip, dialog, toast } from 'frappe-ui'
 import { List, ListCell, ListHeader, ListHeaderCell, ListRow, ListRows } from 'frappe-ui/list'
 import Thumb from './Thumb.vue'
 import EditableValue from './EditableValue.vue'
@@ -96,6 +96,13 @@ const receiveAction = useAdminAction('inventory.receive_stock')
 // same blockers off the row means the matrix can say it before the merchant clicks.
 function publishBlockers(variant) {
   return variant.blockers ?? []
+}
+
+function blockerLabel(variant) {
+  const missing = [!variant.images.length && 'photo', !variant.sizes.length && 'size'].filter(Boolean)
+  if (missing.length === 1) return `Needs a ${missing[0]}`
+  if (missing.length) return `Needs ${missing.join(', ')}`
+  return 'Not ready'
 }
 
 async function togglePublish(variant) {
@@ -280,12 +287,9 @@ const columns = ['minmax(7rem,1.3fr)', 'minmax(5rem,1fr)', '6.5rem', '5rem', '4.
                   theme="green"
                   variant="subtle"
                 />
-                <Badge
-                  v-else-if="publishBlockers(item).length"
-                  :label="publishBlockers(item).join(', ')"
-                  theme="amber"
-                  variant="subtle"
-                />
+                <Tooltip v-else-if="publishBlockers(item).length" :text="publishBlockers(item).join(', ')">
+                  <Badge :label="blockerLabel(item)" theme="amber" variant="subtle" />
+                </Tooltip>
                 <Badge v-else label="Hidden" theme="gray" variant="subtle" />
               </ListCell>
               <ListCell>
