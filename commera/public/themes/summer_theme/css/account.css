@@ -68,3 +68,32 @@ a.total-contain:hover {
 .account-table {
 	min-width: 34rem;
 }
+
+/* A grid with 1fr rows gives every card the tallest card's height, across rows too, which a flex .row
+   cannot. Bootstrap's gutters still apply, but .col-md-6's 50% width would halve each cell. */
+.address-list {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr);
+	grid-auto-rows: 1fr;
+}
+
+@media only screen and (min-width: 768px) {
+	.address-list {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+}
+
+.address-list > .col-md-6 {
+	width: 100%;
+}
+
+/* The body grows so every Edit/Remove bar lines up along the bottom. */
+.address-card {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+}
+
+.address-card .account-address-box {
+	flex: 1;
+}
