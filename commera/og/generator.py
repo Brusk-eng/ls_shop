@@ -46,7 +46,7 @@ def render_og_png(html_str, width, height):
 	payload_bytes = frappe.as_json(payload).encode()
 	# node is on PATH on benches; the satori toolchain resolves via the app's node_modules.
 	try:
-		result = subprocess.run(
+		result = subprocess.run(  # nosemgrep: frappe-subprocess-exec
 			["node", script_path],
 			input=payload_bytes,
 			capture_output=True,
