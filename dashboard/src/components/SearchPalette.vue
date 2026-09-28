@@ -18,6 +18,7 @@ import { SETTINGS_TABS, openSettings } from '../ia/settings'
 import { search } from '../ia/search'
 import { openImport } from '../data/importFlow'
 import { openAddProduct } from '../data/addProduct'
+import { confirmInstallDemoData } from '../data/demoData'
 
 const LIMIT = 5
 
@@ -110,6 +111,7 @@ const CREATE = [
   { id: 'new-product', label: 'New product', icon: 'lucide-plus', keywords: ['add', 'create'], run: openAddProduct },
   { id: 'import', label: 'Import products from CSV', icon: 'lucide-upload', keywords: ['csv', 'bulk', 'shopify', 'migrate'], run: openImport },
   { id: 'receive', label: 'Receive stock', icon: 'lucide-package-plus', keywords: ['inward', 'grn'], run: () => router.push('/inventory') },
+  { id: 'demo-data', label: 'Install demo data', icon: 'lucide-database', keywords: ['demo', 'sample', 'seed', 'example'], run: confirmInstallDemoData },
 ]
 
 const SETTINGS = [
