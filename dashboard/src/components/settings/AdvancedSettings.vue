@@ -68,7 +68,7 @@ function confirmInstallDemoData() {
     description="Every remaining store setting, grouped as it appears in your books."
   />
 
-  <SettingsBody>
+  <SettingsBody v-scroll-fade>
     <SettingsSkeleton v-if="advanced.loading && !advanced.data" class="mt-2" :rows="6" />
 
     <template v-else-if="advanced.data">

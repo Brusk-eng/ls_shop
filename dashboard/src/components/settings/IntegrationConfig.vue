@@ -48,7 +48,7 @@ async function copyWebhookUrl() {
     </template>
   </SettingsConfigHeader>
 
-  <SettingsBody>
+  <SettingsBody v-scroll-fade>
     <div class="divide-y divide-outline-gray-1">
       <SettingsRow title="Enabled" description="Offered to customers at checkout.">
         <div class="flex items-center gap-2">

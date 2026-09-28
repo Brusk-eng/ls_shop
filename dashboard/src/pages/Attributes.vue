@@ -67,7 +67,7 @@ function editAttribute(attribute) {
 
     <!-- The list scrolls on its own, so the page header stays put while you
          work down a long set of attributes. -->
-    <ScrollArea
+    <ScrollArea v-scroll-fade
       v-else-if="attributes.length"
       class="max-h-[calc(100vh-15rem)] border-y border-outline-gray-1"
     >

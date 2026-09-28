@@ -2,3 +2,79 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Registered so the fade depth can transition; an unregistered custom property only snaps. */
+@property --scroll-fade-top {
+  syntax: '<length>';
+  inherits: false;
+  initial-value: 0px;
+}
+
+@property --scroll-fade-bottom {
+  syntax: '<length>';
+  inherits: false;
+  initial-value: 0px;
+}
+
+@property --scroll-fade-left {
+  syntax: '<length>';
+  inherits: false;
+  initial-value: 0px;
+}
+
+@property --scroll-fade-right {
+  syntax: '<length>';
+  inherits: false;
+  initial-value: 0px;
+}
+
+/* Edges toggled by v-scroll-fade (utils/scrollFade.js). A mask fades the content itself instead of
+   painting an assumed page colour, so dark mode holds and no overlay swallows clicks. */
+.scroll-fade {
+  --scroll-fade-size: 2rem;
+  --scroll-fade-vertical: linear-gradient(
+    to bottom,
+    transparent,
+    #000 var(--scroll-fade-top),
+    #000 calc(100% - var(--scroll-fade-bottom)),
+    transparent
+  );
+  --scroll-fade-horizontal: linear-gradient(
+    to right,
+    transparent,
+    #000 var(--scroll-fade-left),
+    #000 calc(100% - var(--scroll-fade-right)),
+    transparent
+  );
+  -webkit-mask-image: var(--scroll-fade-vertical), var(--scroll-fade-horizontal);
+  mask-image: var(--scroll-fade-vertical), var(--scroll-fade-horizontal);
+  /* Two mask layers union by default, which would cancel each other's fade out. */
+  -webkit-mask-composite: source-in;
+  mask-composite: intersect;
+}
+
+.scroll-fade-top {
+  --scroll-fade-top: var(--scroll-fade-size);
+}
+
+.scroll-fade-bottom {
+  --scroll-fade-bottom: var(--scroll-fade-size);
+}
+
+.scroll-fade-left {
+  --scroll-fade-left: var(--scroll-fade-size);
+}
+
+.scroll-fade-right {
+  --scroll-fade-right: var(--scroll-fade-size);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .scroll-fade {
+    transition:
+      --scroll-fade-top 150ms ease-out,
+      --scroll-fade-bottom 150ms ease-out,
+      --scroll-fade-left 150ms ease-out,
+      --scroll-fade-right 150ms ease-out;
+  }
+}

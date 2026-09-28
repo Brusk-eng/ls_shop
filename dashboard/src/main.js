@@ -2,6 +2,7 @@ import { createApp } from 'vue'
 import { FrappeUI, useColorScheme } from 'frappe-ui'
 import { router } from './router'
 import { applyDocumentDirection } from './data/boot'
+import { scrollFade } from './utils/scrollFade'
 import './style.css'
 import App from './App.vue'
 
@@ -16,4 +17,5 @@ applyDocumentDirection()
 const app = createApp(App)
 app.use(router)
 app.use(FrappeUI)
+app.directive('scroll-fade', scrollFade)
 app.mount('#app')

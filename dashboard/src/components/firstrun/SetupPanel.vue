@@ -85,7 +85,7 @@ function openStep(step) {
         </div>
       </div>
 
-      <div class="flex flex-col gap-1.5 overflow-y-auto">
+      <div v-scroll-fade class="flex flex-col gap-1.5 overflow-y-auto">
         <div
           v-for="step in rows"
           :key="step.key"
