@@ -13,6 +13,7 @@ from commera.api.admin.analytics import (
 	month_key,
 	month_window,
 )
+from commera.api.admin.catalog import get_item_images
 from commera.api.admin.orders import (
 	describe_payment_state,
 	describe_state,
@@ -273,10 +274,11 @@ def get_top_products(items: list) -> list:
 		for row in frappe.get_all(
 			"Item",
 			filters={"name": ["in", item_codes]},
-			fields=["name", "item_name", "image", "variant_of"],
+			fields=["name", "item_name", "variant_of"],
 		)
 	}
 	template_by_code = read_item_templates(item_codes)
+	image_by_item_code = get_item_images(item_codes)
 
 	return [
 		{
@@ -287,7 +289,7 @@ def get_top_products(items: list) -> list:
 			"name": item_by_code.get(row.item_code, {}).get("item_name") or row.item_code,
 			"units": flt(row.units),
 			"spend": flt(row.spend),
-			"image": item_by_code.get(row.item_code, {}).get("image"),
+			"image": image_by_item_code.get(row.item_code),
 		}
 		for row in items
 	]
