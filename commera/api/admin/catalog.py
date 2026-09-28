@@ -15,7 +15,7 @@ from commera.api.variant_pricing import (
 	set_variant_prices,
 )
 from commera.swatches import COLOUR_ATTRIBUTE, ensure_default_swatch, get_swatch_map
-from commera.utils import IN_CLAUSE_CHUNK_SIZE
+from commera.utils import IN_CLAUSE_CHUNK_SIZE, get_first_option_photos, get_product_covers
 
 PAGE_LENGTH = 20
 BULK_PRODUCT_LIMIT = 100
@@ -116,15 +116,7 @@ def get_products(
 	stock_by_item_code = get_ecommerce_stock(item_codes)
 
 	# A dashboard-created product never sets Item.image, so fall back to the first option image.
-	first_image_by_variant = {}
-	if variant_names:
-		for row in frappe.get_all(
-			"Website Slideshow Item",
-			filters={"parent": ["in", variant_names], "parenttype": "Style Attribute Variant"},
-			fields=["parent", "image"],
-			order_by="idx asc",
-		):
-			first_image_by_variant.setdefault(row.parent, row.image)
+	first_image_by_variant = get_first_option_photos(variant_names)
 
 	item_codes_by_variant = {}
 	for row in sizes:
@@ -423,14 +415,7 @@ def get_pricing_rows(
 	item_codes = [row.item_code for row in first_size_by_variant.values() if row.item_code]
 	prices_by_item_code = get_size_prices(item_codes)
 
-	first_image_by_variant = {}
-	for row in frappe.get_all(
-		"Website Slideshow Item",
-		filters={"parent": ["in", variant_names], "parenttype": "Style Attribute Variant"},
-		fields=["parent", "image"],
-		order_by="idx asc",
-	):
-		first_image_by_variant.setdefault(row.parent, row.image)
+	first_image_by_variant = get_first_option_photos(variant_names)
 
 	rows = []
 	for row in variants:
@@ -712,98 +697,6 @@ def get_item_templates_by_item_code(item_codes):
 		.run()
 	)
 	return {row[0]: row[1] for row in rows}
-
-
-def get_item_images(item_codes: list) -> dict:
-	"""Matches the option on the item's attribute value, not Color Size Item: a size taken off sale loses
-	its row there but still sits on old orders."""
-	if not item_codes:
-		return {}
-
-	items = frappe.get_all(
-		"Item", filters={"name": ["in", item_codes]}, fields=["name", "image", "variant_of"]
-	)
-	template_by_item_code = {row.name: row.variant_of or row.name for row in items}
-	templates = list(set(template_by_item_code.values()))
-	options = read_product_options(templates)
-	covers = pick_product_covers(templates, options)
-
-	photo_by_option_key = {
-		(option.template, option.attribute_name, option.attribute_value): option.photo
-		for option in options
-		if option.photo
-	}
-	option_photo_by_item_code = {}
-	for row in frappe.get_all(
-		"Item Variant Attribute",
-		filters={"parent": ["in", item_codes], "parenttype": "Item"},
-		fields=["parent", "attribute", "attribute_value"],
-	):
-		photo = photo_by_option_key.get(
-			(template_by_item_code.get(row.parent), row.attribute, row.attribute_value)
-		)
-		if photo:
-			option_photo_by_item_code.setdefault(row.parent, photo)
-
-	return {
-		row.name: row.image
-		or option_photo_by_item_code.get(row.name)
-		or covers.get(template_by_item_code[row.name])
-		for row in items
-	}
-
-
-def get_product_covers(templates: list) -> dict:
-	"""A dashboard-created product never sets Item.image, so its cover is its earliest option's first photo."""
-	if not templates:
-		return {}
-	return pick_product_covers(templates, read_product_options(templates))
-
-
-def read_product_options(templates: list) -> list:
-	configurators = frappe.get_all(
-		"Style Attribute Configurator",
-		filters={"item_template": ["in", templates]},
-		fields=["name", "item_template"],
-	)
-	template_by_configurator = {row.name: row.item_template for row in configurators}
-	if not template_by_configurator:
-		return []
-
-	options = frappe.get_all(
-		"Style Attribute Variant",
-		filters={"configurator": ["in", list(template_by_configurator)]},
-		fields=["name", "configurator", "attribute_name", "attribute_value"],
-		order_by="creation asc",
-	)
-	first_photo_by_option = {}
-	for row in frappe.get_all(
-		"Website Slideshow Item",
-		filters={
-			"parent": ["in", [option.name for option in options]],
-			"parenttype": "Style Attribute Variant",
-		},
-		fields=["parent", "image"],
-		order_by="idx asc",
-	):
-		first_photo_by_option.setdefault(row.parent, row.image)
-
-	for option in options:
-		option.template = template_by_configurator[option.configurator]
-		option.photo = first_photo_by_option.get(option.name)
-	return options
-
-
-def pick_product_covers(templates: list, options: list) -> dict:
-	image_by_template = dict(
-		frappe.get_all("Item", filters={"name": ["in", templates]}, fields=["name", "image"], as_list=True)
-	)
-	covers = {}
-	for template in templates:
-		covers[template] = image_by_template.get(template) or next(
-			(option.photo for option in options if option.template == template and option.photo), None
-		)
-	return covers
 
 
 def get_publish_blockers(images, sizes):

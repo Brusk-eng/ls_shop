@@ -7,10 +7,10 @@ from frappe.query_builder import Case, Order
 from frappe.query_builder.functions import Count, Max, Sum
 from frappe.utils.data import add_days, cint, cstr, flt, formatdate, getdate
 
-from commera.api.admin.catalog import get_item_images, get_unpublishable_options
+from commera.api.admin.catalog import get_unpublishable_options
 from commera.api.admin.inventory import get_inventory
 from commera.api.shipping import get_order_charge_lines
-from commera.utils import get_address_lines
+from commera.utils import get_address_lines, get_item_images
 
 PAGE_LENGTH = 20
 
