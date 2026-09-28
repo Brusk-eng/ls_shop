@@ -9,6 +9,7 @@ import { Badge, Button, Dialog, FormControl, toast } from 'frappe-ui'
 import VariantMedia from './VariantMedia.vue'
 import { useAdminAction } from '../data/api'
 import { pricePayload, shownPrice } from '../data/product'
+import { productRoute } from '../ia/productRoute'
 
 const props = defineProps({
   variant: { type: Object, default: null },
@@ -120,7 +121,7 @@ async function save() {
         <Button
           label="Open full page"
           icon-left="lucide-external-link"
-          :route="`/products/${product.id}/variants/${encodeURIComponent(variant.name)}`"
+          :route="productRoute(product.id, variant.name)"
         />
         <div class="flex gap-2">
           <Button label="Cancel" @click="open = false" />

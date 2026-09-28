@@ -16,6 +16,7 @@ import { useAdminRead } from '../data/api'
 import { money, priceRange } from '../data/format'
 import { SETTINGS_TABS, openSettings } from '../ia/settings'
 import { search } from '../ia/search'
+import { productRoute } from '../ia/productRoute'
 import { openImport } from '../data/importFlow'
 import { openAddProduct } from '../data/addProduct'
 import { confirmInstallDemoData } from '../data/demoData'
@@ -159,7 +160,7 @@ const commandGroups = computed(() => {
 // Every id here is a real record name straight off the admin API — item_template, the Sales
 // Order name, the Customer name — never a display string.
 function onSelect(value) {
-  if (value.kind === 'product') return router.push(`/products/${value.id}`)
+  if (value.kind === 'product') return router.push(productRoute(value.id))
   if (value.kind === 'order') return router.push(`/orders/${value.id}`)
   if (value.kind === 'customer') return router.push(`/customers/${value.id}`)
   if (value.kind === 'collection') return router.push('/collections')

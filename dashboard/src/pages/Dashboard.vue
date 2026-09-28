@@ -15,6 +15,7 @@ import { useAdminRead } from '../data/api'
 import { hasValues } from '../data/analytics'
 import { compactMoney, money, shortDate } from '../data/format'
 import { ia } from '../ia/store'
+import { productRoute } from '../ia/productRoute'
 
 // The whole screen in three calls: orders.get_overview already backs the Home screen's stats,
 // recent orders and low-stock/needs-attention panels; catalog.get_top_products and
@@ -256,7 +257,7 @@ const revenueByMonth = computed(() => revenueRequest.data?.months ?? [])
           <RouterLink
             v-for="product in topProducts"
             :key="product.name"
-            :to="`/products/${product.name}`"
+            :to="productRoute(product.name)"
             class="flex items-center gap-3 px-4 py-3 hover:bg-surface-gray-1"
           >
             <Thumb :image="product.image" size="size-8" />
