@@ -19,11 +19,14 @@ const selection = ref([])
 
 // A row opens the variant rather than navigating: a variant is a small record,
 // and you are usually working down the matrix, not away from it.
-const editing = ref(null)
+// Held by name: a save reloads the product with new variant objects, and the
+// open dialog has to follow them rather than keep showing the old photos.
+const editingName = ref(null)
+const editing = computed(() => props.product.variants.find((variant) => variant.name === editingName.value) ?? null)
 const showVariant = ref(false)
 
 function openVariant(variant) {
-  editing.value = variant
+  editingName.value = variant.name
   showVariant.value = true
 }
 
