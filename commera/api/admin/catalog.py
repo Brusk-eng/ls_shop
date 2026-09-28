@@ -15,7 +15,7 @@ from commera.api.variant_pricing import (
 	set_variant_prices,
 )
 from commera.swatches import COLOUR_ATTRIBUTE, ensure_default_swatch, get_swatch_map
-from commera.utils import IN_CLAUSE_CHUNK_SIZE
+from commera.utils import IN_CLAUSE_CHUNK_SIZE, get_first_option_photos, get_product_covers
 
 PAGE_LENGTH = 20
 BULK_PRODUCT_LIMIT = 100
@@ -116,15 +116,7 @@ def get_products(
 	stock_by_item_code = get_ecommerce_stock(item_codes)
 
 	# A dashboard-created product never sets Item.image, so fall back to the first option image.
-	first_image_by_variant = {}
-	if variant_names:
-		for row in frappe.get_all(
-			"Website Slideshow Item",
-			filters={"parent": ["in", variant_names], "parenttype": "Style Attribute Variant"},
-			fields=["parent", "image"],
-			order_by="idx asc",
-		):
-			first_image_by_variant.setdefault(row.parent, row.image)
+	first_image_by_variant = get_first_option_photos(variant_names)
 
 	item_codes_by_variant = {}
 	for row in sizes:
@@ -423,14 +415,7 @@ def get_pricing_rows(
 	item_codes = [row.item_code for row in first_size_by_variant.values() if row.item_code]
 	prices_by_item_code = get_size_prices(item_codes)
 
-	first_image_by_variant = {}
-	for row in frappe.get_all(
-		"Website Slideshow Item",
-		filters={"parent": ["in", variant_names], "parenttype": "Style Attribute Variant"},
-		fields=["parent", "image"],
-		order_by="idx asc",
-	):
-		first_image_by_variant.setdefault(row.parent, row.image)
+	first_image_by_variant = get_first_option_photos(variant_names)
 
 	rows = []
 	for row in variants:
@@ -634,9 +619,7 @@ def get_top_products(limit: int = TOP_PRODUCTS_LIMIT):
 	templates = [row[0] for row in rows]
 	items_by_name = {
 		row.name: row
-		for row in frappe.get_all(
-			"Item", filters={"name": ["in", templates]}, fields=["name", "item_name", "image"]
-		)
+		for row in frappe.get_all("Item", filters={"name": ["in", templates]}, fields=["name", "item_name"])
 	}
 
 	configurators = frappe.get_all(
@@ -673,13 +656,14 @@ def get_top_products(limit: int = TOP_PRODUCTS_LIMIT):
 			item_codes_by_template.setdefault(template, []).append(row.item_code)
 	all_item_codes = [code for codes in item_codes_by_template.values() for code in codes]
 	stock_by_item_code = get_ecommerce_stock(all_item_codes)
+	covers = get_product_covers(templates)
 
 	return {
 		"products": [
 			{
 				"name": row[0],
 				"title": items_by_name.get(row[0], {}).get("item_name") or row[0],
-				"image": items_by_name.get(row[0], {}).get("image"),
+				"image": covers.get(row[0]),
 				"units": cint(row[1]),
 				"revenue": flt(row[2]),
 				"stock": sum(
