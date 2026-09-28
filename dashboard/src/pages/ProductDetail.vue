@@ -41,7 +41,6 @@ watch(
       id: data.name,
       title: data.title,
       description: data.description,
-      image: data.image,
       collection: data.collection,
       // Item only carries a disabled flag — there is no "draft" state in the
       // catalog (same fact Products.vue's list screen already works around).
