@@ -19,11 +19,14 @@ const selection = ref([])
 
 // A row opens the variant rather than navigating: a variant is a small record,
 // and you are usually working down the matrix, not away from it.
-const editing = ref(null)
+// Held by name: a save reloads the product with new variant objects, and the
+// open dialog has to follow them rather than keep showing the old photos.
+const editingName = ref(null)
+const editing = computed(() => props.product.variants.find((variant) => variant.name === editingName.value) ?? null)
 const showVariant = ref(false)
 
 function openVariant(variant) {
-  editing.value = variant
+  editingName.value = variant.name
   showVariant.value = true
 }
 
@@ -300,7 +303,7 @@ const columns = ['minmax(7rem,1.3fr)', 'minmax(5rem,1fr)', '6.5rem', '5rem', '4.
         compact
         icon="lucide-layers"
         title="No variants yet"
-        description="Variants are the buyable combinations — a colour in a size."
+        description="Variants are the buyable combinations, like a colour in a size."
       />
     </div>
   </section>

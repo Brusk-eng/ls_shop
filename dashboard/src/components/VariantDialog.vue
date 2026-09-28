@@ -26,11 +26,13 @@ const emit = defineEmits(['saved'])
 // instead of being erased by a save that only meant to change the price.
 const price = ref(0)
 const compareAt = ref(null)
+// Reset on open or on a different variant only: a photo upload reloads the
+// product mid-edit, and that must not wipe a price typed but not yet saved.
 watch(
-  () => props.variant,
-  (variant) => {
-    if (!variant) return
-    const first = variant.sizes?.[0]
+  [open, () => props.variant?.name],
+  () => {
+    if (!open.value || !props.variant) return
+    const first = props.variant.sizes?.[0]
     compareAt.value = first?.default_rate ?? null
     price.value = shownPrice(first)
   },
