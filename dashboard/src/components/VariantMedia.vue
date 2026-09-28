@@ -89,7 +89,7 @@ async function remove(fileUrl) {
     </div>
 
     <p v-if="!variant.images.length" class="mt-2 text-p-sm text-ink-gray-5">
-      No photo yet — this variant falls back to the product's own image on the storefront.
+      No photo yet. This variant falls back to the product's own image on the storefront.
     </p>
   </div>
 </template>

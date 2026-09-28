@@ -303,7 +303,7 @@ const columns = ['minmax(7rem,1.3fr)', 'minmax(5rem,1fr)', '6.5rem', '5rem', '4.
         compact
         icon="lucide-layers"
         title="No variants yet"
-        description="Variants are the buyable combinations — a colour in a size."
+        description="Variants are the buyable combinations, like a colour in a size."
       />
     </div>
   </section>
