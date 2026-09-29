@@ -36,29 +36,27 @@
 				<div class="tab-content pt-4">
 
 					<div class="tab-pane fade show active" role="tabpanel"
-						x-show="selected_tab === 'checkout' && !checkout_sign_in && !otp_sent" x-cloak>
-						<a href="/{{ frappe.lang or 'en' }}/cart/checkout" class="btn btn-secondary w-100">
-							{{ _("Continue as Guest") }}
-						</a>
-						<button type="button" class="btn btn-link w-100 mt-2" @click="checkout_sign_in = true">
-							{{ _("Sign in") }}
-						</button>
-					</div>
-
-					<div class="tab-pane fade show active" role="tabpanel"
-						x-show="selected_tab === 'checkout' && checkout_sign_in && !otp_sent" x-cloak>
+						x-show="selected_tab === 'checkout' && !otp_sent" x-cloak>
 						<form @submit.prevent="send_checkout_otp($data, $refs)">
-							<p class="mb-3">{{ _("Enter your email and we'll send you a code to continue.") }}</p>
+							<p class="mb-3">{{ _("Sign in to use your saved addresses. We'll email you a code.") }}</p>
 							<div class="form-group mb-3">
 								<label class="form-label">{{ _("Email") }}*</label>
 								<input type="email" class="form-control" required x-model="email"
 									autocomplete="email" placeholder="{{ _('Enter your email') }}">
 							</div>
 							<button type="submit" class="btn btn-secondary w-100" x-ref="checkout_otp_btn">
-								{{ _("Continue") }}
+								{{ _("Send Code") }}
 								<span class="hidden animate-spin" role="status" aria-label="{{ _('loading') }}"></span>
 							</button>
 						</form>
+						<div class="d-flex align-items-center gap-3 my-3">
+							<hr class="flex-grow-1 m-0">
+							<span>{{ _("or") }}</span>
+							<hr class="flex-grow-1 m-0">
+						</div>
+						<a href="/{{ frappe.lang or 'en' }}/cart/checkout" class="btn btn-outline-secondary w-100">
+							{{ _("Continue as Guest") }}
+						</a>
 					</div>
 
 					<div class="tab-pane fade show active" role="tabpanel"
@@ -142,7 +140,6 @@
 			is_open: false,
 			otp_sent: false,
 			selected_tab: "login",
-			checkout_sign_in: false,
 			first_name: "",
 			last_name: "",
 			email: "",
@@ -152,7 +149,6 @@
 
 			open_dialog(detail) {
 				this.selected_tab = detail?.mode === "checkout" ? "checkout" : "login";
-				this.checkout_sign_in = false;
 				this.is_open = true;
 			},
 
