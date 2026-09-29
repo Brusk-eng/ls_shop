@@ -32,6 +32,7 @@
   "column_break_pkyw",
   "return_period",
   "print_format",
+  "allow_guest_checkout",
   "guest_order_link_days",
   "payment_mode_section",
   "column_break_iirq",
@@ -844,6 +845,13 @@
    "description": "Manage footer columns and links here instead of jumping between Footer Section Config and Footer Link."
   },
   {
+   "default": "1",
+   "description": "Let shoppers place an order without an account. Turn it off and everyone signs in with an emailed code before checkout.",
+   "fieldname": "allow_guest_checkout",
+   "fieldtype": "Check",
+   "label": "Allow Guest Checkout"
+  },
+  {
    "default": "21",
    "description": "How long the private order link emailed to a guest shows the delivery address and payment details. After that it shows status and tracking only, until the shopper verifies their email. 0 keeps everything visible.",
    "fieldname": "guest_order_link_days",
@@ -855,7 +863,7 @@
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2026-09-29 00:00:00.000000",
+ "modified": "2026-09-29 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Commera Ecommerce",
  "name": "Commera Settings",

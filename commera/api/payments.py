@@ -24,7 +24,13 @@ from commera.api.shipping import (
 )
 from commera.api.signup import get_placeholder_first_name, validate_single_email, validate_user_names
 from commera.core import _get_cart_quotation, create_party, get_customer_contact, new_cart_quotation
-from commera.guest import get_guest_cart_name, is_guest, is_guest_cart, set_guest_cart_cookie
+from commera.guest import (
+	get_guest_cart_name,
+	is_guest,
+	is_guest_cart,
+	set_guest_cart_cookie,
+	validate_guest_checkout_enabled,
+)
 from commera.order_access import get_order_link, set_order_access_key
 from commera.utils import get_pickup_addresses, get_pickup_warehouses
 
@@ -398,6 +404,7 @@ def get_checkout_cart(cart: dict) -> dict:
 
 def save_guest_cart(cart: dict, email: str | None):
 	"""Book the browser cart to the customer of the email typed at checkout, creating the cart on first use."""
+	validate_guest_checkout_enabled()
 	email = cstr(email).strip().lower()
 	validate_single_email(email)
 	cart = get_checkout_cart(cart)

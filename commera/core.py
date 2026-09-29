@@ -8,7 +8,7 @@ from frappe.contacts.doctype.contact.contact import get_contact_name
 from frappe.utils import get_fullname
 from frappe.utils.nestedset import get_root_of
 
-from commera.guest import get_guest_cart_name, is_guest
+from commera.guest import get_guest_cart_name, is_guest, validate_guest_checkout_enabled
 
 
 def generate_otp():
@@ -155,6 +155,7 @@ def _get_cart_quotation(party=None):
 
 
 def get_guest_cart_quotation():
+	validate_guest_checkout_enabled()
 	cart_name = get_guest_cart_name()
 	if not cart_name:
 		raise frappe.PermissionError

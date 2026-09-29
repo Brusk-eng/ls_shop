@@ -1,5 +1,6 @@
 import frappe
-from frappe.utils.data import sha256_hash
+from frappe import _
+from frappe.utils.data import cint, sha256_hash
 
 GUEST_CART_COOKIE = "commera_guest_cart"
 GUEST_CART_COOKIE_MAX_AGE = 30 * 24 * 60 * 60
@@ -7,6 +8,15 @@ GUEST_CART_COOKIE_MAX_AGE = 30 * 24 * 60 * 60
 
 def is_guest() -> bool:
 	return frappe.session.user == "Guest"
+
+
+def is_guest_checkout_enabled() -> bool:
+	return bool(cint(frappe.get_cached_value("Commera Settings", "Commera Settings", "allow_guest_checkout")))
+
+
+def validate_guest_checkout_enabled():
+	if not is_guest_checkout_enabled():
+		raise frappe.PermissionError(_("Please sign in to check out."))
 
 
 def get_guest_cart_token() -> str | None:

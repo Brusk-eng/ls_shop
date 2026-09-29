@@ -124,13 +124,6 @@ const SETTINGS = [
     keywords: ['settings', ...tab.keywords],
     run: () => openSettings(tab.value),
   })),
-  {
-    id: 'settings-guest-checkout',
-    label: 'Guest checkout',
-    icon: 'lucide-user-round-check',
-    keywords: ['settings', 'guest', 'order link', 'track order', 'without account', 'sign in'],
-    run: () => openSettings('advanced'),
-  },
 ]
 
 const ALL = [
