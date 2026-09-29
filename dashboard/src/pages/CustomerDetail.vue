@@ -13,7 +13,7 @@ import { useAdminRead, useAdminAction } from '../data/api'
 import { erpnextLink } from '../data/erpnext'
 import { errorMessage } from '../data/errors'
 import { longDate, money } from '../data/format'
-import { productRoute } from '../ia/productRoute'
+import { orderRoute, productRoute } from '../ia/routes'
 
 const LAPSED_AFTER_DAYS = 90
 
@@ -190,7 +190,7 @@ function plural(count, word) {
         >
           <li v-for="order in theirOrders" :key="order.name">
             <router-link
-              :to="`/orders/${order.name}`"
+              :to="orderRoute(order.name)"
               class="flex items-center gap-4 px-4 py-2.5 hover:bg-surface-gray-2"
             >
               <div class="min-w-0 flex-1">

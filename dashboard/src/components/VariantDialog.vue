@@ -9,7 +9,7 @@ import { Badge, Button, Dialog, FormControl, toast } from 'frappe-ui'
 import VariantMedia from './VariantMedia.vue'
 import { useAdminAction } from '../data/api'
 import { pricePayload, shownPrice } from '../data/product'
-import { productRoute } from '../ia/productRoute'
+import { productRoute } from '../ia/routes'
 
 const props = defineProps({
   variant: { type: Object, default: null },
