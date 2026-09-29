@@ -8,7 +8,7 @@ import EmptyState from '../components/EmptyState.vue'
 import { useAdminAction, useAdminRead } from '../data/api'
 import { erpnextLink } from '../data/erpnext'
 import { errorMessage } from '../data/errors'
-import { productRoute } from '../ia/productRoute'
+import { productRoute } from '../ia/routes'
 
 const route = useRoute()
 

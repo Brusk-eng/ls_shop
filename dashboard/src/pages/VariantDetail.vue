@@ -10,7 +10,7 @@ import VariantMedia from '../components/VariantMedia.vue'
 import { useAdminRead, useAdminAction } from '../data/api'
 import { errorMessage } from '../data/errors'
 import { pricePayload, shownPrice } from '../data/product'
-import { productRoute } from '../ia/productRoute'
+import { productRoute } from '../ia/routes'
 
 const route = useRoute()
 

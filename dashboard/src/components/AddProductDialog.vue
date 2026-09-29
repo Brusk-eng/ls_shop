@@ -11,7 +11,7 @@ import { Alert, Button, Dialog, ErrorMessage, FormControl, Select, dialog, toast
 import { useAdminAction, useAdminRead } from '../data/api'
 import { addProduct, closeAddProduct } from '../data/addProduct'
 import { buildOptionSizes } from '../data/optionSizes'
-import { productRoute } from '../ia/productRoute'
+import { productRoute } from '../ia/routes'
 import AttributeMultiSelect from './AttributeMultiSelect.vue'
 import OptionSizeGrid from './OptionSizeGrid.vue'
 

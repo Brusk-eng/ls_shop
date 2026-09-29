@@ -15,7 +15,7 @@ import { useAdminRead } from '../data/api'
 import { hasValues } from '../data/analytics'
 import { compactMoney, money, shortDate } from '../data/format'
 import { ia } from '../ia/store'
-import { productRoute } from '../ia/productRoute'
+import { orderRoute, productRoute } from '../ia/routes'
 
 // The whole screen in three calls: orders.get_overview already backs the Home screen's stats,
 // recent orders and low-stock/needs-attention panels; catalog.get_top_products and
@@ -198,7 +198,7 @@ const revenueByMonth = computed(() => revenueRequest.data?.months ?? [])
                store with no orders. Keep the two heights in step if either changes. -->
           <ListSkeleton v-if="overviewRequest.loading && !recentOrders.length" :columns="6" :rows="4" />
           <ListRows v-else :items="recentOrders" row-key="name" v-slot="{ item }">
-            <ListRow :to="`/orders/${item.name}`" :value="item.name">
+            <ListRow :to="orderRoute(item.name)" :value="item.name">
               <ListCell>
                 <span class="truncate text-base text-ink-gray-5 tabular-nums">{{ item.name }}</span>
               </ListCell>

@@ -16,7 +16,7 @@ import { useAdminRead } from '../data/api'
 import { money, priceRange } from '../data/format'
 import { SETTINGS_TABS, openSettings } from '../ia/settings'
 import { search } from '../ia/search'
-import { productRoute } from '../ia/productRoute'
+import { customerRoute, orderRoute, productRoute } from '../ia/routes'
 import { openImport } from '../data/importFlow'
 import { openAddProduct } from '../data/addProduct'
 import { confirmInstallDemoData } from '../data/demoData'
@@ -161,8 +161,8 @@ const commandGroups = computed(() => {
 // Order name, the Customer name — never a display string.
 function onSelect(value) {
   if (value.kind === 'product') return router.push(productRoute(value.id))
-  if (value.kind === 'order') return router.push(`/orders/${value.id}`)
-  if (value.kind === 'customer') return router.push(`/customers/${value.id}`)
+  if (value.kind === 'order') return router.push(orderRoute(value.id))
+  if (value.kind === 'customer') return router.push(customerRoute(value.id))
   if (value.kind === 'collection') return router.push('/collections')
   ALL.flatMap((group) => group.commands).find((command) => command.id === value.id)?.run()
 }
