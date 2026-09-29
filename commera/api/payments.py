@@ -380,40 +380,58 @@ def fix_payment_schedule_dates(doc):
 			term.due_date = today
 
 
-# Guest checkout starts here; it creates at most one Customer per email and is rate limited.
-@frappe.whitelist(allow_guest=True, methods=["POST"])  # nosemgrep: guest-whitelisted-method
-@rate_limit(limit=30, seconds=60 * 60)
-def generate_quotation_for_cart(cart: dict, email: str | None = None):
-	cart = frappe.parse_json(cart)
+@frappe.whitelist(methods=["POST"])
+def generate_quotation_for_cart(cart: dict):
+	cart = get_checkout_cart(cart)
+	quotation = _get_cart_quotation()
+	validate_cart_is_not_in_checkout(quotation.name)
+	return get_quotation_for_cart(cart, quotation)
+
+
+def get_checkout_cart(cart: dict) -> dict:
+	cart = frappe.parse_json(cart) or {}
 	if len(cart.get("items", [])) < 1:
 		frappe.throw(_("Can't checkout with empty cart"))
 	validate_stock_available(cart["items"])
-	quotation = get_guest_checkout_quotation(email) if is_guest() else _get_cart_quotation()
-	validate_cart_is_not_in_checkout(quotation.name)
-	cart_quotation = get_quotation_for_cart(cart, quotation)
-	# The cart may be booked to a customer the guest does not own, so none of it is echoed back.
-	if is_guest():
-		return None
-	return cart_quotation
+	return cart
 
 
-def get_guest_checkout_quotation(email: str | None):
+def save_guest_cart(cart: dict, email: str | None):
+	"""Book the browser cart to the customer of the email typed at checkout, creating the cart on first use."""
 	email = cstr(email).strip().lower()
 	validate_single_email(email)
+	cart = get_checkout_cart(cart)
 	cart_key = set_guest_cart_cookie()
 	customer_name, contact_name = get_guest_party(email)
 
 	if cart_name := get_guest_cart_name(cart_key):
 		quotation = frappe.get_doc("Quotation", cart_name)
-		if quotation.contact_email == email:
-			return quotation
 		validate_cart_is_not_in_checkout(cart_name)
-		# A different email is a different customer, so the old cart is dropped rather than rebooked.
-		frappe.db.set_value("Quotation", cart_name, "custom_guest_cart_key", None, update_modified=False)
+		set_guest_cart_party(quotation, customer_name, contact_name, email)
+	else:
+		quotation = new_cart_quotation(frappe.get_cached_doc("Customer", customer_name), email, contact_name)
+		quotation.custom_guest_cart_key = cart_key
+	return get_quotation_for_cart(cart, quotation)
 
-	quotation = new_cart_quotation(frappe.get_cached_doc("Customer", customer_name), email, contact_name)
-	quotation.custom_guest_cart_key = cart_key
-	return quotation
+
+def set_guest_cart_party(quotation, customer_name: str, contact_name: str, email: str):
+	if quotation.contact_email == email:
+		return
+	# Moved rather than replaced: a dropped cart with this email would surface as that account's own cart.
+	quotation.update(
+		{
+			"party_name": customer_name,
+			"customer_name": frappe.db.get_value("Customer", customer_name, "customer_name"),
+			"contact_person": contact_name,
+			"contact_email": email,
+			"contact_display": None,
+			"contact_mobile": None,
+			"customer_address": None,
+			"address_display": None,
+			"shipping_address_name": None,
+			"shipping_address": None,
+		}
+	)
 
 
 def get_guest_party(email: str) -> tuple[str, str]:
@@ -472,11 +490,15 @@ def set_cod_charges(quotation):
 	quotation.save()
 
 
-# Guest checkout: refuses any caller without a guest cart cookie, and is rate limited.
+# Guest checkout starts here; it creates at most one Customer per email and is rate limited.
 @frappe.whitelist(allow_guest=True, methods=["POST"])  # nosemgrep: guest-whitelisted-method
 @rate_limit(limit=100, seconds=60 * 60)
-def update_quotation_address(address: dict):
-	quotation = _get_cart_quotation()
+def update_quotation_address(address: dict, cart: dict | None = None):
+	address = frappe.parse_json(address)
+	if is_guest():
+		quotation = save_guest_cart(cart, address.get("billing_address", {}).get("email"))
+	else:
+		quotation = _get_cart_quotation()
 	with cart_write_lock(quotation):
 		return save_quotation_address(quotation, address)
 

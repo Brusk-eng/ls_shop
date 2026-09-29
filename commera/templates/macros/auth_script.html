@@ -164,28 +164,6 @@
         await request_otp(x_data, ref.login_otp_btn, ref, '/api/v2/method/commera.api.signup.send_login_otp');
     }
 
-    async function continue_as_guest(x_data, ref) {
-        const btn = ref.guest_checkout_btn;
-        const spinner = btn.querySelector(".animate-spin");
-        btn.disabled = true;
-        spinner.classList.remove("hidden");
-        try {
-            const cart = Alpine.store("cart");
-            if (!await cart.validate_stock_before_checkout(cart.items)) return;
-
-            await frappe_call('/api/v2/method/commera.api.payments.generate_quotation_for_cart', {
-                'cart': { 'items': cart.items },
-                'email': x_data.email,
-            });
-            window.location.href = '/{{ frappe.lang or "en" }}/cart/checkout';
-        } catch (error) {
-        }
-        finally {
-            btn.disabled = false;
-            spinner.classList.add("hidden");
-        }
-    }
-
     async function send_checkout_otp(x_data, ref) {
         await request_otp(x_data, ref.checkout_otp_btn, ref, '/api/v2/method/commera.api.signup.send_checkout_otp');
     }
