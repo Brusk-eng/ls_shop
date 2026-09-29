@@ -37,15 +37,20 @@
 
 					<div class="tab-pane fade show active" role="tabpanel"
 						x-show="selected_tab === 'checkout' && !otp_sent" x-cloak>
-						<form @submit.prevent="send_checkout_otp($data, $refs)">
-							<p class="mb-3">{{ _("Enter your email and we'll send you a code to continue.") }}</p>
+						<form @submit.prevent="continue_as_guest($data, $refs)">
+							<p class="mb-3">{{ _("Enter your email. We'll send your order updates there.") }}</p>
 							<div class="form-group mb-3">
 								<label class="form-label">{{ _("Email") }}*</label>
 								<input type="email" class="form-control" required x-model="email"
-									autocomplete="email" placeholder="{{ _('Enter your email') }}">
+									x-ref="checkout_email" autocomplete="email" placeholder="{{ _('Enter your email') }}">
 							</div>
-							<button type="submit" class="btn btn-secondary w-100" x-ref="checkout_otp_btn">
-								{{ _("Continue") }}
+							<button type="submit" class="btn btn-secondary w-100" x-ref="guest_checkout_btn">
+								{{ _("Continue as guest") }}
+								<span class="hidden animate-spin" role="status" aria-label="{{ _('loading') }}"></span>
+							</button>
+							<button type="button" class="btn btn-link w-100 mt-2" x-ref="checkout_otp_btn"
+								@click="$refs.checkout_email.reportValidity() && send_checkout_otp($data, $refs)">
+								{{ _("Have an account? Sign in with a code") }}
 								<span class="hidden animate-spin" role="status" aria-label="{{ _('loading') }}"></span>
 							</button>
 						</form>

@@ -130,6 +130,7 @@ doc_events = {
 		"on_update": "commera.api.payment_hooks.on_payment_request_update",
 	},
 	"Sales Order": {
+		"after_insert": "commera.jobs.send_order_success_acknowledgement",
 		"on_submit": [
 			"commera.jobs.send_order_success_acknowledgement",
 			"commera.utils.update_so_status_from_related_doc",

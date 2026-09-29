@@ -4,6 +4,7 @@ from frappe.query_builder import DocType
 
 from commera.api.shipping import get_checkout_summary
 from commera.core import _get_cart_quotation
+from commera.guest import get_guest_cart_name, is_guest
 from commera.utils import (
 	format_addresses,
 	get_addresses,
@@ -22,8 +23,7 @@ no_cache = True
 
 # @auth_required
 def get_context(context):
-	current_user = frappe.session.user
-	if current_user == "Guest":
+	if is_guest() and not get_guest_cart_name():
 		frappe.redirect(f"/{frappe.local.lang}/cart")
 	cart_quotation = _get_cart_quotation()
 	if not cart_quotation or not cart_quotation.items:
@@ -45,8 +45,10 @@ def get_context(context):
 				"price_list_rate",
 			)
 	context.items = items
-	context.billing_addresses = get_addresses()
-	context.shipping_addresses = get_addresses(address_type="Shipping")
+	# A guest may be booked to an existing customer, whose saved addresses are not theirs to see.
+	context.billing_addresses = [] if is_guest() else get_addresses()
+	context.shipping_addresses = [] if is_guest() else get_addresses(address_type="Shipping")
+	context.guest_email = cart_quotation.contact_email if is_guest() else ""
 	context.store_pickup_addresses = (
 		get_store_pickup_addresses() if commera_settings.store_pickup_enabled else []
 	)

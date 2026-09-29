@@ -14,6 +14,7 @@ from frappe.utils.data import strip_html
 from pypika import Order
 
 from commera.core import get_address_docs, get_party
+from commera.order_access import get_key_access
 
 # Ceiling for any IN (...) list this app sends to MariaDB/Postgres.
 IN_CLAUSE_CHUNK_SIZE = 1000
@@ -31,13 +32,22 @@ def get_address_lines(address_display):
 	return "\n".join(line for line in lines if line) or None
 
 
-def validate_document_access(doctype: str, name: str):
-	"""Return the document only if the session owns it, or holds read permission on it."""
-	# Sales Order names are sequential, so the id in the payload is all that guards someone else's order.
-	document = frappe.get_doc(doctype, name)
-	if document.owner != frappe.session.user and not document.has_permission("read"):
+def validate_document_access(doctype: str, name: str | int, key: str | None = None):
+	"""Return the document only if the session owns it, holds read permission on it, or holds its order key."""
+	# Sales Order names are sequential, so every refusal must read the same: a "not found" or a
+	# permission log would let a guest probing order numbers tell real orders from missing ones.
+	if not frappe.db.exists(doctype, name):
 		raise frappe.PermissionError
-	return document
+	document = frappe.get_doc(doctype, name)
+	if document.owner == frappe.session.user:
+		return document
+	if doctype == "Sales Order" and get_key_access(document, key):
+		return document
+	if frappe.has_permission(doctype, "read", document):
+		return document
+	# has_permission logs its refusal even with throw off, and that log alone marks the order as real.
+	frappe.clear_messages()
+	raise frappe.PermissionError
 
 
 def get_complete_nested_links(parent_group):

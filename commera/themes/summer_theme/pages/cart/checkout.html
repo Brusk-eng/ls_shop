@@ -11,6 +11,7 @@
 	"has_billing_addresses": billing_addresses | length > 0,
 	"has_shipping_addresses": shipping_addresses | length > 0,
 	"has_store_pickup": store_pickup_addresses | length > 0,
+	"guest_email": guest_email,
 } %}
 
 {% block head %}
@@ -492,7 +493,7 @@
 				billing_address_id: "",
 				shipping_address_id: "",
 				store_pickup_warehouse: "",
-				billing: get_blank_address(),
+				billing: { ...get_blank_address(), email: config.guest_email },
 				shipping: get_blank_address(),
 				address_saved: false,
 				address_loading: false,
