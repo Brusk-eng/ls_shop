@@ -21,6 +21,7 @@ from commera.api.shipping import (
 	get_cod_charge,
 	reprice_selected_option,
 )
+from commera.api.signup import get_placeholder_first_name, validate_user_names
 from commera.core import _get_cart_quotation
 from commera.utils import get_pickup_addresses, get_pickup_warehouses
 
@@ -455,6 +456,7 @@ def save_quotation_address(quotation, address: dict):
 	set_gst_details(quotation)
 
 	contact = frappe.get_doc("Contact", quotation.contact_person)
+	replace_placeholder_names(quotation, contact, address.get("billing_address", {}))
 	existing_phones = {entry.phone for entry in contact.phone_nos}
 
 	billing_phone = address.get("billing_address", {}).get("phone_number")
@@ -469,6 +471,33 @@ def save_quotation_address(quotation, address: dict):
 	save_cart_quotation(quotation)
 
 	return get_address_saved_response(quotation)
+
+
+def replace_placeholder_names(quotation, contact, billing_address: dict):
+	"""Checkout sign-in names a new shopper after their email; the billing name is the first real one."""
+	shopper = frappe.session.user
+	first_name = cstr(billing_address.get("first_name")).strip()
+	if not first_name or contact.last_name or contact.first_name != get_placeholder_first_name(shopper):
+		return
+
+	last_name = cstr(billing_address.get("last_name")).strip()
+	validate_user_names(first_name, last_name)
+	full_name = " ".join(name for name in (first_name, last_name) if name)
+	contact.first_name = first_name
+	contact.last_name = last_name
+	quotation.customer_name = full_name
+
+	with system_user_session():
+		user = frappe.get_doc("User", shopper)
+		if user.first_name == get_placeholder_first_name(shopper) and not user.last_name:
+			user.first_name = first_name
+			user.last_name = last_name
+			user.save(ignore_permissions=True)
+
+		customer = frappe.get_doc("Customer", quotation.party_name)
+		if customer.customer_name == get_placeholder_first_name(shopper):
+			customer.customer_name = full_name
+			customer.save(ignore_permissions=True)
 
 
 def get_address_saved_response(quotation) -> dict:
