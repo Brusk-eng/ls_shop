@@ -50,6 +50,12 @@ PAYMENT_FIELDS = (
 
 GUEST_FIELDS = ("allow_guest_checkout", "guest_order_link_days")
 
+EMAIL_TEMPLATE_FIELDS = (
+	"order_confirmation_email_template",
+	"order_cancellation_email_template",
+	"item_in_stock_email_template",
+)
+
 FOOTER_FIELDS = (
 	"facebook_url",
 	"twitter_url",
@@ -208,6 +214,17 @@ def get_guest_settings():
 @frappe.whitelist(methods=["POST"])
 def save_guest_settings(**kwargs):
 	return write_settings_fields(GUEST_FIELDS, kwargs)
+
+
+@frappe.whitelist()
+def get_email_settings():
+	"""The Email Template each store email is sent with."""
+	return read_settings_fields(EMAIL_TEMPLATE_FIELDS)
+
+
+@frappe.whitelist(methods=["POST"])
+def save_email_settings(**kwargs):
+	return write_settings_fields(EMAIL_TEMPLATE_FIELDS, kwargs)
 
 
 @frappe.whitelist()

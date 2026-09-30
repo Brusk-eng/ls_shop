@@ -14,6 +14,7 @@ import AppearancePicker from './AppearancePicker.vue'
 import AppsSettings from './AppsSettings.vue'
 import CashOnDeliverySettings from './CashOnDeliverySettings.vue'
 import DeliveryOptionsPanel from './DeliveryOptionsPanel.vue'
+import EmailSettings from './EmailSettings.vue'
 import GeneralSettings from './GeneralSettings.vue'
 import GuestSettings from './GuestSettings.vue'
 import IntegrationTabPanel from './IntegrationTabPanel.vue'
@@ -55,6 +56,10 @@ watch(
         <SettingsNavItem value="appearance">
           <template #prefix><span class="lucide-sun-moon size-4" aria-hidden="true" /></template>
           Appearance
+        </SettingsNavItem>
+        <SettingsNavItem value="emails">
+          <template #prefix><span class="lucide-mail size-4" aria-hidden="true" /></template>
+          Emails
         </SettingsNavItem>
       </SettingsNavGroup>
 
@@ -104,6 +109,10 @@ watch(
     <SettingsContent class="min-w-0">
       <SettingsPanel value="general" class="min-w-0">
         <GeneralSettings :active="settings.open && settings.tab === 'general'" />
+      </SettingsPanel>
+
+      <SettingsPanel value="emails" class="min-w-0">
+        <EmailSettings :active="settings.open && settings.tab === 'emails'" />
       </SettingsPanel>
 
       <SettingsPanel value="locations" class="min-w-0">
