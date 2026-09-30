@@ -74,7 +74,7 @@ class TestDefaultEmailTemplates(IntegrationTestCase):
 		self.assertEqual(saved["store_name"], "Template Test Store")
 
 
-class TestEmailSettingsEndpoints(IntegrationTestCase):
+class TestSettingsTabEndpoints(IntegrationTestCase):
 	def setUp(self):
 		create_default_email_templates()
 		assign_default_email_templates()
@@ -82,14 +82,27 @@ class TestEmailSettingsEndpoints(IntegrationTestCase):
 	def test_a_template_choice_is_saved_and_read_back(self):
 		custom = create_custom_template("Test Custom Back In Stock")
 
-		admin_settings.save_email_settings(item_in_stock_email_template=custom)
+		admin_settings.save_tab_settings("emails", item_in_stock_email_template=custom)
 		frappe.clear_document_cache(SETTINGS_DOCTYPE, SETTINGS_DOCTYPE)
 
-		self.assertEqual(admin_settings.get_email_settings()["item_in_stock_email_template"], custom)
+		self.assertEqual(admin_settings.get_tab_settings("emails")["item_in_stock_email_template"], custom)
 
 	def test_fields_outside_the_tab_are_ignored(self):
 		store_name = frappe.db.get_single_value(SETTINGS_DOCTYPE, "store_name")
 
-		admin_settings.save_email_settings(store_name="Not From This Tab")
+		admin_settings.save_tab_settings("emails", store_name="Not From This Tab")
 
 		self.assertEqual(frappe.db.get_single_value(SETTINGS_DOCTYPE, "store_name"), store_name)
+
+	def test_an_unknown_tab_is_refused(self):
+		with self.assertRaises(frappe.ValidationError):
+			admin_settings.save_tab_settings("company_secrets", store_name="Not A Tab")
+
+	def test_email_templates_are_not_repeated_on_the_advanced_tab(self):
+		advanced_fieldnames = {
+			field["fieldname"]
+			for group in admin_settings.get_advanced_settings()["groups"]
+			for field in group["fields"]
+		}
+
+		self.assertFalse(advanced_fieldnames & set(DEFAULT_EMAIL_TEMPLATES))

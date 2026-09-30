@@ -1,12 +1,10 @@
 <script setup>
-import { watch } from 'vue'
 import { Button, SettingsBody, SettingsRow } from 'frappe-ui'
 import SettingsPanelHeader from './SettingsPanelHeader.vue'
 import EmptyState from '../EmptyState.vue'
 import SettingsLinkControl from './SettingsLinkControl.vue'
 import SettingsSkeleton from './SettingsSkeleton.vue'
-import { useAdminAction, useAdminRead } from '../../data/api'
-import { useSettingsAutosave } from '../../data/useSettingsAutosave'
+import { useSettingsTab } from '../../data/useSettingsTab'
 
 const props = defineProps({
   // Opening the Emails tab should fetch; switching away and back should not.
@@ -33,24 +31,7 @@ const TEMPLATE_ROWS = [
   },
 ]
 
-const settings = useAdminRead('settings.get_email_settings', { immediate: false })
-const save = useAdminAction('settings.save_email_settings')
-
-const { values, adopt, commit } = useSettingsAutosave(save)
-
-watch(
-  () => settings.data,
-  (data) => data && adopt(data),
-  { immediate: true },
-)
-
-watch(
-  () => props.active,
-  (isActive) => {
-    if (isActive && !settings.isFinished) settings.reload()
-  },
-  { immediate: true },
-)
+const { settings, values, commit } = useSettingsTab('emails', () => props.active)
 </script>
 
 <template>

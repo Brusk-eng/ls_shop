@@ -1,35 +1,17 @@
 <script setup>
-import { computed, watch } from 'vue'
+import { computed } from 'vue'
 import { Button, SettingsBody, SettingsRow, Switch, TextInput } from 'frappe-ui'
 import SettingsPanelHeader from './SettingsPanelHeader.vue'
 import EmptyState from '../EmptyState.vue'
 import SettingsSkeleton from './SettingsSkeleton.vue'
-import { useAdminAction, useAdminRead } from '../../data/api'
-import { useSettingsAutosave } from '../../data/useSettingsAutosave'
+import { useSettingsTab } from '../../data/useSettingsTab'
 
 const props = defineProps({
   // Opening the Guest tab should fetch; switching away and back should not.
   active: { type: Boolean, default: false },
 })
 
-const settings = useAdminRead('settings.get_guest_settings', { immediate: false })
-const save = useAdminAction('settings.save_guest_settings')
-
-const { values, adopt, commit } = useSettingsAutosave(save)
-
-watch(
-  () => settings.data,
-  (data) => data && adopt(data),
-  { immediate: true },
-)
-
-watch(
-  () => props.active,
-  (isActive) => {
-    if (isActive && !settings.isFinished) settings.reload()
-  },
-  { immediate: true },
-)
+const { settings, save, values, commit } = useSettingsTab('guest', () => props.active)
 
 const enabled = computed(() => Boolean(values.value.allow_guest_checkout))
 </script>
