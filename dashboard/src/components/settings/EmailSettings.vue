@@ -55,7 +55,7 @@ watch(
 
 <template>
   <SettingsPanelHeader
-    title="Emails"
+    title="Templates"
     description="The template each store email is sent with."
   />
 
