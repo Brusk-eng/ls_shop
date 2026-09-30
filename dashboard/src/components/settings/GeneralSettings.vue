@@ -48,15 +48,14 @@ function commitStoreField(fieldname, event, label) {
   commit(fieldname, event.target.value, label, (saved) => adopt(pickStoreFields(saved)))
 }
 
-// This site's own Desk, on this site's own origin — the dashboard and the books are one install.
-// The profile below is read off whichever company is picked, so it is re-read once the pick lands.
 function commitCompany(value) {
   commit('company', value, 'Company', (saved) => {
     adopt(pickStoreFields(saved))
-    company.reload()
+    return company.reload()
   })
 }
 
+// This site's own Desk, on this site's own origin — the dashboard and the books are one install.
 const companyLink = computed(() =>
   company.data ? `/app/company/${encodeURIComponent(company.data.name)}` : '',
 )
@@ -126,13 +125,14 @@ const companyLink = computed(() =>
           :field="COMPANY_FIELD"
           :model-value="values.company ?? ''"
           options-path="settings.get_link_options"
+          required
           @update:model-value="commitCompany"
         />
       </SettingsRow>
 
       <!-- Gated on isFinished, not on data: an in-flight request has no data either, and saying
            there is no company while still asking for one states the opposite of the truth. -->
-      <SettingsSkeleton v-if="!company.isFinished" class="mt-2" :rows="5" />
+      <SettingsSkeleton v-if="!company.isFinished || !store.data" class="mt-2" :rows="5" />
 
       <EmptyState
         v-else-if="!company.data"

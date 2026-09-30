@@ -83,6 +83,7 @@ watch(
           :field="TEMPLATE_FIELD"
           :model-value="values[row.fieldname] ?? ''"
           options-path="settings.get_link_options"
+          required
           @update:model-value="commit(row.fieldname, $event, row.title)"
         />
       </SettingsRow>
