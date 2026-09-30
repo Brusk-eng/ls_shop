@@ -35,6 +35,7 @@ declare module 'vue' {
     FooterEditor: typeof import('./src/components/storefront/FooterEditor.vue')['default']
     FooterLinkDialog: typeof import('./src/components/storefront/FooterLinkDialog.vue')['default']
     GeneralSettings: typeof import('./src/components/settings/GeneralSettings.vue')['default']
+    GuestSettings: typeof import('./src/components/settings/GuestSettings.vue')['default']
     ImagesStep: typeof import('./src/components/import/steps/ImagesStep.vue')['default']
     ImportCarrierServicesDialog: typeof import('./src/components/settings/ImportCarrierServicesDialog.vue')['default']
     ImportDialog: typeof import('./src/components/import/ImportDialog.vue')['default']
