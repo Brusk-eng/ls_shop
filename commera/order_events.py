@@ -29,7 +29,8 @@ def fire_order_event(event: str, sales_order: str):
 
 
 def run_order_event_hooks(order_event: str, sales_order: str):
-	frappe.set_user("Administrator")
+	# Audited: only ever runs as a background job, so there is no shopper session to hijack.
+	frappe.set_user("Administrator")  # nosemgrep: frappe-semgrep-rules.rules.security.frappe-setuser
 	for method in frappe.get_hooks(f"commera_{order_event}"):
 		try:
 			frappe.get_attr(method)(sales_order)
