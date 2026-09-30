@@ -30,6 +30,7 @@ declare module 'vue' {
     DeliveryOptionsPanel: typeof import('./src/components/settings/DeliveryOptionsPanel.vue')['default']
     EditableValue: typeof import('./src/components/EditableValue.vue')['default']
     EditOptionsDialog: typeof import('./src/components/EditOptionsDialog.vue')['default']
+    EmailSettings: typeof import('./src/components/settings/EmailSettings.vue')['default']
     EmptyState: typeof import('./src/components/EmptyState.vue')['default']
     FirstRunWelcome: typeof import('./src/components/firstrun/FirstRunWelcome.vue')['default']
     FooterEditor: typeof import('./src/components/storefront/FooterEditor.vue')['default']
