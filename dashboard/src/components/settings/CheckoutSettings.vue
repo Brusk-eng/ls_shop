@@ -7,19 +7,19 @@ import SettingsSkeleton from './SettingsSkeleton.vue'
 import { useSettingsTab } from '../../data/useSettingsTab'
 
 const props = defineProps({
-  // Opening the Guest tab should fetch; switching away and back should not.
+  // Opening the tab should fetch; switching away and back should not.
   active: { type: Boolean, default: false },
 })
 
-const { settings, save, values, commit } = useSettingsTab('guest', () => props.active)
+const { settings, save, values, commit } = useSettingsTab('checkout', () => props.active)
 
 const enabled = computed(() => Boolean(values.value.allow_guest_checkout))
 </script>
 
 <template>
   <SettingsPanelHeader
-    title="Guest"
-    description="Shoppers who buy without making an account."
+    title="General"
+    description="How shoppers check out."
   />
 
   <SettingsBody v-scroll-fade>
