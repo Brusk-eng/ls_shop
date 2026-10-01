@@ -42,10 +42,10 @@ export const SETTINGS_TABS = [
     keywords: ['pickup', 'warehouse', 'collect', 'store pickup', 'branch', 'address'],
   },
   {
-    value: 'guest',
-    label: 'Guest',
-    icon: 'lucide-user-round-check',
-    keywords: ['guest', 'guest checkout', 'order link', 'track order', 'without account'],
+    value: 'checkout',
+    label: 'Checkout',
+    icon: 'lucide-shopping-cart',
+    keywords: ['checkout', 'guest', 'guest checkout', 'order link', 'track order', 'without account'],
   },
   {
     value: 'apps',
