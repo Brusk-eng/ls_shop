@@ -163,6 +163,22 @@ class TestCartCheckout(IntegrationTestCase):
 		self.assertEqual([(row.item_code, row.qty) for row in quotation.items], [(self.discounted_item, 2)])
 		self.assertEqual(quotation.contact_email, self.shopper)
 
+	def test_a_shopper_already_on_file_as_a_customer_starts_a_cart(self):
+		customer = frappe.get_doc(
+			{
+				"doctype": "Customer",
+				"customer_name": "ZZ Shopper On File",
+				"customer_type": "Individual",
+				"email_id": self.shopper,
+			}
+		).insert(ignore_permissions=True)
+		frappe.set_user(self.shopper)
+
+		quotation = generate_quotation_for_cart({"items": [self.cart_line(self.discounted_item, 1)]})
+
+		self.assertEqual(quotation.party_name, customer.name)
+		self.assertTrue(frappe.db.exists("Portal User", {"parent": customer.name, "user": self.shopper}))
+
 	def test_shopper_saves_their_checkout_address(self):
 		frappe.set_user(self.shopper)
 		generate_quotation_for_cart({"items": [self.cart_line(self.discounted_item, 1)]})
