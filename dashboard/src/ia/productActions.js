@@ -1,6 +1,8 @@
 import { dialog, toast } from 'frappe-ui'
 import { useAdminAction } from '../data/api'
 import { pickCollectionFor } from '../data/collections'
+import { cartLinkSizes, storefrontUrl } from '../data/product'
+import { copyLink } from '../utils/copyLink'
 
 // Every action a merchant can take from a product page, grouped by intent.
 // The `productActions` IA axis only changes where these are rendered — the set
@@ -17,14 +19,6 @@ const deleteAction = useAdminAction('catalog.delete_product')
 const receiveStockAction = useAdminAction('inventory.receive_stock')
 const restockLevelAction = useAdminAction('catalog.set_restock_level')
 
-// The storefront route lives per option, and only a published option is worth
-// showing off — but an unpublished one that already has a route still resolves,
-// so it is a usable fallback rather than nothing.
-function storefrontUrl(product) {
-  const routed = product.variants.filter((variant) => variant.storefront_url)
-  return (routed.find((variant) => variant.is_published) ?? routed[0])?.storefront_url ?? null
-}
-
 function sizeItemCodes(product) {
   return product.variants.flatMap((variant) => variant.sizes.map((size) => size.item_code)).filter(Boolean)
 }
@@ -34,6 +28,7 @@ export function buildProductActions(product, router, handlers = {}) {
   const isPublished = product.variants.some((variant) => variant.is_published)
   const liveUrl = storefrontUrl(product)
   const itemCodes = sizeItemCodes(product)
+  const canCreateCartLink = Boolean(liveUrl) && cartLinkSizes(product).length > 0
 
   const publish = {
     key: 'publish',
@@ -61,16 +56,13 @@ export function buildProductActions(product, router, handlers = {}) {
           key: 'link',
           label: 'Copy product link',
           icon: 'lucide-link',
-          // The clipboard is refused outright over plain http and in some embedded
-          // browsers, so the link is put in front of the merchant to copy by hand.
-          onClick: async () => {
-            try {
-              await navigator.clipboard.writeText(liveUrl)
-              toast.success('Link copied')
-            } catch {
-              toast.error('Could not copy the link', { description: liveUrl })
-            }
-          },
+          onClick: () => copyLink(liveUrl),
+        },
+        canCreateCartLink && {
+          key: 'cart-link',
+          label: 'Create cart link',
+          icon: 'lucide-shopping-cart',
+          onClick: handlers.onCreateCartLink,
         },
         // Named for what the section holds: the generated per-option addresses, read-only.
         // commera has no per-product SEO field to edit, here or in Desk.

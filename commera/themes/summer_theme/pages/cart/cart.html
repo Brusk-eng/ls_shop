@@ -211,7 +211,7 @@
 						await frappe_call("/api/v2/method/commera.api.payments.generate_quotation_for_cart", {
 							cart: { items: items },
 						});
-						window.location.href = "/{{ language }}/cart/checkout";
+						window.location.href = "/{{ language }}/cart/checkout" + window.location.search;
 					} finally {
 						this.checkout_loading = false;
 					}

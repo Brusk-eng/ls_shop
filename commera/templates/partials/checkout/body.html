@@ -37,6 +37,19 @@
                 })
                 this.apply_shipping_rule()
                 this.validate_payment_mode()
+                this.apply_pending_discount()
+            },
+            async apply_pending_discount() {
+                const url = new URL(window.location.href);
+                const discount = url.searchParams.get("discount");
+                if (!discount) return;
+                // Stripped first: removing the coupon reloads this page and must not re-apply it.
+                url.searchParams.delete("discount");
+                history.replaceState(null, "", url);
+                try {
+                    await frappe_call("/api/v2/method/commera.api.payments.apply_coupon_code", { applied_code: discount });
+                    window.location.reload();
+                } catch (error) {}
             },
             calculate_checkout_total() {
 
@@ -72,6 +85,12 @@
 
                     
     })
+    function fill_empty_fields(form, prefill) {
+        for (const [field, value] of Object.entries(prefill)) {
+            const input = form.elements[`billing_${field}`];
+            if (input && !input.value) input.value = value;
+        }
+    }
     function billing_state() {
         return {
             billing_use_address: 'saved_address',
@@ -273,7 +292,8 @@
     </div>
     <div class="flex flex-col md:flex-row gap-8 md:gap-25 md:mt-2">
         <div class="flex-1" x-data="billing_state()">
-            <form x-ref="checkout_form" @submit.prevent="update_quotation_address($data, $refs)">
+            <form x-ref="checkout_form" @submit.prevent="update_quotation_address($data, $refs)"
+                x-init='fill_empty_fields($el, {{ checkout_prefill | tojson }})'>
                 <div class="flex justify-between items-center border-b border-gray-200 pb-4">
                     <h2 class="text-lg font-semibold text-secondary-accent capitalize">
                         {{ _('select delivery option') }}
