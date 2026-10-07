@@ -21,7 +21,6 @@ declare module 'vue' {
     AttributeMultiSelect: typeof import('./src/components/AttributeMultiSelect.vue')['default']
     AttributeValuesDialog: typeof import('./src/components/AttributeValuesDialog.vue')['default']
     BulkBar: typeof import('./src/components/BulkBar.vue')['default']
-    CartLinkDialog: typeof import('./src/components/product/CartLinkDialog.vue')['default']
     CascadePublishDialog: typeof import('./src/components/storefront/CascadePublishDialog.vue')['default']
     CashOnDeliverySettings: typeof import('./src/components/settings/CashOnDeliverySettings.vue')['default']
     CheckoutSettings: typeof import('./src/components/settings/CheckoutSettings.vue')['default']

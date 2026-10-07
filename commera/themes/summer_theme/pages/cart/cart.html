@@ -149,6 +149,9 @@
 								{{ _("Place Order") }}
 							</button>
 						{% endif %}
+						<button type="button" class="btn btn-outline-secondary w-100 m-t10" @click="$store.cart.copy_link()">
+							<i class="fa-solid fa-link m-r5"></i>{{ _("Copy cart link") }}
+						</button>
 					</div>
 				</div>
 			</div>

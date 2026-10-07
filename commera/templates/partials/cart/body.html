@@ -258,6 +258,10 @@
 						</span>
 					</button>
 					{% endif %}
+					<button type="button" x-on:click="$store.cart.copy_link()"
+						class="mt-3 w-full h-12 py-3 border border-accent rounded-lg text-accent text-base font-semibold uppercase cursor-pointer">
+						{{ _("Copy cart link") }}
+					</button>
 				</div>
 			</div>
 		</div>

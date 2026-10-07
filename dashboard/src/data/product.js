@@ -73,39 +73,3 @@ export function useProductStats(source) {
     }
   })
 }
-
-// The storefront route lives per option, and only a published option is worth
-// showing off — but an unpublished one that already has a route still resolves,
-// so it is a usable fallback rather than nothing.
-export function storefrontUrl(product) {
-  const routed = product.variants.filter((variant) => variant.storefront_url)
-  return (routed.find((variant) => variant.is_published) ?? routed[0])?.storefront_url ?? null
-}
-
-// Must match MAX_CART_LINES in commera/www/cart/permalink.py, which skips every line past it.
-export const MAX_CART_LINES = 25
-
-// The storefront drops an unpublished option's sizes from a cart link, so they are not offered.
-// It also decodes %2C before splitting the pairs, so an item code holding a comma cannot round-trip.
-export function cartLinkSizes(product) {
-  return product.variants
-    .filter((variant) => variant.is_published)
-    .flatMap((variant) =>
-      variant.sizes
-        .filter((size) => size.item_code && !size.item_code.includes(','))
-        .map((size) => ({
-          itemCode: size.item_code,
-          label: `${variant.option} · ${size.size}`,
-          available: Math.max(0, (size.stock ?? 0) - (size.committed ?? 0)),
-        })),
-    )
-}
-
-export function cartLinkUrl(productUrl, lines, discountCode = '') {
-  if (!lines.length) return null
-
-  const pairs = lines.map((line) => `${encodeURIComponent(line.itemCode)}:${line.quantity}`)
-  const discount = discountCode.trim()
-  const query = discount ? `?discount=${encodeURIComponent(discount)}` : ''
-  return `${new URL(productUrl).origin}/cart/${pairs.join(',')}${query}`
-}

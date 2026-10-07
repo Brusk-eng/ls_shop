@@ -266,8 +266,14 @@
     x-init="$watch('payment_mode_confirmed', value => fetch_payment_details(value, $data))">
     <div class="flex items-baseline justify-between">
         <h1 class="text-3xl font-bold my-3 md:mb-11 md">{{ _('Checkout') }}</h1>
-        <div class="md:hidden my-3">
-            {% include 'templates/components/promo_code_component.html' %}
+        <div class="flex items-center gap-4 my-3">
+            <div class="md:hidden">
+                {% include 'templates/components/promo_code_component.html' %}
+            </div>
+            <button type="button" @click='$store.cart.copy_link({{ coupon_code | tojson }})'
+                class="text-md text-secondary-accent underline decoration-accent md:text-base capitalize cursor-pointer">
+                {{ _("Copy cart link") }}
+            </button>
         </div>
     </div>
     <div class="flex items-baseline md:hidden">

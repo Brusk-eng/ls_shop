@@ -7,7 +7,6 @@ import EmptyState from '../components/EmptyState.vue'
 import PageBody from '../components/PageBody.vue'
 import StatusBadge from '../components/StatusBadge.vue'
 import VariantEditor from '../components/VariantEditor.vue'
-import CartLinkDialog from '../components/product/CartLinkDialog.vue'
 import ProductBasics from '../components/product/ProductBasics.vue'
 import ProductPricing from '../components/product/ProductPricing.vue'
 import ProductStock from '../components/product/ProductStock.vue'
@@ -60,8 +59,6 @@ watch(
 
 const stats = useProductStats(product)
 
-const cartLinkOpen = ref(false)
-
 const updateAction = useAdminAction('catalog.update_product')
 const publishAction = useAdminAction('catalog.set_product_published')
 
@@ -100,9 +97,6 @@ const actions = computed(() =>
         onTogglePublish: togglePublish,
         onToggleArchive: toggleArchive,
         onScrollTo: scrollToSection,
-        onCreateCartLink: () => {
-          cartLinkOpen.value = true
-        },
         onReload: () => productRequest.reload(),
       })
     : { groups: [], quick: [] },
@@ -192,8 +186,6 @@ const loadFailure = computed(() =>
         </ScrollArea>
       </aside>
     </div>
-
-    <CartLinkDialog v-model:open="cartLinkOpen" :product="product" />
   </template>
 
   <!-- The item code is already in the route, so the header is real from the first

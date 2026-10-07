@@ -15,6 +15,7 @@
 	"delivery_charge": delivery_charge,
 	"delivery_charge_applicable_below": delivery_charge_applicable_below,
 	"prefill": checkout_prefill,
+	"coupon_code": coupon_code,
 } %}
 
 {% block head %}
@@ -476,6 +477,10 @@
 								<span x-show="order_loading" x-cloak>{{ _("Placing...") }}</span>
 							</button>
 						</div>
+						<button type="button" class="btn btn-outline-secondary w-100 m-t10"
+							@click="$store.cart.copy_link(pending_discount || config.coupon_code)">
+							<i class="fa-solid fa-link m-r5"></i>{{ _("Copy cart link") }}
+						</button>
 					</div>
 				</div>
 			</div>
