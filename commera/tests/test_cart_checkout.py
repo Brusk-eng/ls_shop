@@ -6,6 +6,7 @@ from unittest.mock import patch
 import frappe
 from frappe.model.document import Document
 from frappe.tests import IntegrationTestCase
+from frappe.utils.data import add_days, today
 
 from commera.api.cart import get_detail_for_cart_items, get_stock_shortfalls, validate_stock_available
 from commera.api.checkout import apply_shipping_rule
@@ -388,6 +389,35 @@ class TestCartCheckout(IntegrationTestCase):
 		self.assertEqual(summary["subtotal"], 270)
 		self.assertAlmostEqual(summary["discount_amount"], (270 + summary["shipping"]) * 0.1, places=2)
 		self.assert_summary_adds_up(summary)
+
+	def test_a_coupon_stays_on_the_cart_when_it_is_rebuilt(self):
+		coupon_code = self.create_coupon(discount_percentage=10)
+		frappe.set_user(self.shopper)
+		generate_quotation_for_cart({"items": [self.cart_line(self.discounted_item, 3)]})
+		apply_coupon_code(coupon_code)
+
+		quotation = generate_quotation_for_cart({"items": [self.cart_line(self.discounted_item, 2)]})
+
+		summary = get_checkout_summary(quotation)
+		self.assertEqual(
+			frappe.db.get_value("Coupon Code", quotation.coupon_code, "coupon_code"), coupon_code
+		)
+		self.assertEqual(summary["subtotal"], 180)
+		self.assertAlmostEqual(summary["discount_amount"], (180 + summary["shipping"]) * 0.1, places=2)
+
+	def test_an_expired_coupon_is_dropped_quietly_when_the_cart_is_rebuilt(self):
+		coupon_code = self.create_coupon(discount_percentage=10)
+		frappe.set_user(self.shopper)
+		generate_quotation_for_cart({"items": [self.cart_line(self.discounted_item, 3)]})
+		apply_coupon_code(coupon_code)
+		frappe.db.set_value("Coupon Code", {"coupon_code": coupon_code}, "valid_upto", add_days(today(), -1))
+		frappe.clear_messages()
+
+		quotation = generate_quotation_for_cart({"items": [self.cart_line(self.discounted_item, 2)]})
+
+		self.assertFalse(quotation.coupon_code)
+		self.assertEqual(get_checkout_summary(quotation)["discount_amount"], 0)
+		self.assertEqual(frappe.get_message_log(), [])
 
 	def test_the_cod_checkout_total_is_what_the_order_charges(self):
 		ensure_fiscal_year()

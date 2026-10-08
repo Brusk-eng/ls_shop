@@ -784,7 +784,7 @@
 						this.reset_address_step();
 						this.summary = response.data.checkout_summary;
 						this.address_saved = true;
-						// A guest's cart is rebuilt on every address save, which drops any coupon it held.
+						// A guest has no server cart to hold the link's coupon until their first address save.
 						if (this.config.is_guest) await this.apply_pending_discount();
 						await this.load_shipping_options();
 					} catch (error) {

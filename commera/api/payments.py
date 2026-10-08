@@ -471,9 +471,23 @@ def get_quotation_for_cart(cart: dict, unsaved_quotation_doc):
 	save_cart_quotation(unsaved_quotation_doc)
 	# The stored option was priced for the old cart, and payment would re-quote it for the new one.
 	clear_delivery_option(unsaved_quotation_doc)
+	coupon_code = unsaved_quotation_doc.coupon_code
 	_remove_coupon_code(unsaved_quotation_doc)
+	reapply_coupon_code(unsaved_quotation_doc, coupon_code)
 	set_charges(unsaved_quotation_doc)
 	return save_cart_quotation(unsaved_quotation_doc)
+
+
+def reapply_coupon_code(quotation, coupon_code: str | None):
+	if not coupon_code:
+		return
+	try:
+		validate_coupon_code(coupon_code)
+	except frappe.ValidationError:
+		# An expired coupon is dropped quietly; the shopper only edited their cart.
+		frappe.clear_last_message()
+		return
+	quotation.coupon_code = coupon_code
 
 
 def set_charges(quotation):
