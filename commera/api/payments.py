@@ -765,7 +765,10 @@ def apply_coupon_code(applied_code: str):
 	validate_cart_is_not_in_checkout(quotation.name)
 	quotation.coupon_code = coupon_name
 	save_cart_quotation(quotation)
-	return {"message": _("Coupon code applied successfully")}
+	return {
+		"message": _("Coupon code applied successfully"),
+		"checkout_summary": get_checkout_summary(quotation),
+	}
 
 
 # Guest checkout: refuses any caller without a guest cart cookie, and is rate limited.
