@@ -146,7 +146,6 @@ def error_logged(title: str, since) -> bool:
 	return bool(frappe.db.exists("Error Log", {"method": title, "creation": [">=", since]}))
 
 
-@patch.dict(frappe.conf, {"developer_mode": 1})
 class PluginTestCase(IntegrationTestCase):
 	@classmethod
 	def setUpClass(cls):
@@ -157,6 +156,10 @@ class PluginTestCase(IntegrationTestCase):
 		create_user(SYSTEM_MANAGER, "Stock User", "Sales User", "System Manager")
 
 	def setUp(self):
+		# A class-level patch.dict only wraps this class's own test_* methods, never a subclass's.
+		developer_mode = patch.dict(frappe.conf, {"developer_mode": 1})
+		developer_mode.start()
+		self.addCleanup(developer_mode.stop)
 		self.started_at = now_datetime()
 		self.assets_folder = tempfile.mkdtemp()
 		self.addCleanup(shutil.rmtree, self.assets_folder, ignore_errors=True)
