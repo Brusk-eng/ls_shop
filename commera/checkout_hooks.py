@@ -6,6 +6,7 @@ from frappe import _
 from frappe.utils.data import cstr, flt
 
 from commera.plugin_events import get_handlers
+from commera.utils import get_charge_account_head
 
 PLUGIN_FEE_FIELD = "commera_plugin_fee"
 
@@ -66,7 +67,7 @@ def get_plugin_fee_row(fee: dict, precision: int) -> dict | None:
 		"doctype": "Sales Taxes and Charges",
 		"description": description,
 		"charge_type": "Actual",
-		"account_head": fee.get("account_head") or get_default_fee_account(),
+		"account_head": fee.get("account_head") or get_charge_account_head(),
 		"tax_amount": amount,
 		# ERPNext refuses an inclusive Actual charge, and a site default of 1 would fail checkout.
 		"included_in_print_rate": 0,
@@ -132,13 +133,6 @@ def filter_payment_methods(quotation, methods: list[str], strict: bool) -> list[
 				)
 			methods = [method for method in methods if method in kept_methods]
 	return methods
-
-
-def get_default_fee_account() -> str:
-	account = frappe.get_cached_value("Commera Settings", "Commera Settings", "charge_account_head")
-	if not account:
-		frappe.throw(_("Set a Charge Account Head in Commera Settings before a plugin charges a cart fee."))
-	return account
 
 
 @contextmanager

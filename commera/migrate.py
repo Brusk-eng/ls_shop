@@ -65,10 +65,10 @@ def after_migrate():
 	seed_llms_txt()
 	seed_default_routes()
 	validate_plugins()
-	reset_plugin_registry()
+	print_plugin_problems()
 
 
-def reset_plugin_registry():
+def print_plugin_problems():
 	for problem in get_registry()["problems"]:
 		print(f"{problem['app']} plugin skipped: {problem['message']}")
 

@@ -1,8 +1,4 @@
 <script setup>
-/**
- * The one dialog an app action opens. Commera draws the title, Cancel and the primary button; the app's
- * module fills the body and drives the button through useAction().
- */
 import { computed, provide, ref, shallowRef, toValue, watch } from 'vue'
 import { Button, Dialog, ErrorMessage } from 'frappe-ui'
 import { ACTION_CONTEXT } from '../plugin-api/context'

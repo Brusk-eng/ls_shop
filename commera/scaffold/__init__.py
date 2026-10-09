@@ -61,8 +61,11 @@ class AppScaffold:
 
 	def add_hooks(self):
 		text = self.hooks_path.read_text()
-		updated = set_commera_plugin_title(
-			set_commera_api_version(set_required_apps(text)), self.get_app_title()
+		updated = add_assignment(
+			set_required_apps(text), "commera_api_version", f"[{API_VERSION}]", "required_apps"
+		)
+		updated = add_assignment(
+			updated, "commera_plugin_title", json.dumps(self.get_app_title()), "commera_api_version"
 		)
 		self.write_change(self.hooks_path, updated, text != updated)
 
@@ -100,10 +103,7 @@ class AppScaffold:
 				self.add_file(self.source_dir / place / ".gitkeep", "")
 
 	def add_file(self, path: Path, content: str):
-		if path.exists():
-			self.changes.append(("skipped", self.get_relative_path(path)))
-			return
-		self.write_change(path, content, True)
+		self.write_change(path, content, not path.exists())
 
 	def write_change(self, path: Path, content: str, changed: bool):
 		if not changed:
@@ -253,21 +253,12 @@ def set_required_apps(text: str) -> str:
 	return "".join(lines)
 
 
-def set_commera_api_version(text: str) -> str:
+def add_assignment(text: str, name: str, literal: str, after: str) -> str:
 	assignments = get_assignments(text)
-	if "commera_api_version" in assignments:
+	if name in assignments:
 		return text
-	statement = f"commera_api_version = [{API_VERSION}]\n"
-	return insert_after(text.splitlines(keepends=True), assignments["required_apps"].end_lineno, statement)
-
-
-def set_commera_plugin_title(text: str, title: str) -> str:
-	assignments = get_assignments(text)
-	if "commera_plugin_title" in assignments:
-		return text
-	statement = f"commera_plugin_title = {json.dumps(title)}\n"
 	return insert_after(
-		text.splitlines(keepends=True), assignments["commera_api_version"].end_lineno, statement
+		text.splitlines(keepends=True), assignments[after].end_lineno, f"{name} = {literal}\n"
 	)
 
 

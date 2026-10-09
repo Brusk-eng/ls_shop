@@ -5,7 +5,7 @@ from frappe import _
 from frappe.permissions import AUTOMATIC_ROLES
 from frappe.query_builder import DocType
 from frappe.query_builder.functions import Coalesce, Max, Min
-from frappe.utils import add_days, add_to_date, create_batch, cstr, flt, now_datetime
+from frappe.utils import add_days, add_to_date, cstr, flt, now_datetime
 from frappe.utils.background_jobs import get_job_status
 from pypika.functions import NullIf
 from pypika.terms import Case, ExistsCriterion
@@ -31,6 +31,8 @@ SHIPPING_ADDRESS_FIELDS = (
 )
 COD_SWEEP_LOOKBACK_DAYS = 30
 EXTENDED_DOCTYPES = ("Sales Order", "Quotation", "Sales Invoice", "Item", "Customer")
+CHANGED_PRODUCTS_FLAG = "commera_changed_products"
+CHANGED_ITEMS_FLAG = "commera_changed_items"
 
 
 def fire_event(
@@ -39,15 +41,19 @@ def fire_event(
 	reference_name: str | int,
 	data: dict | None = None,
 	key: str | None = None,
+	repeatable: bool = False,
+	order_snapshot: dict | None = None,
 ):
 	handlers = get_handlers("commera_events", event)
+	if repeatable:
+		key = frappe.generate_hash(length=10)
 	event_key = get_event_key(event, reference_doctype, reference_name, key)
 	# Checked first because a duplicate insert also msgprints a red "already exists" at whoever triggered it.
-	if frappe.db.exists("Commera Event", event_key):
+	if not repeatable and frappe.db.exists("Commera Event", event_key):
 		return
 
 	if reference_doctype == "Sales Order":
-		data = {**get_order_snapshot(reference_name), **(data or {})}
+		data = {**(order_snapshot or get_order_snapshot(reference_name)), **(data or {})}
 
 	queued_at = now_datetime()
 	try:
@@ -140,8 +146,6 @@ def get_shipping_address(row) -> dict | None:
 
 
 def get_lane_event(reference_doctype: str, event: str) -> str | None:
-	"""Deliveries run one at a time per lane. An order's events share one lane, so an app hears them in
-	order; any other document gets a lane per event, so a failing product handler never holds up stock."""
 	return None if reference_doctype == "Sales Order" else event
 
 
@@ -327,7 +331,6 @@ def run_due_deliveries():
 
 
 def release_stale_claims():
-	"""A claim this old means the worker died mid-handler: count it as a failed attempt."""
 	stale_deliveries = frappe.get_all(
 		"Commera Event Delivery",
 		filters={
@@ -389,7 +392,6 @@ def retry_delivery(delivery: str):
 
 
 def add_plugin_user():
-	"""The user plugin handlers run as: every desk role, like Administrator, but its writes are its own."""
 	if not frappe.db.exists("User", PLUGINS_USER):
 		user = frappe.new_doc("User")
 		user.update(
@@ -490,8 +492,6 @@ def get_amount_in_order_currency(payment_entry, order) -> float:
 
 
 def get_refunded_orders(payment_entry) -> list:
-	"""Store orders a refund pays back: the ones its references point at, each with its own allocation, else
-	the ones whose capture shares its reference_no, matched the way get_refund_status matches them."""
 	sales_order = DocType("Sales Order")
 	order_amounts = get_referenced_order_amounts(payment_entry)
 	if order_amounts is not None:
@@ -593,22 +593,29 @@ def add_changed_products(item_templates: list[str] | set[str], change: str):
 	if not item_templates or not get_handlers("commera_events", "product_updated"):
 		return
 
-	changed_products = frappe.local.flags.commera_changed_products
-	if changed_products is None:
-		changed_products = frappe.local.flags.commera_changed_products = defaultdict(set)
-		frappe.db.after_commit.add(enqueue_product_updated)
-		frappe.db.after_rollback.add(reset_changed_products)
+	changed_products = get_transaction_batch(
+		CHANGED_PRODUCTS_FLAG, lambda: defaultdict(set), enqueue_product_updated
+	)
 	for item_template in item_templates:
 		if item_template:
 			changed_products[cstr(item_template)].add(change)
 
 
+def get_transaction_batch(flag: str, new_batch, enqueue_batch):
+	batch = frappe.local.flags.get(flag)
+	if batch is None:
+		batch = frappe.local.flags[flag] = new_batch()
+		frappe.db.after_commit.add(enqueue_batch)
+		frappe.db.after_rollback.add(lambda: frappe.local.flags.pop(flag, None))
+	return batch
+
+
 def reset_changed_products():
-	frappe.local.flags.pop("commera_changed_products", None)
+	frappe.local.flags.pop(CHANGED_PRODUCTS_FLAG, None)
 
 
 def enqueue_product_updated():
-	changed_products = frappe.local.flags.pop("commera_changed_products", None) or {}
+	changed_products = frappe.local.flags.pop(CHANGED_PRODUCTS_FLAG, None) or {}
 	for item_code, changes in changed_products.items():
 		# No job_id: deduplicating against a queued job would drop this transaction's changes.
 		frappe.enqueue(fire_product_updated, item_code=item_code, changed=sorted(changes))
@@ -626,7 +633,7 @@ def fire_product_updated(item_code: str, changed: list[str]):
 		"Item",
 		item_code,
 		data={"item_code": item_code, "changed": changed},
-		key=frappe.generate_hash(length=10),
+		repeatable=True,
 	)
 
 
@@ -636,34 +643,31 @@ def is_listed_item(item_code: str) -> bool:
 
 def get_listed_items(item_codes: list[str]) -> set[str]:
 	"""An item is on the storefront when a published Style Attribute Variant sells it or is styled on it."""
-	# Imported here: commera.utils imports this module.
-	from commera.utils import IN_CLAUSE_CHUNK_SIZE
+	if not item_codes:
+		return set()
 
 	style_attribute_variant = DocType("Style Attribute Variant")
 	color_size_item = DocType("Color Size Item")
 	item_codes = {cstr(item_code) for item_code in item_codes}
-	listed_items = set()
-	for item_code_chunk in create_batch(list(item_codes), IN_CLAUSE_CHUNK_SIZE):
-		rows = (
-			frappe.qb.from_(style_attribute_variant)
-			.left_join(color_size_item)
-			.on(
-				(color_size_item.parent == style_attribute_variant.name)
-				& (color_size_item.parenttype == "Style Attribute Variant")
-			)
-			.select(color_size_item.item_code, style_attribute_variant.item_style)
-			.distinct()
-			.where(
-				(style_attribute_variant.is_published == 1)
-				& (
-					color_size_item.item_code.isin(item_code_chunk)
-					| style_attribute_variant.item_style.isin(item_code_chunk)
-				)
-			)
-			.run()
+	rows = (
+		frappe.qb.from_(style_attribute_variant)
+		.left_join(color_size_item)
+		.on(
+			(color_size_item.parent == style_attribute_variant.name)
+			& (color_size_item.parenttype == "Style Attribute Variant")
 		)
-		listed_items.update(cstr(code) for row in rows for code in row if cstr(code) in item_codes)
-	return listed_items
+		.select(color_size_item.item_code, style_attribute_variant.item_style)
+		.distinct()
+		.where(
+			(style_attribute_variant.is_published == 1)
+			& (
+				color_size_item.item_code.isin(list(item_codes))
+				| style_attribute_variant.item_style.isin(list(item_codes))
+			)
+		)
+		.run()
+	)
+	return {cstr(code) for row in rows for code in row if cstr(code) in item_codes}
 
 
 def on_stock_ledger_entry_insert(doc, method=None):
@@ -681,25 +685,16 @@ def add_changed_items(item_codes: list[str]):
 	if not item_codes or not get_handlers("commera_events", "inventory_changed"):
 		return
 
-	changed_items = frappe.local.flags.commera_changed_items
-	if changed_items is None:
-		# One job per item per transaction: deduplicate only sees jobs already in the queue.
-		changed_items = frappe.local.flags.commera_changed_items = set()
-		frappe.db.after_commit.add(enqueue_inventory_changed)
-		frappe.db.after_rollback.add(reset_changed_items)
-	changed_items.update(item_codes)
+	# One job per item per transaction: deduplicate only sees jobs already in the queue.
+	get_transaction_batch(CHANGED_ITEMS_FLAG, set, enqueue_inventory_changed).update(item_codes)
 
 
 def get_ecommerce_warehouse() -> str | None:
 	return frappe.get_cached_value("Commera Settings", "Commera Settings", "ecommerce_warehouse")
 
 
-def reset_changed_items():
-	frappe.local.flags.pop("commera_changed_items", None)
-
-
 def enqueue_inventory_changed():
-	for item_code in frappe.local.flags.pop("commera_changed_items", None) or ():
+	for item_code in frappe.local.flags.pop(CHANGED_ITEMS_FLAG, None) or ():
 		frappe.enqueue(
 			fire_inventory_changed,
 			item_code=item_code,
@@ -726,7 +721,7 @@ def fire_inventory_changed(item_code: str):
 			"actual_qty": flt(actual_qty),
 			"available_qty": get_available_stock(item_code, warehouse)["stock_qty"],
 		},
-		key=frappe.generate_hash(length=10),
+		repeatable=True,
 	)
 
 
@@ -814,7 +809,6 @@ def get_unprefixed_custom_fields(apps: list[str]) -> list:
 
 
 def get_plugin_fieldnames(doctype: str) -> list[str]:
-	"""The columns on `doctype` named `<app>_...` after an installed Commera plugin."""
 	prefixes = tuple(f"{app}_" for app in get_plugin_apps())
 	if not prefixes:
 		return []

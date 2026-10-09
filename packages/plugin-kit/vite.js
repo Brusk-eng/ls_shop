@@ -4,7 +4,7 @@ import { createRequire } from 'node:module';
 import { basename, dirname, join, relative, resolve, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
-export const API_VERSION = 1;
+const API_VERSION = 1;
 const KIT_VERSION = JSON.parse(
 	readFileSync(new URL('./package.json', import.meta.url), 'utf8'),
 ).version;
@@ -72,8 +72,8 @@ const SLUG_HINT = '<name>';
 function placementTable() {
 	return Object.keys(GRAMMAR.places)
 		.map((place) =>
-			place === 'settings'
-				? '  settings/index.vue'
+			GRAMMAR.places[place].single
+				? `  ${place}/index.vue`
 				: `  ${place}/${SLUG_HINT}/index.vue`,
 		)
 		.join('\n');
@@ -96,13 +96,13 @@ function walk(dir, found = []) {
 	return found;
 }
 
-// `settings` is a single slot named after itself; every other place takes one `<name>` folder.
+// A `single` place is one slot named after itself; every other place takes one `<name>` folder.
 function matchPlacement(folder) {
-	if (folder === 'settings') return { place: 'settings', name: 'settings' };
+	if (GRAMMAR.places[folder]?.single) return { place: folder, name: folder };
 	const cut = folder.lastIndexOf('/');
 	if (cut < 0) return null;
 	const place = folder.slice(0, cut);
-	if (place === 'settings' || !GRAMMAR.places[place]) return null;
+	if (!GRAMMAR.places[place] || GRAMMAR.places[place].single) return null;
 	return { place, name: folder.slice(cut + 1) };
 }
 
@@ -419,7 +419,9 @@ export function discoverPlugins(
 			name: placement.name,
 			file,
 			entryName: hasModule
-				? key.replace(/^settings\/settings$/, 'settings')
+				? GRAMMAR.places[placement.place].single
+					? placement.place
+					: key
 				: null,
 			plugin,
 		});
@@ -648,7 +650,7 @@ function finish({ app, entries, icon }) {
 }
 
 // Served as-is under /assets and shown with <img>, so it must also be safe to open directly.
-export function readAppIcon(sourceDir) {
+function readAppIcon(sourceDir) {
 	const path = join(sourceDir, ICON_FILE);
 	if (!existsSync(path)) return { icon: null, errors: [] };
 	const source = readFileSync(path, 'utf8');

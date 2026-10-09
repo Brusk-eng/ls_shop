@@ -1,8 +1,4 @@
 <script setup>
-/**
- * An installed plugin's own Settings tab. Commera draws the heading; an app that only names its settings
- * Single gets the same self-saving rows as Advanced, and one with a template fills the body itself.
- */
 import { ref, watch } from 'vue'
 import { Button, SettingsBody } from 'frappe-ui'
 import SettingsPanelHeader from './SettingsPanelHeader.vue'

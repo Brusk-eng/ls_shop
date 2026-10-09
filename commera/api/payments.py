@@ -34,7 +34,7 @@ from commera.guest import (
 )
 from commera.order_access import get_order_link, set_order_access_key
 from commera.plugin_events import fire_event
-from commera.utils import get_pickup_addresses, get_pickup_warehouses
+from commera.utils import get_charge_account_head, get_pickup_addresses, get_pickup_warehouses
 
 
 class CheckoutPriceChangedError(frappe.ValidationError):
@@ -187,9 +187,8 @@ def open_checkout(
 
 
 def get_checkout_payment_methods(quotation, strict: bool = False) -> list[str]:
-	"""Payment Gateway Profile names, plus COD when it is on, as the installed plugins let this cart pay."""
 	payment_methods = list(get_available_payment_modes())
-	if frappe.db.get_single_value("Commera Settings", "cod_enabled"):
+	if frappe.get_cached_value("Commera Settings", "Commera Settings", "cod_enabled"):
 		payment_methods.append(COD_PAYMENT_MODE)
 	if not quotation:
 		return payment_methods
@@ -541,11 +540,7 @@ def set_cod_charges(quotation):
 	cod_charge = get_cod_charge(quotation)
 	if not cod_charge:
 		return
-	account_head = frappe.get_cached_value("Commera Settings", "Commera Settings", "charge_account_head")
-	if not account_head:
-		frappe.throw(_("Please select a valid account for cod charges."))
-
-	add_cod_charge(quotation, cod_charge, account_head)
+	add_cod_charge(quotation, cod_charge, get_charge_account_head())
 	quotation.flags.ignore_permissions = True
 	quotation.save()
 

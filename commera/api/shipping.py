@@ -5,7 +5,12 @@ from frappe.utils.data import cstr, flt, sha256_hash
 
 from commera.checkout_hooks import PLUGIN_FEE_FIELD, apply_delivery_option_hooks, apply_plugin_fees
 from commera.core import _get_cart_quotation
-from commera.utils import COD_CHARGE_DESCRIPTION, get_cod_configuration, validate_document_access
+from commera.utils import (
+	COD_CHARGE_DESCRIPTION,
+	get_charge_account_head,
+	get_cod_configuration,
+	validate_document_access,
+)
 
 # The Actual charge row the chosen option posts through, matched on description on re-selection.
 DELIVERY_CHARGE_DESCRIPTION = "Delivery Charges"
@@ -379,7 +384,6 @@ def get_order_charge_lines(sales_order: str, shipping_rule: str | None) -> dict:
 
 
 def read_order_taxes(order_names: list) -> dict[str, list]:
-	"""Each order's charge table keyed by `cstr(name)`, in one query."""
 	taxes_by_order = {}
 	for row in frappe.get_all(
 		"Sales Taxes and Charges",
@@ -408,14 +412,7 @@ def get_charge_account(title: str) -> str:
 	"""The option's own Shipping Rule account when it has one, else the store's charge account head."""
 	from bwh_shipping.bwh_shipping.pricing import get_charge_account as get_option_account
 
-	account = get_option_account(title)
-	if account:
-		return account
-
-	account = frappe.get_cached_value("Commera Settings", "Commera Settings", "charge_account_head")
-	if not account:
-		frappe.throw(_("Set a Charge Account Head in Commera Settings before charging for delivery."))
-	return account
+	return get_option_account(title) or get_charge_account_head()
 
 
 def get_delivery_summary(quotation) -> dict:

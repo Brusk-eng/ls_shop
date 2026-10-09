@@ -10,7 +10,7 @@ export function readPluginApps() {
   return readFileSync(appsFile, 'utf8')
     .split('\n')
     .map((app) => app.trim())
-    .filter((app) => app && app !== 'commera' && existsSync(join(BENCH, 'apps', app, 'commera')))
+    .filter((app) => app && app !== 'commera' && existsSync(sourceDirOf(app)))
 }
 
 export function sourceDirOf(app) {

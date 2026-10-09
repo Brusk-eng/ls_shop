@@ -60,8 +60,7 @@ const actions = computed(() =>
 
 // The first action is the page's main one: it stays a button at the right edge, like an order's Fulfil items,
 // and past two the rest fold into the More menu so a phone header never wraps.
-const mainAction = computed(() => actions.value[0] ?? null)
-const otherActions = computed(() => actions.value.slice(1).reverse())
+const headerButtons = computed(() => (actions.value.length > 2 ? actions.value.slice(0, 1) : [...actions.value].reverse()))
 const overflowOptions = computed(() =>
   actions.value.length > 2
     ? actions.value.slice(1).map((action) => ({
@@ -72,10 +71,6 @@ const overflowOptions = computed(() =>
       }))
     : [],
 )
-const headerButtons = computed(() => {
-  if (!mainAction.value) return []
-  return overflowOptions.value.length ? [mainAction.value] : [...otherActions.value, mainAction.value]
-})
 
 const titleBeforeMount = document.title
 watchEffect(() => (document.title = title.value))

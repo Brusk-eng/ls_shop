@@ -3,10 +3,23 @@ import { dialog, toast } from 'frappe-ui'
 import { useAdminAction, useAdminRead } from './api'
 import { pluginIcon, placeEntries } from '../ia/plugins'
 
-/**
- * The installed plugins' cards and actions for one record page. Every conditional entry is resolved in one
- * request per record, and stays hidden until it answers, so nothing flashes in and back out.
- */
+export function usePluginRun(path, paramsOf, { onDone } = {}) {
+  const runAction = useAdminAction(path)
+
+  async function run(entry) {
+    const result = await runAction.submit(paramsOf(entry))
+    if (runAction.error) return
+    toast.success(result?.message || `${entry.label} done`)
+    onDone?.()
+  }
+
+  return function confirmAndRun(entry) {
+    if (!entry.confirm) return run(entry)
+    dialog.confirm({ title: entry.label, message: entry.confirm, confirmLabel: entry.label, onConfirm: () => run(entry) })
+  }
+}
+
+// Conditional entries stay hidden until their one request per record answers, so nothing flashes in and back out.
 export function useRecordPlugins(place, doctype, nameGetter, { onReload } = {}) {
   const cardEntries = placeEntries(`${place}/cards`)
   const actionEntries = placeEntries(`${place}/actions`)
@@ -46,22 +59,16 @@ export function useRecordPlugins(place, doctype, nameGetter, { onReload } = {}) 
     resolveConditions()
   }
 
-  const runAction = useAdminAction('plugins.run_record_action')
-
-  async function run(entry) {
-    const result = await runAction.submit({ key: entry.key, name: nameGetter() })
-    if (runAction.error) return
-    toast.success(result?.message || `${entry.label} done`)
-    reload()
-  }
+  const runEntry = usePluginRun('plugins.run_record_action', (entry) => ({ key: entry.key, name: nameGetter() }), {
+    onDone: reload,
+  })
 
   function start(entry) {
     if (!entry.has_method) {
       openAction.value = entry
       return
     }
-    if (!entry.confirm) return run(entry)
-    dialog.confirm({ title: entry.label, message: entry.confirm, confirmLabel: entry.label, onConfirm: () => run(entry) })
+    return runEntry(entry)
   }
 
   const actionGroup = computed(() =>

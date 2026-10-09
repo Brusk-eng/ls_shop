@@ -1,4 +1,6 @@
-import { dayjs } from 'frappe-ui'
+import { ref } from 'vue'
+import { dayjs, toast } from 'frappe-ui'
+import { useMethodAction } from './api'
 
 export function eventLabel(event) {
   const words = event.replace(/_/g, ' ')
@@ -19,4 +21,25 @@ export function timeLabel(row) {
     return `Next try ${dayjs(row.next_retry_at).fromNow()}`
   }
   return 'Waiting to send'
+}
+
+export function useDeliveryRetry(onRetried) {
+  const retryAction = useMethodAction('commera.plugin_events.retry_delivery')
+  const retrying = ref(null)
+
+  async function retry(key, app, deliveries) {
+    retrying.value = key
+    try {
+      for (const delivery of deliveries) {
+        await retryAction.submit({ delivery })
+        if (retryAction.error) return
+      }
+      toast.success(`Sending to ${app} again`)
+      onRetried()
+    } finally {
+      retrying.value = null
+    }
+  }
+
+  return { retrying, retry }
 }

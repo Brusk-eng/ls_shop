@@ -1,18 +1,14 @@
 <script setup>
-/**
- * The apps installed alongside Commera: what each adds to the dashboard, and whether it is hearing about
- * the store's orders. Opening one takes over this panel, like a payment provider, never a second dialog.
- */
 import { computed, ref, watch } from 'vue'
-import { Badge, Button, Icon, SettingsBody, Skeleton, TabButtons, toast } from 'frappe-ui'
+import { Badge, Button, Icon, SettingsBody, Skeleton, TabButtons } from 'frappe-ui'
 import SettingsConfigHeader from './SettingsConfigHeader.vue'
 import SettingsPanelHeader from './SettingsPanelHeader.vue'
 import EmptyState from '../EmptyState.vue'
 import ListPagination from '../ListPagination.vue'
 import ResponsiveButton from '../ResponsiveButton.vue'
 import StatusBadge from '../StatusBadge.vue'
-import { useAdminRead, useMethodAction } from '../../data/api'
-import { eventLabel, statusKey, timeLabel } from '../../data/pluginEvents'
+import { useAdminRead } from '../../data/api'
+import { eventLabel, statusKey, timeLabel, useDeliveryRetry } from '../../data/pluginEvents'
 import { appIcon, pluginSettingsTabs, placeLabel, settingsTabValue } from '../../ia/plugins'
 import { settings } from '../../ia/settings'
 import { orderRoute } from '../../ia/routes'
@@ -69,20 +65,13 @@ function pluginCount(app) {
   return count === 1 ? '1 addition to the dashboard' : `${count} additions to the dashboard`
 }
 
-const retryAction = useMethodAction('commera.plugin_events.retry_delivery')
-const retryingDelivery = ref(null)
+const { retrying: retryingDelivery, retry: retryDeliveries } = useDeliveryRetry(() => {
+  deliveriesRequest.reload()
+  pluginsRequest.reload()
+})
 
-async function retry(row) {
-  retryingDelivery.value = row.delivery
-  try {
-    await retryAction.submit({ delivery: row.delivery })
-    if (retryAction.error) return
-    toast.success(`Sending to ${row.app} again`)
-    deliveriesRequest.reload()
-    pluginsRequest.reload()
-  } finally {
-    retryingDelivery.value = null
-  }
+function retry(row) {
+  return retryDeliveries(row.delivery, row.app, [row.delivery])
 }
 </script>
 

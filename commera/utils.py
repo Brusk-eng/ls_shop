@@ -15,7 +15,7 @@ from pypika import Order
 
 from commera.core import get_address_docs, get_party
 from commera.order_access import get_key_access
-from commera.plugin_events import STORE_ORDER_TYPE, fire_event
+from commera.plugin_events import SHIPPING_ADDRESS_FIELDS, STORE_ORDER_TYPE, fire_event, get_order_snapshot
 
 # Ceiling for any IN (...) list this app sends to MariaDB/Postgres.
 IN_CLAUSE_CHUNK_SIZE = 1000
@@ -340,6 +340,15 @@ def get_cod_configuration():
 	)
 
 
+def get_charge_account_head() -> str:
+	account = frappe.get_cached_value("Commera Settings", "Commera Settings", "charge_account_head")
+	if not account:
+		frappe.throw(
+			frappe._("Set a Charge Account Head in Commera Settings before adding charges to a cart.")
+		)
+	return account
+
+
 def format_theme_css():
 	# jinja's safe globals return documents as plain dicts, so controller methods are unreachable from templates
 	return frappe.get_cached_doc("Commera Settings", "Commera Settings").generate_theme_css()
@@ -386,17 +395,7 @@ def format_addresses(addresses, address_type):
 	]
 
 
-PICKUP_ADDRESS_FIELDS = (
-	"address_title",
-	"address_line1",
-	"address_line2",
-	"city",
-	"state",
-	"pincode",
-	"country",
-	"phone",
-	"custom_store_location",
-)
+PICKUP_ADDRESS_FIELDS = (*SHIPPING_ADDRESS_FIELDS, "custom_store_location")
 
 
 def get_pickup_warehouses() -> list[str]:
@@ -720,9 +719,17 @@ def update_sales_order_ecommerce_status(sales_order_name):
 		new_status = get_fulfilment_status(sales_order_name)
 
 	frappe.db.set_value("Sales Order", sales_order_name, "custom_ecommerce_status", new_status)
-	if order.order_type == STORE_ORDER_TYPE and new_status != order.custom_ecommerce_status:
-		for event in FULFILMENT_EVENTS.get(new_status, ()):
-			fire_event(event, "Sales Order", sales_order_name, **get_status_event_args(event, new_status))
+	events = FULFILMENT_EVENTS.get(new_status, ())
+	if order.order_type == STORE_ORDER_TYPE and new_status != order.custom_ecommerce_status and events:
+		order_snapshot = get_order_snapshot(sales_order_name)
+		for event in events:
+			fire_event(
+				event,
+				"Sales Order",
+				sales_order_name,
+				order_snapshot=order_snapshot,
+				**get_status_event_args(event, new_status),
+			)
 
 
 def get_status_event_args(event: str, status: str) -> dict:

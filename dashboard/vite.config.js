@@ -8,14 +8,16 @@ import { pluginDevServer } from './pluginDevServer.js'
 // The bare specifiers an app page may import, each mapped to a runtime entry whose chunk keeps its export names,
 // so the dashboard and every app share one Vue, one frappe-ui (toasts, dialogs) and one provide/inject tree.
 const SHARED = {
-  vue: 'runtime-vue',
-  'frappe-ui': 'runtime-frappe-ui',
-  'frappe-ui/list': 'runtime-frappe-ui-list',
-  'frappe-ui/charts': 'runtime-frappe-ui-charts',
-  '@commera/admin': 'runtime-commera-admin',
+  vue: { entry: 'runtime-vue', source: './src/runtime/vue.js' },
+  'frappe-ui': { entry: 'runtime-frappe-ui', source: './src/runtime/frappe-ui.js' },
+  'frappe-ui/list': { entry: 'runtime-frappe-ui-list', source: './src/runtime/frappe-ui-list.js' },
+  'frappe-ui/charts': { entry: 'runtime-frappe-ui-charts', source: './src/runtime/frappe-ui-charts.js' },
+  '@commera/admin': { entry: 'runtime-commera-admin', source: './src/plugin-api/index.js' },
 }
 
 const fromHere = (path) => fileURLToPath(new URL(path, import.meta.url))
+
+const SHARED_INPUTS = Object.fromEntries(Object.values(SHARED).map(({ entry, source }) => [entry, fromHere(source)]))
 
 // Outside the emptied outDir: bench builds apps in parallel, and the plugin kit reads these while commera rebuilds.
 const PLUGIN_HOST_DIR = fromHere('../commera/public/plugin-host')
@@ -39,7 +41,7 @@ function sharedRuntime() {
       order: 'post',
       handler(_html, { bundle }) {
         const imports = Object.fromEntries(
-          Object.entries(SHARED).map(([specifier, entryName]) => [specifier, base + findEntryChunk(bundle, entryName).fileName]),
+          Object.entries(SHARED).map(([specifier, { entry }]) => [specifier, base + findEntryChunk(bundle, entry).fileName]),
         )
         // Pretty-printed so commera.html never holds `}}`, which Jinja would read as a closing tag.
         return [
@@ -58,7 +60,7 @@ function sharedRuntime() {
         }
       }
       const sharedExports = Object.fromEntries(
-        Object.entries(SHARED).map(([specifier, entryName]) => [specifier, findEntryChunk(bundle, entryName).exports]),
+        Object.entries(SHARED).map(([specifier, { entry }]) => [specifier, findEntryChunk(bundle, entry).exports]),
       )
       mkdirSync(PLUGIN_HOST_DIR, { recursive: true })
       writeFileSync(`${PLUGIN_HOST_DIR}/shared-exports.json`, `${JSON.stringify(sharedExports, null, 2)}\n`)
@@ -95,11 +97,7 @@ export default defineConfig({
     rollupOptions: {
       input: {
         index: fromHere('./index.html'),
-        'runtime-vue': fromHere('./src/runtime/vue.js'),
-        'runtime-frappe-ui': fromHere('./src/runtime/frappe-ui.js'),
-        'runtime-frappe-ui-list': fromHere('./src/runtime/frappe-ui-list.js'),
-        'runtime-frappe-ui-charts': fromHere('./src/runtime/frappe-ui-charts.js'),
-        'runtime-commera-admin': fromHere('./src/plugin-api/index.js'),
+        ...SHARED_INPUTS,
       },
       // Nothing in the dashboard imports the runtime entries by name, so without this Rollup tree-shakes their exports.
       preserveEntrySignatures: 'exports-only',

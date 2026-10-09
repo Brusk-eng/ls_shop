@@ -1,11 +1,7 @@
 <script setup>
-/**
- * Which installed plugins could not act on this order. Nothing renders while every app took it, which is
- * the usual case, so the notice only costs space when there is something to do about it.
- */
-import { computed, ref } from 'vue'
-import { Alert, toast } from 'frappe-ui'
-import { useMethodAction } from '../data/api'
+import { computed } from 'vue'
+import { Alert } from 'frappe-ui'
+import { useDeliveryRetry } from '../data/pluginEvents'
 
 const props = defineProps({
   failures: { type: Array, default: () => [] },
@@ -20,23 +16,12 @@ const failuresByApp = computed(() => {
   return [...groups.entries()].map(([app, rows]) => ({ app, rows }))
 })
 
-const retryAction = useMethodAction('commera.plugin_events.retry_delivery')
-const retryingApp = ref(null)
+const { retrying: retryingApp, retry: retryDeliveries } = useDeliveryRetry(() => emit('retried'))
 
 // Oldest first, so the app hears about the order in the order things happened to it.
-async function retry(failure) {
-  retryingApp.value = failure.app
-  try {
-    const rows = [...failure.rows].sort((left, right) => String(left.creation).localeCompare(String(right.creation)))
-    for (const row of rows) {
-      await retryAction.submit({ delivery: row.delivery })
-      if (retryAction.error) return
-    }
-    toast.success(`Sending to ${failure.app} again`)
-    emit('retried')
-  } finally {
-    retryingApp.value = null
-  }
+function retry(failure) {
+  const rows = [...failure.rows].sort((left, right) => String(left.creation).localeCompare(String(right.creation)))
+  return retryDeliveries(failure.app, failure.app, rows.map((row) => row.delivery))
 }
 
 function retryAlertAction(failure) {

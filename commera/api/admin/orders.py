@@ -9,8 +9,8 @@ from frappe.utils.data import add_days, cint, cstr, flt, formatdate, getdate
 
 from commera.api.admin.catalog import get_unpublishable_options
 from commera.api.admin.inventory import get_inventory
+from commera.api.admin.plugins import query_deliveries
 from commera.api.shipping import get_order_charge_lines
-from commera.plugins.registry import get_app_title
 from commera.utils import get_address_lines, get_item_images
 
 PAGE_LENGTH = 20
@@ -687,13 +687,13 @@ def read_orders(order_names: list, extra_fields: list | tuple = ()) -> dict:
 	if not orders:
 		return {}
 
-	found_names = [order.name for order in orders.values()]
-	lines_by_order = read_order_lines(list(orders))
+	found_names = list(orders)
+	lines_by_order = read_order_lines(found_names)
 	lifecycles = read_order_lifecycles(found_names)
 	tags_by_order = {}
 	for row in frappe.get_all(
 		"Tag Link",
-		filters={"document_type": "Sales Order", "document_name": ["in", list(orders)]},
+		filters={"document_type": "Sales Order", "document_name": ["in", found_names]},
 		fields=["document_name", "tag"],
 	):
 		tags_by_order.setdefault(cstr(row.document_name), []).append(row.tag)
@@ -753,53 +753,6 @@ def get_order_plugin_failures(sales_order: str) -> list:
 		& (commera_event.reference_name == sales_order)
 		& (delivery.status == "Failed")
 	)
-
-
-def get_deliveries_query(criterion):
-	commera_event = frappe.qb.DocType("Commera Event")
-	delivery = frappe.qb.DocType("Commera Event Delivery")
-	return (
-		frappe.qb.from_(delivery)
-		.join(commera_event)
-		.on(commera_event.name == delivery.parent)
-		.where(criterion)
-	)
-
-
-def query_deliveries(criterion, start: int = 0, page_length: int | None = None) -> list:
-	commera_event = frappe.qb.DocType("Commera Event")
-	delivery = frappe.qb.DocType("Commera Event Delivery")
-	query = (
-		get_deliveries_query(criterion)
-		.select(
-			delivery.name.as_("delivery"),
-			commera_event.event,
-			commera_event.reference_doctype,
-			commera_event.reference_name,
-			delivery.app,
-			delivery.status,
-			delivery.attempts,
-			delivery.next_retry_at,
-			delivery.finished_at,
-			commera_event.creation,
-		)
-		.orderby(commera_event.creation, order=Order.desc)
-		.orderby(delivery.idx)
-	)
-	if page_length:
-		query = query.limit(page_length).offset(start)
-	rows = query.run(as_dict=True)
-
-	# An uninstalled app keeps its deliveries but has no hooks.py to read a title from.
-	installed_apps = set(frappe.get_installed_apps())
-	app_titles = {
-		app: get_app_title(app) if app in installed_apps else app for app in {row.app for row in rows}
-	}
-	can_retry = "System Manager" in frappe.get_roles()
-	for row in rows:
-		row.app = app_titles[row.app]
-		row.can_retry = can_retry
-	return rows
 
 
 def read_payment_totals(order_name: str) -> tuple[float, float]:

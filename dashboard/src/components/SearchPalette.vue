@@ -1,7 +1,7 @@
 <script setup>
 import { computed, nextTick, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { Icon, KeyboardShortcut, dialog, toast, useKeyboardShortcut } from 'frappe-ui'
+import { Icon, KeyboardShortcut, useKeyboardShortcut } from 'frappe-ui'
 import {
   CommandPalette,
   CommandPaletteEmpty,
@@ -12,7 +12,7 @@ import {
   CommandPaletteList,
 } from 'frappe-ui/experimental'
 import EmptyState from './EmptyState.vue'
-import { useAdminAction, useAdminRead } from '../data/api'
+import { useAdminRead } from '../data/api'
 import { money, priceRange } from '../data/format'
 import { SETTINGS_TABS, openSettings } from '../ia/settings'
 import { search } from '../ia/search'
@@ -21,6 +21,7 @@ import { customerRoute, orderRoute, productRoute } from '../ia/routes'
 import { openImport } from '../data/importFlow'
 import { openAddProduct } from '../data/addProduct'
 import { confirmInstallDemoData } from '../data/demoData'
+import { usePluginRun } from '../data/recordPlugins'
 
 const LIMIT = 5
 
@@ -128,20 +129,13 @@ const SETTINGS = [
   })),
 ]
 
-const runPluginCommand = useAdminAction('plugins.run_command')
-
-async function runPlugin(entry) {
-  const result = await runPluginCommand.submit({ key: entry.key })
-  if (runPluginCommand.error) return
-  toast.success(result?.message || `${entry.label} done`)
-}
+const runPluginCommand = usePluginRun('plugins.run_command', (entry) => ({ key: entry.key }))
 
 // The palette closes only after its select handler returns, so a confirm opened straight away would sit on a
 // dialog that is about to close and lose focus with it.
 async function startPlugin(entry) {
   await nextTick()
-  if (!entry.confirm) return runPlugin(entry)
-  dialog.confirm({ title: entry.label, message: entry.confirm, confirmLabel: entry.label, onConfirm: () => runPlugin(entry) })
+  return runPluginCommand(entry)
 }
 
 const PLUGINS = pluginCommands().map((command) => ({ ...command, suffix: command.appTitle, run: () => startPlugin(command.entry) }))

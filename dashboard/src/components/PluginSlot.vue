@@ -1,8 +1,4 @@
 <script setup>
-/**
- * The installed plugins' cards on a record page. The frame and its title are drawn here, so every app's card
- * sits in the page the way the page's own panels do; the app's module only fills the body.
- */
 import PluginCardFrame from './PluginCardFrame.vue'
 
 defineProps({

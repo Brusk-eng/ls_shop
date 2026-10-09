@@ -3,12 +3,12 @@
 
 import frappe
 from frappe import _
+from frappe.query_builder import Order
 from frappe.query_builder.functions import Count
 from frappe.utils.data import cint
 
 from commera.api.admin.docfields import build_field_groups, get_editable_docfields, get_missing_fields
-from commera.api.admin.orders import get_deliveries_query, query_deliveries
-from commera.api.admin.settings import coerce_field_value
+from commera.api.admin.integrations import write_settings
 from commera.plugin_events import get_plugin_apps
 from commera.plugins.places import PLACES, get_record_place_prefix
 from commera.plugins.registry import (
@@ -63,6 +63,53 @@ def get_plugin_deliveries(app: str, status: str | None = None, start: int = 0, p
 		"rows": query_deliveries(criterion, cint(start), cint(page_length)),
 		"total": get_deliveries_query(criterion).select(Count("*")).run()[0][0],
 	}
+
+
+def get_deliveries_query(criterion):
+	commera_event = frappe.qb.DocType("Commera Event")
+	delivery = frappe.qb.DocType("Commera Event Delivery")
+	return (
+		frappe.qb.from_(delivery)
+		.join(commera_event)
+		.on(commera_event.name == delivery.parent)
+		.where(criterion)
+	)
+
+
+def query_deliveries(criterion, start: int = 0, page_length: int | None = None) -> list:
+	commera_event = frappe.qb.DocType("Commera Event")
+	delivery = frappe.qb.DocType("Commera Event Delivery")
+	query = (
+		get_deliveries_query(criterion)
+		.select(
+			delivery.name.as_("delivery"),
+			commera_event.event,
+			commera_event.reference_doctype,
+			commera_event.reference_name,
+			delivery.app,
+			delivery.status,
+			delivery.attempts,
+			delivery.next_retry_at,
+			delivery.finished_at,
+			commera_event.creation,
+		)
+		.orderby(commera_event.creation, order=Order.desc)
+		.orderby(delivery.idx)
+	)
+	if page_length:
+		query = query.limit(page_length).offset(start)
+	rows = query.run(as_dict=True)
+
+	# An uninstalled app keeps its deliveries but has no hooks.py to read a title from.
+	installed_apps = set(frappe.get_installed_apps())
+	app_titles = {
+		app: get_app_title(app) if app in installed_apps else app for app in {row.app for row in rows}
+	}
+	can_retry = "System Manager" in frappe.get_roles()
+	for row in rows:
+		row.app = app_titles[row.app]
+		row.can_retry = can_retry
+	return rows
 
 
 def get_failed_delivery_counts() -> dict:
@@ -146,22 +193,14 @@ def save_plugin_setting(app: str, **fields):
 	doctype = get_plugin_settings_doctype(app)
 	frappe.has_permission(doctype, "write", throw=True)
 
+	settings = write_settings({"settings_doctype": doctype}, fields)
 	docfields = {docfield.fieldname: docfield for _group_label, docfield in get_editable_docfields(doctype)}
-	unknown = set(fields) - set(docfields)
-	if unknown:
-		frappe.throw(_("{0} has no field {1}").format(doctype, ", ".join(sorted(unknown))))
-
-	# A blank secret keeps the stored one; only an explicit null clears it.
-	changed = {
-		fieldname: value
+	changed = [
+		fieldname
 		for fieldname, value in fields.items()
 		if not (docfields[fieldname].fieldtype == "Password" and value == "")
-	}
-	settings = frappe.get_doc(doctype)
+	]
 	if changed:
-		for fieldname, value in changed.items():
-			settings.set(fieldname, coerce_field_value(docfields[fieldname].fieldtype, value))
-
 		cleared = [fieldname for fieldname in get_missing_fields(doctype, settings) if fieldname in changed]
 		if cleared:
 			frappe.throw(_("{0} is required").format(_(docfields[cleared[0]].label)), frappe.MandatoryError)
