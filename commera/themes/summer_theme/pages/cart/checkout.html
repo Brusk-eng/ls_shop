@@ -288,6 +288,7 @@
 				</div>
 
 				<div class="col-xl-4 side-bar">
+					{{ plugin_slot("checkout_banner") }}
 					<h4 class="title m-b15">{{ _("Your Order") }}</h4>
 					<div class="order-detail sticky-top">
 						{% if is_guest %}
@@ -352,6 +353,12 @@
 										<td class="price">{{ currency_symbol }}<span x-text="format_amount(tax.amount)"></span></td>
 									</tr>
 								</template>
+								<template x-for="(fee, index) in active_summary.plugin_fees" :key="index">
+									<tr class="plugin-fee">
+										<td x-text="fee.description"></td>
+										<td class="price">{{ currency_symbol }}<span x-text="format_amount(fee.amount)"></span></td>
+									</tr>
+								</template>
 								<tr class="cod-charge" x-show="active_summary.cod_charge" x-cloak>
 									<td>{{ _("Cash on Delivery Fee") }}</td>
 									<td class="price">{{ currency_symbol }}<span x-text="format_amount(active_summary.cod_charge)"></span></td>
@@ -392,7 +399,7 @@
 														:id="'shipping_option_' + index" :value="option.title"
 														x-model="selected_shipping_option">
 													<label class="form-check-label" :for="'shipping_option_' + index">
-														<span x-text="option.title"></span>
+														<span x-text="option.label || option.title"></span>
 														<span x-show="option.is_free"> &mdash; {{ _("Free") }}</span>
 														<span x-show="!option.is_free" x-cloak>
 															&mdash; {{ currency_symbol }}<span x-text="format_amount(option.amount)"></span>
