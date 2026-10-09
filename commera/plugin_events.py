@@ -205,6 +205,7 @@ def fail_uninstalled_app_deliveries(app: str):
 		.set(delivery.finished_at, now_datetime())
 		.where((delivery.app == app) & (delivery.status.isin(["Queued", "Running"])))
 	).run()
+	# nosemgrep: frappe-manual-commit  # deliveries run in jobs and record each attempt on its own
 	frappe.db.commit()
 
 
@@ -231,6 +232,7 @@ def claim_delivery(delivery_name: str) -> bool:
 		.where((delivery.name == delivery_name) & (delivery.status == "Queued"))
 	).run()
 	claimed = frappe.db._cursor.rowcount == 1
+	# nosemgrep: frappe-manual-commit  # deliveries run in jobs and record each attempt on its own
 	frappe.db.commit()
 	return claimed
 
@@ -282,6 +284,7 @@ def run_delivery(delivery) -> bool:
 			reference_name=delivery.reference_name,
 		)
 		save_failed_attempt(delivery, error_log.name if error_log else None)
+		# nosemgrep: frappe-manual-commit  # deliveries run in jobs and record each attempt on its own
 		frappe.db.commit()
 		return False
 
@@ -296,6 +299,7 @@ def run_delivery(delivery) -> bool:
 		},
 	)
 	# Per handler, not a savepoint: a handler may commit on its own, which would release the savepoint.
+	# nosemgrep: frappe-manual-commit  # deliveries run in jobs and record each attempt on its own
 	frappe.db.commit()
 	return True
 

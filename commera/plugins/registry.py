@@ -105,6 +105,7 @@ def add_plugin_entries(registry: dict, app: str):
 		return
 
 	try:
+		# nosemgrep: frappe-security-file-traversal  # path is inside the app's built assets
 		with open(path) as manifest_file:
 			manifest = json.load(manifest_file)
 	except ValueError:
@@ -214,6 +215,7 @@ def get_icon_url(app: str, icon: str | None) -> str | None:
 	path = get_asset_path(app, icon)
 	if not os.path.isfile(path):
 		return None
+	# nosemgrep: frappe-security-file-traversal  # path is inside the app's built assets
 	with open(path, "rb") as icon_file:
 		digest = hashlib.sha256(icon_file.read()).hexdigest()[:8]
 	return f"/assets/{app}/commera/{icon}?v={digest}"
@@ -253,6 +255,7 @@ def add_module_url(entry: dict, version_error: str | None) -> dict:
 	if not os.path.isfile(path):
 		return entry | {"error": f"{module} isn't built. Run bench build --app {app}."}
 
+	# nosemgrep: frappe-security-file-traversal  # path is inside the app's built assets
 	with open(path) as module_file:
 		banner = BANNER_PATTERN.search(module_file.readline())
 	if not banner:
