@@ -28,9 +28,8 @@ SHIPPING_RULE = "Standard Shipping"
 COD_CHARGE_ACCOUNT = "Cash on Delivery Charges"
 SHOPPER_ROLE = "Customer"
 
-# FASHION_PRODUCTS carries dollar-scale numbers, so price_multiplier restates them in the company's own
-# currency. Rates are recomputed from it on every run - scaling in place would compound on a re-run.
-# A currency listed here gets prices a local shopper expects; any other is derived from DOLLAR_PROFILE.
+# FASHION_PRODUCTS prices are in dollars; unlisted currencies fall back to DOLLAR_PROFILE.
+# Rates are recomputed on every run - scaling in place would compound on a re-run.
 CURRENCY_PROFILES = {
 	"SAR": {
 		"price_multiplier": 3.75,
