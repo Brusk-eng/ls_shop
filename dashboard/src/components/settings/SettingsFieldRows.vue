@@ -6,7 +6,7 @@
  * and the advanced tab all render server-described fields, so a docfield's label, description,
  * required flag and "this secret is already stored" wording reach all three the same way.
  */
-import { SettingsRow } from 'frappe-ui'
+import { FormLabel, SettingsRow } from 'frappe-ui'
 import SettingsFieldControl from './SettingsFieldControl.vue'
 import IntegrationLogo from '../integrations/IntegrationLogo.vue'
 
@@ -14,6 +14,8 @@ const props = defineProps({
   groups: { type: Array, required: true },
   values: { type: Object, required: true },
   linkOptionsPath: { type: String, default: '' },
+  // For an editor panel: the label, a full-width input, then the help under it. Switches stay inline.
+  stacked: { type: Boolean, default: false },
 })
 
 // `update` is every edit; `commit` is the value settled, for a screen that saves each field
@@ -81,20 +83,37 @@ function hasHeading(group) {
       </div>
     </div>
     <p v-else-if="group.label" class="pt-5 text-sm text-ink-gray-5 !border-t-0">{{ group.label }}</p>
-    <SettingsRow
-      v-for="(field, index) in groupFields(group)"
-      :key="field.fieldname"
-      :class="index === 0 && hasHeading(group) ? '!border-t-0' : undefined"
-      :title="field.required ? `${field.label} *` : field.label"
-      :description="hint(field)"
-    >
-      <SettingsFieldControl
-        :field="field"
-        :model-value="values[field.fieldname]"
-        :link-options-path="linkOptionsPath"
-        @update:model-value="emit('update', field.fieldname, $event)"
-        @change="emit('commit', field.fieldname, $event, field.label)"
-      />
-    </SettingsRow>
+    <template v-for="(field, index) in groupFields(group)" :key="field.fieldname">
+      <div
+        v-if="stacked && field.fieldtype !== 'Check'"
+        class="space-y-1.5 py-3.5"
+        :class="index === 0 && hasHeading(group) ? '!border-t-0' : undefined"
+      >
+        <FormLabel :label="field.label" :required="Boolean(field.required)" size="md" />
+        <SettingsFieldControl
+          class="!w-full"
+          :field="field"
+          :model-value="values[field.fieldname]"
+          :link-options-path="linkOptionsPath"
+          @update:model-value="emit('update', field.fieldname, $event)"
+          @change="emit('commit', field.fieldname, $event, field.label)"
+        />
+        <p v-if="hint(field)" class="text-p-sm text-ink-gray-5">{{ hint(field) }}</p>
+      </div>
+      <SettingsRow
+        v-else
+        :class="index === 0 && hasHeading(group) ? '!border-t-0' : undefined"
+        :title="field.required ? `${field.label} *` : field.label"
+        :description="hint(field)"
+      >
+        <SettingsFieldControl
+          :field="field"
+          :model-value="values[field.fieldname]"
+          :link-options-path="linkOptionsPath"
+          @update:model-value="emit('update', field.fieldname, $event)"
+          @change="emit('commit', field.fieldname, $event, field.label)"
+        />
+      </SettingsRow>
+    </template>
   </template>
 </template>
