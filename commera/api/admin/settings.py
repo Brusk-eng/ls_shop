@@ -48,7 +48,7 @@ PAYMENT_FIELDS = (
 	"charge_account_head",
 )
 
-GUEST_FIELDS = ("allow_guest_checkout", "guest_order_link_days")
+CHECKOUT_FIELDS = ("allow_guest_checkout", "guest_order_link_days")
 
 EMAIL_TEMPLATE_FIELDS = (
 	"order_confirmation_email_template",
@@ -73,7 +73,7 @@ FOOTER_FIELDS = (
 # the allowlist that stops a save from writing any other field.
 SETTINGS_TAB_FIELDS = {
 	"payments": PAYMENT_FIELDS,
-	"guest": GUEST_FIELDS,
+	"checkout": CHECKOUT_FIELDS,
 	"emails": EMAIL_TEMPLATE_FIELDS,
 }
 

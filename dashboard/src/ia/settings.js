@@ -1,3 +1,5 @@
+import { pluginSettingsTabs } from './plugins'
+
 // Derived from the URL in ia/settingsRoute; re-exported because this is still the door the
 // rest of the app knocks on.
 export { openSettings, settings } from './settingsRoute'
@@ -42,10 +44,10 @@ export const SETTINGS_TABS = [
     keywords: ['pickup', 'warehouse', 'collect', 'store pickup', 'branch', 'address'],
   },
   {
-    value: 'guest',
-    label: 'Guest',
-    icon: 'lucide-user-round-check',
-    keywords: ['guest', 'guest checkout', 'order link', 'track order', 'without account'],
+    value: 'checkout',
+    label: 'Checkout',
+    icon: 'lucide-shopping-cart',
+    keywords: ['checkout', 'guest', 'guest checkout', 'order link', 'track order', 'without account'],
   },
   {
     value: 'apps',
@@ -54,9 +56,17 @@ export const SETTINGS_TABS = [
     keywords: ['ga4', 'google analytics', 'pixel', 'tracking', 'meta', 'apps', 'integrations'],
   },
   {
+    value: 'plugins',
+    label: 'Plugins',
+    icon: 'lucide-blocks',
+    keywords: ['plugins', 'apps', 'installed', 'deliveries', 'webhooks', 'failed', 'retry'],
+  },
+  {
     value: 'advanced',
     label: 'Advanced',
     icon: 'lucide-sliders-horizontal',
     keywords: ['developer', 'api', 'reset', 'danger', 'cache', 'debug'],
   },
+  // Each installed plugin's own tab, appended so the search palette finds them as well.
+  ...pluginSettingsTabs(),
 ]
