@@ -6,8 +6,9 @@
  * and the advanced tab all render server-described fields, so a docfield's label, description,
  * required flag and "this secret is already stored" wording reach all three the same way.
  */
-import { FormLabel, SettingsRow } from 'frappe-ui'
+import { SettingsRow } from 'frappe-ui'
 import SettingsFieldControl from './SettingsFieldControl.vue'
+import StackedSettingsRow from './StackedSettingsRow.vue'
 import IntegrationLogo from '../integrations/IntegrationLogo.vue'
 
 const props = defineProps({
@@ -54,6 +55,10 @@ function hint(field) {
   return plainText(field.description)
 }
 
+function isStacked(field) {
+  return props.stacked && field.fieldtype !== 'Check'
+}
+
 // A heading and the first field under it read as one block, so the parent's divide-y rule is
 // dropped between them. The rules that remain separate one field from the next, which is what
 // they are for — a rule directly under a heading only fences it off from what it heads.
@@ -83,37 +88,23 @@ function hasHeading(group) {
       </div>
     </div>
     <p v-else-if="group.label" class="pt-5 text-sm text-ink-gray-5 !border-t-0">{{ group.label }}</p>
-    <template v-for="(field, index) in groupFields(group)" :key="field.fieldname">
-      <div
-        v-if="stacked && field.fieldtype !== 'Check'"
-        class="space-y-1.5 py-3.5"
-        :class="index === 0 && hasHeading(group) ? '!border-t-0' : undefined"
-      >
-        <FormLabel :label="field.label" :required="Boolean(field.required)" size="md" />
-        <SettingsFieldControl
-          class="!w-full"
-          :field="field"
-          :model-value="values[field.fieldname]"
-          :link-options-path="linkOptionsPath"
-          @update:model-value="emit('update', field.fieldname, $event)"
-          @change="emit('commit', field.fieldname, $event, field.label)"
-        />
-        <p v-if="hint(field)" class="text-p-sm text-ink-gray-5">{{ hint(field) }}</p>
-      </div>
-      <SettingsRow
-        v-else
-        :class="index === 0 && hasHeading(group) ? '!border-t-0' : undefined"
-        :title="field.required ? `${field.label} *` : field.label"
-        :description="hint(field)"
-      >
-        <SettingsFieldControl
-          :field="field"
-          :model-value="values[field.fieldname]"
-          :link-options-path="linkOptionsPath"
-          @update:model-value="emit('update', field.fieldname, $event)"
-          @change="emit('commit', field.fieldname, $event, field.label)"
-        />
-      </SettingsRow>
-    </template>
+    <component
+      :is="isStacked(field) ? StackedSettingsRow : SettingsRow"
+      v-for="(field, index) in groupFields(group)"
+      :key="field.fieldname"
+      :class="index === 0 && hasHeading(group) ? '!border-t-0' : undefined"
+      :title="isStacked(field) || !field.required ? field.label : `${field.label} *`"
+      :description="hint(field)"
+      :required="isStacked(field) ? Boolean(field.required) : undefined"
+    >
+      <SettingsFieldControl
+        :class="isStacked(field) ? '!w-full' : undefined"
+        :field="field"
+        :model-value="values[field.fieldname]"
+        :link-options-path="linkOptionsPath"
+        @update:model-value="emit('update', field.fieldname, $event)"
+        @change="emit('commit', field.fieldname, $event, field.label)"
+      />
+    </component>
   </template>
 </template>

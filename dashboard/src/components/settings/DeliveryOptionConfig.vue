@@ -1,8 +1,9 @@
 <script setup>
 import { computed, reactive, ref, useId } from 'vue'
-import { Button, FormControl, FormLabel, SettingsBody, toast } from 'frappe-ui'
+import { Button, FormControl, SettingsBody, toast } from 'frappe-ui'
 import SettingsConfigHeader from './SettingsConfigHeader.vue'
 import SettingsFieldRows from './SettingsFieldRows.vue'
+import StackedSettingsRow from './StackedSettingsRow.vue'
 
 const props = defineProps({
   // Null while creating; the row being edited otherwise.
@@ -92,13 +93,13 @@ async function save() {
   <SettingsBody v-scroll-fade>
     <form :id="formId" @submit.prevent="save">
       <div class="divide-y divide-outline-gray-1">
-        <div v-if="isEdit" class="space-y-1.5 py-3.5">
-          <FormLabel label="Name at checkout" size="md" />
+        <StackedSettingsRow
+          v-if="isEdit"
+          title="Name at checkout"
+          description="Orders are stored against this name, so it cannot be changed."
+        >
           <p class="text-base text-ink-gray-8">{{ option.title }}</p>
-          <p class="text-p-sm text-ink-gray-5">
-            Orders are stored against this name, so it cannot be changed.
-          </p>
-        </div>
+        </StackedSettingsRow>
 
         <div v-else class="py-3.5">
           <FormControl
