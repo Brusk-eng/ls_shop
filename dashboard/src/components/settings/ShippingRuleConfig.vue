@@ -99,8 +99,7 @@ function editRow(row) {
 function addRow() {
   if (draft.value) return
   const highestTo = Math.max(0, ...rows.value.map((row) => row.to_value))
-  // ERPNext's convention: a band starts one unit past the previous To, which is inclusive.
-  const row = toRow({ from_value: highestTo ? highestTo + 1 : 0 })
+  const row = toRow({ from_value: highestTo })
   rows.value.push(row)
   draft.value = toDraft(row)
   draftIsNew.value = true
@@ -204,7 +203,6 @@ function buildPayload(rowsToSave) {
       free_shipping: row.free_shipping ? 1 : 0,
       shipping_service: row.shipping_service || '',
     })),
-    use_at_checkout: useAtCheckout.value ? 1 : 0,
     // The server refuses a label on an edit: it is the rule's name.
     ...(isEdit.value ? {} : { label: label.value.trim() }),
   }
@@ -214,7 +212,10 @@ async function save() {
   saving.value = true
   serverError.value = ''
   try {
-    const { data, error } = await props.submit(buildPayload(rows.value))
+    const { data, error } = await props.submit({
+      ...buildPayload(rows.value),
+      use_at_checkout: useAtCheckout.value ? 1 : 0,
+    })
     if (!data) {
       serverError.value = errorMessage(error)
       return
