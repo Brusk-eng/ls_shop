@@ -8,12 +8,15 @@
  */
 import { SettingsRow } from 'frappe-ui'
 import SettingsFieldControl from './SettingsFieldControl.vue'
+import StackedSettingsRow from './StackedSettingsRow.vue'
 import IntegrationLogo from '../integrations/IntegrationLogo.vue'
 
 const props = defineProps({
   groups: { type: Array, required: true },
   values: { type: Object, required: true },
   linkOptionsPath: { type: String, default: '' },
+  // For an editor panel: the label, a full-width input, then the help under it. Switches stay inline.
+  stacked: { type: Boolean, default: false },
 })
 
 // `update` is every edit; `commit` is the value settled, for a screen that saves each field
@@ -52,6 +55,10 @@ function hint(field) {
   return plainText(field.description)
 }
 
+function isStacked(field) {
+  return props.stacked && field.fieldtype !== 'Check'
+}
+
 // A heading and the first field under it read as one block, so the parent's divide-y rule is
 // dropped between them. The rules that remain separate one field from the next, which is what
 // they are for — a rule directly under a heading only fences it off from what it heads.
@@ -81,20 +88,23 @@ function hasHeading(group) {
       </div>
     </div>
     <p v-else-if="group.label" class="pt-5 text-sm text-ink-gray-5 !border-t-0">{{ group.label }}</p>
-    <SettingsRow
+    <component
+      :is="isStacked(field) ? StackedSettingsRow : SettingsRow"
       v-for="(field, index) in groupFields(group)"
       :key="field.fieldname"
       :class="index === 0 && hasHeading(group) ? '!border-t-0' : undefined"
-      :title="field.required ? `${field.label} *` : field.label"
+      :title="isStacked(field) || !field.required ? field.label : `${field.label} *`"
       :description="hint(field)"
+      :required="isStacked(field) ? Boolean(field.required) : undefined"
     >
       <SettingsFieldControl
+        :class="isStacked(field) ? '!w-full' : undefined"
         :field="field"
         :model-value="values[field.fieldname]"
         :link-options-path="linkOptionsPath"
         @update:model-value="emit('update', field.fieldname, $event)"
         @change="emit('commit', field.fieldname, $event, field.label)"
       />
-    </SettingsRow>
+    </component>
   </template>
 </template>
