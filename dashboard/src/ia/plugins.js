@@ -1,6 +1,8 @@
 import { h } from 'vue'
 import AppIcon from '../components/AppIcon.vue'
 import { bootValue } from '../data/boot'
+import { runSidebarAction } from '../plugin-api/sidebar'
+import { openSettings } from './settingsRoute'
 
 // commera/www/commera.py has already filtered these for the session user, so the client only places them.
 const plugins = bootValue('plugins', {}) ?? {}
@@ -74,24 +76,27 @@ export function firstPageRoute(app) {
   return first ? pageRoute(first) : null
 }
 
-function pageNavItem(entry) {
-  return { label: entry.label, icon: pluginIcon(entry), to: pageRoute(entry) }
+function navItem(entry) {
+  return entry.place === 'sidebar'
+    ? { label: entry.label, icon: pluginIcon(entry), onClick: () => runSidebarAction(entry) }
+    : { label: entry.label, icon: pluginIcon(entry), to: pageRoute(entry) }
 }
 
-// One row per app: its only page, or a disclosure over its pages shaped like the Analytics row.
+// One row per app: its only page or action, or a disclosure over its pages and then its actions,
+// shaped like the Analytics row.
 export function pluginNavItems() {
-  const shown = placeEntries('pages').filter((entry) => entry.sidebar !== false)
+  const rows = [...placeEntries('pages').filter((entry) => entry.sidebar !== false), ...placeEntries('sidebar')]
   const byApp = new Map()
-  for (const entry of shown) byApp.set(entry.app, [...(byApp.get(entry.app) ?? []), entry])
+  for (const entry of rows) byApp.set(entry.app, [...(byApp.get(entry.app) ?? []), entry])
   return [...byApp.entries()]
-    .map(([app, pages]) =>
-      pages.length === 1
-        ? { ...pageNavItem(pages[0]), icon: appIcon(app) }
+    .map(([app, appRows]) =>
+      appRows.length === 1
+        ? { ...navItem(appRows[0]), icon: appIcon(app) }
         : {
             label: appTitle(app),
             icon: appIcon(app),
             to: `/plugins/${app}`,
-            children: pages.map(pageNavItem),
+            children: appRows.map(navItem),
           },
     )
     .sort((left, right) => left.label.localeCompare(right.label))
@@ -99,6 +104,11 @@ export function pluginNavItems() {
 
 export function settingsTabValue(app) {
   return `plugin-${app}`
+}
+
+// No tab opens the plugin's own Settings tab; a Commera tab name such as 'payments' opens that one.
+export function openPluginSettings(app, tab) {
+  openSettings(tab ?? settingsTabValue(app))
 }
 
 export function pluginSettingsTabs() {
@@ -139,6 +149,7 @@ export function pluginCommands() {
 
 const PLACE_LABELS = {
   pages: 'Page',
+  sidebar: 'Sidebar action',
   'order/cards': 'Order card',
   'product/cards': 'Product card',
   'customer/cards': 'Customer card',

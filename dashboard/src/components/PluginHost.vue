@@ -4,7 +4,7 @@ import { useRouter } from 'vue-router'
 import { toast } from 'frappe-ui'
 import { __, PLUGIN_CONTEXT } from '../plugin-api/context'
 import EmptyState from './EmptyState.vue'
-import { appLocation } from '../ia/plugins'
+import { appLocation, openPluginSettings } from '../ia/plugins'
 
 const props = defineProps({
   entry: { type: Object, required: true },
@@ -40,6 +40,7 @@ provide(PLUGIN_CONTEXT, {
   record: toRef(props, 'record'),
   reload: () => emit('reload'),
   navigate,
+  openSettings: (tab) => openPluginSettings(props.entry.app, tab),
   toast,
   __,
 })
