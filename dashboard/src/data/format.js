@@ -88,6 +88,11 @@ const LABELS = {
   draft: 'Draft',
   archived: 'Archived',
   published: 'Published',
+  sent: 'Sent',
+  queued: 'Queued',
+  sending: 'Sending',
+  retrying: 'Retrying',
+  failed: 'Failed',
 }
 
 export const label = (key) => LABELS[key] ?? key
@@ -99,6 +104,7 @@ const THEMES = {
   fulfilled: 'green',
   active: 'green',
   published: 'green',
+  sent: 'green',
   pending: 'orange',
   partial: 'orange',
   partially_refunded: 'orange',
@@ -109,6 +115,7 @@ const THEMES = {
   shipped: 'blue',
   unfulfilled: 'red',
   cancelled: 'red',
+  failed: 'red',
   refunded: 'gray',
   draft: 'gray',
   archived: 'gray',
