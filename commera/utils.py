@@ -359,7 +359,8 @@ def get_currency_symbol():
 	# Riyal has no glyph in the fonts the themes ship, so SAR alone borrows the icon font.
 	if currency == "SAR":
 		return '<span class="saudi-currency-symbol pe-0.5"></span>'
-	return frappe.get_cached_value("Currency", currency, "symbol")
+	# A code needs a gap before the amount; a plain space collapses inside the flex price wrappers.
+	return frappe.get_cached_value("Currency", currency, "symbol") or f"{currency}\u00a0"
 
 
 def get_addresses(party=None, address_type="Billing"):
