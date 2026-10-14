@@ -19,7 +19,7 @@
   },
   "devDependencies": {
     "@iconify/json": "^2.2.541",
-    "@vitejs/plugin-vue": "^5.2.1",
+    "@vitejs/plugin-vue": "^6.0.10",
     "autoprefixer": "^10.6.1",
     "lucide-static": "^0.469.0",
     "postcss": "^8.5.29",
