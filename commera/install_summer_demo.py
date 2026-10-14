@@ -319,7 +319,7 @@ def apply_store_copy(profile):
 	settings.cod_charge = profile["cod_charge"]
 	settings.cod_charge_applicable_below = profile["cod_charge_applicable_below"]
 	settings.ecommerce_warehouse = ensure_warehouse_exists()
-	# Without this, set_cod_charges throws "Please select a valid account for cod charges".
+	# Without this, set_cod_charges throws "Set a Charge Account Head in Commera Settings...".
 	settings.charge_account_head = ensure_cod_charge_account()
 
 	if profile.get("contact_phone"):
