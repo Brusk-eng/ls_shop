@@ -26,7 +26,7 @@ class TestCurrencySymbol(IntegrationTestCase):
 
 	def test_currency_without_symbol_falls_back_to_its_code(self):
 		self.set_store_currency("XTS", None)
-		self.assertEqual(get_currency_symbol(), "XTS")
+		self.assertEqual(get_currency_symbol(), "XTS\u00a0")
 
 	def test_currency_with_symbol_returns_the_symbol(self):
 		self.set_store_currency("XTS", "¤")
