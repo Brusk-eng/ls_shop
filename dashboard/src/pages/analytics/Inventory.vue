@@ -151,7 +151,7 @@ const noCoverState = {
               <ListCell>
                 <Badge
                   :label="item.last_sold_days != null ? `${item.last_sold_days} days ago` : 'Never sold'"
-                  theme="orange"
+                  theme="amber"
                   variant="subtle"
                 />
               </ListCell>

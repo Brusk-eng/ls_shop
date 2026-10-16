@@ -55,7 +55,7 @@ async function copyWebhookUrl() {
           <Badge
             v-if="card.missing?.length"
             :label="`${card.missing.length} still needed`"
-            theme="orange"
+            theme="amber"
             variant="subtle"
           />
           <Switch v-model="enabled" size="sm" />

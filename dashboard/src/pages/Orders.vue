@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
-import { Button, TabButtons, TextInput, toast } from 'frappe-ui'
+import { Button, TabButtons, toast } from 'frappe-ui'
 import { List, ListCell, ListHeader, ListHeaderCell, ListHeaderCellSort, ListRow, ListRows } from 'frappe-ui/list'
 import AppPageHeader from '../components/AppPageHeader.vue'
 import PageBody from '../components/PageBody.vue'
@@ -9,6 +9,7 @@ import StatusBadge from '../components/StatusBadge.vue'
 import EmptyState from '../components/EmptyState.vue'
 import ListSkeleton from '../components/ListSkeleton.vue'
 import BulkBar from '../components/BulkBar.vue'
+import SearchInput from '../components/SearchInput.vue'
 import { useAdminRead, useAdminAction } from '../data/api'
 import { printUrl } from '../data/erpnext'
 import { money, shortDate } from '../data/format'
@@ -143,11 +144,10 @@ function printDeliveryNotes() {
   <PageBody>
     <div class="flex flex-wrap items-center gap-2">
       <TabButtons v-model="tab" size="sm" :options="TABS" />
-      <TextInput
+      <SearchInput
         v-model="query"
         class="ml-auto w-56"
         placeholder="Search orders"
-        icon-left="lucide-search"
       />
       <Button
         :label="selecting ? 'Cancel selection' : 'Select'"

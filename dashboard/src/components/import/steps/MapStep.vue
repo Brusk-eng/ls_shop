@@ -11,7 +11,7 @@ const missing = computed(() => REQUIRED_FIELDS.filter((f) => !Object.values(imp.
 
 const labelFor = (v) => TARGET_FIELDS.find((f) => f.value === v)?.label ?? ''
 
-const confidenceTheme = { high: 'green', medium: 'orange', low: 'gray', none: 'gray' }
+const confidenceTheme = { high: 'green', medium: 'amber', low: 'gray', none: 'gray' }
 const confidenceLabel = { high: 'Sure', medium: 'Likely', low: 'Guess', none: 'No match' }
 
 async function recheck() {
