@@ -131,7 +131,7 @@ function clear() {
     />
     <CoachTip
       v-else-if="imp.parsed && imp.counts.errors"
-      theme="orange"
+      theme="amber"
       icon="lucide-triangle-alert"
       title="A few rows look odd"
       text="That is fine. We show you exactly which ones before anything is saved."

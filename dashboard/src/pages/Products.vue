@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
-import { Button, Select, TabButtons, TextInput, toast } from 'frappe-ui'
+import { Button, Select, TabButtons, toast } from 'frappe-ui'
 import { List, ListCell, ListHeader, ListHeaderCell, ListHeaderCellSort, ListRow, ListRows } from 'frappe-ui/list'
 import AppPageHeader from '../components/AppPageHeader.vue'
 import PageBody from '../components/PageBody.vue'
@@ -11,6 +11,7 @@ import Thumb from '../components/Thumb.vue'
 import EmptyState from '../components/EmptyState.vue'
 import ListSkeleton from '../components/ListSkeleton.vue'
 import BulkBar from '../components/BulkBar.vue'
+import SearchInput from '../components/SearchInput.vue'
 import { useAdminRead, useAdminAction } from '../data/api'
 import { pickCollectionFor, useCollections } from '../data/collections'
 import { priceRange, shortDate, stockTone } from '../data/format'
@@ -150,11 +151,10 @@ function moveToCollection() {
     <div class="flex flex-wrap items-center gap-2">
       <TabButtons v-model="status" size="sm" :options="STATUS_TABS" />
       <Select v-model="collection" :options="collectionFilterOptions" />
-      <TextInput
+      <SearchInput
         v-model="query"
         class="ml-auto w-56"
         placeholder="Search products"
-        icon-left="lucide-search"
       />
       <Button
         :label="selecting ? 'Cancel selection' : 'Select'"

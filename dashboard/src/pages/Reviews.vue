@@ -1,12 +1,13 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
-import { Avatar, Rating, Switch, TabButtons, TextInput, toast } from 'frappe-ui'
+import { Avatar, Rating, Switch, TabButtons, toast } from 'frappe-ui'
 import { List, ListCell, ListHeader, ListHeaderCell, ListRow, ListRows } from 'frappe-ui/list'
 import AppPageHeader from '../components/AppPageHeader.vue'
 import PageBody from '../components/PageBody.vue'
 import ListPagination from '../components/ListPagination.vue'
 import ListSkeleton from '../components/ListSkeleton.vue'
 import EmptyState from '../components/EmptyState.vue'
+import SearchInput from '../components/SearchInput.vue'
 import { useAdminAction, useAdminRead } from '../data/api'
 import { errorMessage } from '../data/errors'
 import { shortDate } from '../data/format'
@@ -74,11 +75,10 @@ async function togglePublished(row) {
   <PageBody>
     <div class="flex flex-wrap items-center gap-2">
       <TabButtons v-model="tab" size="sm" :options="TABS" />
-      <TextInput
+      <SearchInput
         v-model="query"
         class="ml-auto w-56"
         placeholder="Search reviews"
-        icon-left="lucide-search"
       />
     </div>
 
