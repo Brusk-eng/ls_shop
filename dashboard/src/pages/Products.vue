@@ -12,7 +12,7 @@ import EmptyState from '../components/EmptyState.vue'
 import ListSkeleton from '../components/ListSkeleton.vue'
 import BulkBar from '../components/BulkBar.vue'
 import SearchInput from '../components/SearchInput.vue'
-import { useAdminRead, useAdminAction } from '../data/api'
+import { useAdminRead, useAdminAction, trySubmit } from '../data/api'
 import { pickCollectionFor, useCollections } from '../data/collections'
 import { priceRange, shortDate, stockTone } from '../data/format'
 import { ia } from '../ia/store'
@@ -117,7 +117,7 @@ async function archiveSelected() {
   if (!ids.length) return
 
   for (const id of ids) {
-    const archived = await archiveAction.submit({ item_template: id, disabled: 1 }).then(() => true, () => false)
+    const archived = await trySubmit(archiveAction, { item_template: id, disabled: 1 })
     // A failure already toasted inside useAdminAction — stop rather than archive the rest silently.
     if (!archived) return
   }
