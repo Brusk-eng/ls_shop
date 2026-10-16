@@ -69,6 +69,20 @@ describe('ops', () => {
     assert.deepEqual(realProblems(session.problems), [], 'the customer screens reported browser problems')
   })
 
+  uiTest(session, 'list search boxes show their search icon', async () => {
+    const { page } = session
+    const missing = []
+    for (const route of ['/orders', '/products', '/customers', '/inventory', '/reviews']) {
+      await goto(page, route)
+      const shown = await page.evaluate(() => {
+        const icon = document.querySelector('input[placeholder^="Search"]')?.parentElement.querySelector('.lucide-search')
+        return Boolean(icon?.getBoundingClientRect().width)
+      })
+      if (!shown) missing.push(route)
+    }
+    assert.deepEqual(missing, [], 'search boxes without their icon')
+  })
+
   uiTest(session, 'inventory and pricing lists render their rows', async () => {
     const { page } = session
 
