@@ -6,6 +6,7 @@ from frappe.utils.data import add_days, now_datetime
 from werkzeug.test import EnvironBuilder
 from werkzeug.wrappers import Request
 
+from commera.api import server_cart
 from commera.api.payments import generate_quotation_for_cart, save_cart_quotation
 from commera.api.server_cart import (
 	apply_discount_code,
@@ -609,3 +610,27 @@ class TestServerCart(DiscountCodeTestCase):
 			{(row.item_code, row.selected) for row in get_session_cart().lines},
 			{(self.cap, 1), (self.shirt, 0)},
 		)
+
+	def test_a_negative_or_fractional_quantity_is_refused(self):
+		for qty in (-5, 0.5):
+			with self.assertRaises(frappe.ValidationError):
+				sync_server_cart([{"item_code": self.shirt, "qty": qty}])
+
+		self.assertIsNone(get_session_cart())
+
+	def test_an_unknown_item_is_refused(self):
+		with self.assertRaises(frappe.ValidationError):
+			sync_server_cart([{"item_code": f"ZZ-NO-SUCH-{frappe.generate_hash(length=6)}", "qty": 1}])
+
+	def test_the_storefront_applies_and_removes_a_code_in_any_case(self):
+		code = self.create_code(percentage=10)
+		cart_sdk.add_lines([{"item_code": self.shirt, "qty": 1}])
+
+		applied = server_cart.apply_discount_code(f" {code.lower()} ")
+		removed = server_cart.remove_discount_code(code.lower())
+
+		self.assertEqual(
+			[(state["code"], state["applied"]) for state in applied["discount_codes"]], [(code, True)]
+		)
+		self.assertEqual(applied["total"], 81)
+		self.assertEqual((removed["discount_codes"], removed["total"]), ([], SHIRT_RATE))

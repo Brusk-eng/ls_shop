@@ -148,3 +148,51 @@ class TestAdminDiscounts(DiscountCodeTestCase):
 		matches = admin_discounts.search_targets("Item", self.shirt)
 
 		self.assertEqual([match["value"] for match in matches], [self.shirt])
+
+	def test_a_code_already_in_use_is_refused_in_any_case(self):
+		self.save(code="zz-taken")
+
+		with self.assertRaises(frappe.DuplicateEntryError):
+			self.save(code="ZZ-Taken")
+
+	def test_an_end_date_before_the_start_is_refused(self):
+		with self.assertRaises(frappe.ValidationError):
+			self.save(starts_on=add_days(today(), 5), ends_on=add_days(today(), 1))
+
+	def test_a_percentage_over_100_is_refused(self):
+		with self.assertRaises(frappe.ValidationError):
+			self.save(value=150)
+
+	def test_search_finds_a_discount_by_one_of_its_generated_codes(self):
+		saved = self.save()
+		admin_discounts.create_codes(saved["name"], 2, "zz-gen-")
+		generated = frappe.get_all(
+			"Commera Discount Code", {"discount": saved["name"], "is_generated": 1}, pluck="name", limit=1
+		)[0]
+
+		found = admin_discounts.get_discounts(search=generated.lower())["discounts"]
+
+		self.assertEqual([row["name"] for row in found], [saved["name"]])
+
+	def test_a_guest_cannot_create_codes(self):
+		saved = self.save()
+		frappe.set_user("Guest")
+
+		with self.assertRaises(frappe.PermissionError):
+			admin_discounts.create_codes(saved["name"], 5, "zz-")
+
+	def test_the_test_cart_says_how_much_more_to_spend(self):
+		draft = {
+			"discount_type": "Amount Off Order",
+			"value_type": "Percentage",
+			"value": 10,
+			"minimum_requirement": "Subtotal",
+			"minimum_subtotal": 500,
+		}
+
+		result = admin_discounts.test_discount(draft, [{"item_code": self.shirt, "qty": 1}])
+
+		self.assertEqual(result["discount"], 0)
+		[reason] = result["reasons"]
+		self.assertIn("410", reason)
+		self.assertIn("more to use", reason)
