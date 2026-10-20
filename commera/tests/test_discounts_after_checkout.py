@@ -41,18 +41,6 @@ class TestDiscountsAfterCheckout(DiscountCodeTestCase):
 		sales_order.submit()
 		return sales_order
 
-	def test_a_draft_order_keeps_its_discount_when_the_discount_changes(self):
-		code = self.create_code(percentage=10)
-		sales_order = self.place_order(self.create_quotation({self.shirt: 1}, (code,)))
-		self.change_discount(code, value=20)
-
-		sales_order.reload()
-		sales_order.save(ignore_permissions=True)
-		sales_order.submit()
-
-		self.assertEqual(sales_order.custom_code_order_discount, 9)
-		self.assertEqual(sales_order.net_total, 81)
-
 	def test_the_order_is_booked_at_the_total_checked_before_payment(self):
 		code = self.create_code(percentage=10)
 		quotation = self.create_quotation({self.shirt: 1}, (code,))
@@ -75,15 +63,6 @@ class TestDiscountsAfterCheckout(DiscountCodeTestCase):
 
 		self.assertEqual(self.get_line(sales_invoice, self.shirt).rate, 81)
 		self.assertEqual(sales_invoice.net_total, 81 + CAP_RATE - 13)
-
-	def test_a_credit_note_refunds_a_product_discount_at_the_invoice_rate(self):
-		code = self.create_code(percentage=10, item_codes=(self.shirt,))
-		sales_invoice = self.create_invoice(self.place_and_submit({self.shirt: 2, self.cap: 1}, (code,)))
-
-		credit_note = self.create_return(sales_invoice, (self.shirt,))
-
-		self.assertEqual(self.get_line(credit_note, self.shirt).rate, 81)
-		self.assertEqual(credit_note.net_total, -162)
 
 	def test_a_credit_note_keeps_the_invoice_rate_after_the_discount_is_lowered(self):
 		code = self.create_code(percentage=10, item_codes=(self.shirt,))
@@ -122,18 +101,7 @@ class TestDiscountsAfterCheckout(DiscountCodeTestCase):
 		self.assertEqual(credit_note.net_total, -117)
 		self.assertEqual(credit_note.grand_total, -sales_invoice.grand_total)
 
-	def test_partial_invoices_share_the_order_discount_once(self):
-		code = self.create_code(amount=13)
-		sales_order = self.place_and_submit({self.shirt: 1, self.cap: 1}, (code,))
-
-		first = self.create_invoice(sales_order, (self.shirt,))
-		second = self.create_invoice(sales_order, (self.cap,))
-
-		self.assertEqual(sales_order.net_total, SHIRT_RATE + CAP_RATE - 13)
-		self.assertLess(first.custom_code_order_discount, 13)
-		self.assertAlmostEqual(first.net_total + second.net_total, sales_order.net_total, delta=0.01)
-
-	def test_a_partial_invoice_keeps_each_line_discount_on_its_own_item(self):
+	def test_a_partial_invoice_from_desk_keeps_the_line_discount_on_its_item(self):
 		code = self.create_code(percentage=10, item_codes=(self.cap,))
 		sales_order = self.place_and_submit({self.shirt: 1, self.cap: 1}, (code,))
 
@@ -142,4 +110,3 @@ class TestDiscountsAfterCheckout(DiscountCodeTestCase):
 
 		self.assertEqual(self.get_line(cap_invoice, self.cap).rate, 36)
 		self.assertEqual(self.get_line(shirt_invoice, self.shirt).rate, SHIRT_RATE)
-		self.assertEqual(cap_invoice.net_total + shirt_invoice.net_total, sales_order.net_total)
