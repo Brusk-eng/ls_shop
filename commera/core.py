@@ -1,4 +1,5 @@
 import os
+from contextlib import contextmanager
 
 import frappe
 import frappe.defaults
@@ -9,6 +10,32 @@ from frappe.utils import get_fullname
 from frappe.utils.nestedset import get_root_of
 
 from commera.guest import get_guest_cart_name, is_guest, validate_guest_checkout_enabled
+
+COD_PAYMENT_MODE = "COD"
+
+
+def is_cod(payment_mode: str | None) -> bool:
+	return (payment_mode or "").strip().casefold() == COD_PAYMENT_MODE.casefold()
+
+
+@contextmanager
+def system_user_session(user: str = "Administrator"):
+	"""Place the accounting documents as `user`, then hand the session back.
+
+	ERPNext's get_party_account checks frappe.has_permission directly, so no ignore_permissions reaches it.
+	"""
+	# frappe.set_user() mutates frappe.local.session in place, stamping "sid" with the username and wiping
+	# local.session.data, so restore the snapshot verbatim rather than calling it again for the shopper.
+	live_session_snapshot = frappe.local.session.copy()
+	try:
+		# Audited: the docstring above and the snapshot restore below are why this is safe.
+		frappe.set_user(user)  # nosemgrep: frappe-semgrep-rules.rules.security.frappe-setuser
+		yield
+	finally:
+		frappe.local.session.update(live_session_snapshot)
+		frappe.local.cache = {}
+		frappe.local.role_permissions = {}
+		frappe.local.user_perms = None
 
 
 def generate_otp():
@@ -113,8 +140,6 @@ def get_party(user=None):
 		if link:
 			party_doc = frappe.get_cached_doc(link.link_doctype, link.link_name)
 			if not frappe.db.exists("Portal User", {"parent": party_doc.name, "user": user}):
-				from commera.api.payments import system_user_session
-
 				party_doc.append("portal_users", {"user": user})
 				party_doc.flags.ignore_mandatory = True
 				# Customer.on_update rewrites the primary Contact, which the shopper cannot write.

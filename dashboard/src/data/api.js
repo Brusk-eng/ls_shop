@@ -15,12 +15,14 @@ import { errorMessage } from './errors'
 // unmounted screen — is not a failure the user needs to hear about. Without this,
 // every character typed into the search palette raised its own red
 // "signal is aborted without reason" toast, twenty deep.
-function wasAborted(error) {
+export function wasAborted(error) {
   return error?.name === 'AbortError' || /aborted/i.test(error?.message ?? '')
 }
 
 const METHOD_PREFIX = '/api/v2/method/'
 const ADMIN_MODULE = 'commera.api.admin.'
+
+export const methodUrl = (path) => METHOD_PREFIX + ADMIN_MODULE + path
 
 // A GET read of any whitelisted method, by its full dotted path. Used where the
 // dashboard shares an endpoint with the Desk form rather than owning an admin

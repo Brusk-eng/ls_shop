@@ -8,7 +8,11 @@ from frappe.translate import get_all_translations
 from frappe.utils import cstr
 
 from commera.search import query as search_query
-from commera.utils import get_available_stocks, get_product_list, validate_document_access
+from commera.utils import (
+	get_available_stocks,
+	get_product_list,
+	validate_document_access,
+)
 
 
 def auth_required(func):

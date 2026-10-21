@@ -337,6 +337,28 @@ def get_delivery_configuration():
 	return charge, free_condition.from_value
 
 
+def get_free_delivery(doc) -> dict:
+	"""Judged as ERPNext's Shipping Rule judges it: on base_net_total, which is after every discount."""
+	settings = frappe.get_cached_doc("Commera Settings")
+	rule = frappe.get_cached_doc("Shipping Rule", settings.shipping_rule) if settings.shipping_rule else None
+	# A band charging nothing is free too, ticked or not; bands naming a delivery option price only that option.
+	free_bands = [
+		condition
+		for condition in (rule.conditions if rule and rule.calculate_based_on == "Net Total" else [])
+		if (condition.free_shipping or not flt(condition.shipping_amount))
+		and not condition.get("shipping_service")
+	]
+	free_band = min(free_bands, key=lambda condition: flt(condition.from_value), default=None)
+	if not free_band:
+		return {"free_delivery_above": None, "free_delivery_shortfall": 0}
+	conversion_rate = flt(doc.get("conversion_rate")) or 1
+	shortfall = max(flt(free_band.from_value) - flt(doc.get("base_net_total")), 0)
+	return {
+		"free_delivery_above": flt(flt(free_band.from_value) / conversion_rate, 2),
+		"free_delivery_shortfall": flt(shortfall / conversion_rate, 2),
+	}
+
+
 # The leading space is historical and live orders carry it: strip before comparing, never remove it.
 COD_CHARGE_DESCRIPTION = " Cash on Delivery Charges"
 
@@ -356,6 +378,14 @@ def get_charge_account_head() -> str:
 			frappe._("Set a Charge Account Head in Commera Settings before adding charges to a cart.")
 		)
 	return account
+
+
+def get_rounded_or_grand_total(order) -> float:
+	"""ERPNext's `grand_total if is_rounded_total_disabled() else rounded_total`, for an order read as a row."""
+	rounding_disabled = order.get("disable_rounded_total")
+	if rounding_disabled is None:
+		rounding_disabled = frappe.db.get_single_value("Global Defaults", "disable_rounded_total")
+	return flt(order.grand_total if cint(rounding_disabled) else order.rounded_total)
 
 
 def format_theme_css():

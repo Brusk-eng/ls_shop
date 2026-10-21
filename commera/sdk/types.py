@@ -9,8 +9,14 @@ __all__ = [
 	"Charge",
 	"ChargeSummary",
 	"CheckoutSummary",
+	"Discount",
+	"DiscountAllocation",
+	"DiscountInput",
+	"NewCartLine",
 	"Order",
 	"OrderLine",
+	"PricedCart",
+	"PricedCartLine",
 	"Stage",
 ]
 
@@ -47,6 +53,8 @@ class OrderLine(TypedDict):
 	rate: float
 	amount: float
 	image: str | None
+	discount: float
+	attributes: dict[str, str]
 
 
 class Order(TypedDict):
@@ -79,6 +87,8 @@ class Order(TypedDict):
 	items: list[OrderLine]
 	tags: list[str]
 	plugin_fields: dict[str, Any]
+	discounts: list["DiscountAllocation"]
+	attributes: dict[str, str]
 
 
 class CartLine(TypedDict):
@@ -87,6 +97,8 @@ class CartLine(TypedDict):
 	qty: float
 	rate: float
 	amount: float
+	discount: float
+	attributes: dict[str, str]
 
 
 class Cart(TypedDict):
@@ -94,13 +106,108 @@ class Cart(TypedDict):
 	customer: str | None
 	currency: str
 	items: list[CartLine]
+	discounts: list["DiscountAllocation"]
+	attributes: dict[str, str]
 	total: float
 	grand_total: float
 	plugin_fields: dict[str, Any]
 
 
+class DiscountInput(TypedDict, total=False):
+	title: str
+	# "Code" or "Automatic".
+	method: str
+	# "Amount Off Products", "Amount Off Order", "Buy X Get Y" or "Free Shipping".
+	discount_type: str
+	# "Percentage" or "Fixed Amount".
+	value_type: str
+	value: float
+	maximum_discount: float
+	# {"role": "Applies To" | "Excluded" | "Buys" | "Gets", "target_type": "Item" | "Item Group" | "Brand", "target"}
+	targets: list[dict]
+	tiers: list[dict]
+	starts_on: date
+	ends_on: date | None
+
+
+class Discount(DiscountInput, total=False):
+	name: str
+	# Active, Scheduled, Expired, Used Up or Disabled.
+	status: str
+	# Product, Order or Shipping.
+	discount_class: str
+	codes: list[str]
+	times_used: int
+	discount_given: float
+	sales: float
+
+
+class DiscountAllocation(TypedDict):
+	discount: str
+	code: str | None
+	title: str
+	# Product, Order or Shipping.
+	discount_class: str
+	amount: float
+	# The cart line's idx for a product discount.
+	line: int | None
+
+
+class NewCartLine(TypedDict, total=False):
+	item_code: str
+	qty: int
+	attributes: dict[str, str]
+	# Whether the line goes to checkout; True when left out.
+	selected: bool
+
+
+class PricedCartLine(TypedDict):
+	line_id: str
+	item_code: str
+	title: str
+	qty: int
+	selected: bool
+	attributes: dict[str, str]
+	price: float
+	rate: float
+	# Per unit.
+	code_discount: float
+	# The Commera Discount on this line.
+	discount: str | None
+	amount: float
+
+
+class DiscountRow(TypedDict):
+	# The code, or the automatic discount's title; None for a discount ERPNext gave on its own.
+	label: str | None
+	amount: float
+
+
+class PricedCart(TypedDict):
+	"""Before shipping and tax."""
+
+	name: str
+	version: str
+	attributes: dict[str, str]
+	currency: str
+	# {"code", "class"}, where class is "Product" or "Order".
+	discount_codes: list[dict]
+	lines: list[PricedCartLine]
+	discounts: list[DiscountRow]
+	subtotal: float
+	order_discount: float
+	total: float
+	# The store Shipping Rule's free band, judged after every discount; None when it has none.
+	free_delivery_above: float | None
+	free_delivery_shortfall: float
+
+
 class ChargeSummary(TypedDict):
 	subtotal: float
+	# Before discount codes; see discounts.
+	items_total: float
+	discounts: list[DiscountRow]
+	shipping_discounts: list[DiscountRow]
 	shipping: float
 	cod_charge: float
 	plugin_fees: list[Charge]
@@ -108,6 +215,8 @@ class ChargeSummary(TypedDict):
 	discount_amount: float
 	rounding_adjustment: float
 	total: float
+	free_delivery_above: float | None
+	free_delivery_shortfall: float
 
 
 class CheckoutSummary(ChargeSummary):

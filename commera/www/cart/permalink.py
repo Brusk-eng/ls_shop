@@ -20,7 +20,10 @@ def get_context(context):
 	requested_quantities, notices = parse_cart_codes(frappe.form_dict.get("codes"))
 	context.lines = get_cart_lines(requested_quantities, notices)
 	context.notices = notices
-	context.next_url = get_next_url() if context.lines else f"/{frappe.local.lang}/cart"
+	context.is_merge = frappe.form_dict.get("mode") == "add"
+	context.next_url = (
+		get_next_url(frappe.form_dict.get("return_to")) if context.lines else f"/{frappe.local.lang}/cart"
+	)
 
 
 def redirect_to_language_route():
@@ -200,16 +203,34 @@ def get_variants(variant_names: list[str]) -> dict[str, dict]:
 	return variant_by_name
 
 
-def get_next_url() -> str:
+def get_next_url(return_to: str | None = None) -> str:
 	forwarded_params = [
 		(key, value)
 		for key, value in frappe.form_dict.items()
 		if key == "discount" or key.startswith(FORWARDED_PARAM_PREFIXES)
 	]
 	cart_url = f"/{frappe.local.lang}/cart"
+	destination = get_return_to_url(return_to, cart_url)
+	if destination:
+		query_string = urlencode(forwarded_params, doseq=True)
+		separator = "&" if "?" in destination else "?"
+		return f"{destination}{separator}{query_string}" if query_string else destination
 	if not is_guest():
 		forwarded_params = [("checkout", "1"), *forwarded_params]
 	elif is_guest_checkout_enabled():
 		cart_url = f"{cart_url}/checkout"
 	query_string = urlencode(forwarded_params, doseq=True)
 	return f"{cart_url}?{query_string}" if query_string else cart_url
+
+
+def get_return_to_url(return_to: str | None, cart_url: str) -> str | None:
+	return_to = cstr(return_to).strip()
+	if return_to == "cart":
+		return cart_url
+	# Browsers drop tabs and newlines, so "/\t/host" would become "//host".
+	if any(character.isspace() or not character.isprintable() for character in return_to):
+		return None
+	# Only a path on this site: "//host" and "/\host" would leave it, and a scheme would too.
+	if return_to.startswith("/") and not return_to.startswith(("//", "/\\")) and "://" not in return_to:
+		return return_to
+	return None
