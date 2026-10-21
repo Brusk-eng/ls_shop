@@ -337,6 +337,25 @@ def get_delivery_configuration():
 	return charge, free_condition.from_value
 
 
+def get_free_delivery(doc) -> dict:
+	"""Judged as ERPNext's Shipping Rule judges it: on base_net_total, which is after every discount."""
+	settings = frappe.get_cached_doc("Commera Settings")
+	rule = frappe.get_cached_doc("Shipping Rule", settings.shipping_rule) if settings.shipping_rule else None
+	free_band = (
+		next((condition for condition in rule.conditions if condition.free_shipping), None)
+		if rule and rule.calculate_based_on == "Net Total"
+		else None
+	)
+	if not free_band:
+		return {"free_delivery_above": None, "free_delivery_shortfall": 0}
+	conversion_rate = flt(doc.get("conversion_rate")) or 1
+	shortfall = max(flt(free_band.from_value) - flt(doc.get("base_net_total")), 0)
+	return {
+		"free_delivery_above": flt(flt(free_band.from_value) / conversion_rate, 2),
+		"free_delivery_shortfall": flt(shortfall / conversion_rate, 2),
+	}
+
+
 # The leading space is historical and live orders carry it: strip before comparing, never remove it.
 COD_CHARGE_DESCRIPTION = " Cash on Delivery Charges"
 

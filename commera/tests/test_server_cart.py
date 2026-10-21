@@ -14,7 +14,7 @@ from commera.api.server_cart import (
 	remove_discount_code,
 	sync_server_cart,
 )
-from commera.api.shipping import apply_delivery_option
+from commera.api.shipping import apply_delivery_option, get_checkout_summary
 from commera.commera_ecommerce.doctype.commera_cart.commera_cart import (
 	ABANDONED_GUEST_CART_DAYS,
 	MAX_LINE_QUANTITY,
@@ -28,6 +28,7 @@ from commera.discounts.codes import generate_codes, get_code_discount
 from commera.discounts.shipping import apply_shipping_discounts
 from commera.guest import GUEST_CART_COOKIE
 from commera.sdk import cart as cart_sdk
+from commera.tests.test_delivery_option_charges import make_store_rule, set_store_rule
 from commera.tests.test_discount_codes import CAP_RATE, SHIRT_RATE, DiscountCodeTestCase
 from commera.www.cart.checkout import refresh_cart_quotation
 
@@ -339,6 +340,30 @@ class TestServerCart(DiscountCodeTestCase):
 		quotation = _get_cart_quotation()
 		self.assertEqual((quotation.custom_delivery_charge, quotation.custom_shipping_discount), (60, 0))
 		self.assertFalse(quotation.custom_shipping_discount_id)
+
+	def test_free_delivery_is_judged_after_discounts_in_cart_and_checkout(self):
+		self.addCleanup(set_store_rule, frappe.db.get_single_value("Commera Settings", "shipping_rule"))
+		frappe.set_user("Administrator")
+		make_store_rule(
+			[
+				{"from_value": 0, "to_value": 100, "shipping_amount": 50},
+				{"from_value": 100, "to_value": 0, "shipping_amount": 0, "free_shipping": 1},
+			]
+		)
+		code = self.create_code(amount=40)
+		frappe.set_user(self.shopper)
+		cart_sdk.add_lines([{"item_code": self.shirt, "qty": 1}, {"item_code": self.cap, "qty": 1}])
+		self.assertEqual(cart_sdk.get_priced_cart()["free_delivery_shortfall"], 0)
+
+		priced = cart_sdk.add_discount_code(code)
+		generate_quotation_for_cart(
+			{"items": [self.browser_line(self.shirt, 1), self.browser_line(self.cap, 1)]}
+		)
+		summary = get_checkout_summary(_get_cart_quotation())
+
+		self.assertEqual((priced["free_delivery_above"], priced["free_delivery_shortfall"]), (100, 10))
+		self.assertEqual((summary["free_delivery_above"], summary["free_delivery_shortfall"]), (100, 10))
+		self.assertEqual(summary["shipping"], 50)
 
 	def test_a_code_that_does_not_apply_yet_says_why(self):
 		code = self.create_code(percentage=10, minimum_requirement="Subtotal", minimum_subtotal=500)

@@ -26,6 +26,7 @@ from commera.utils import (
 	get_country_list,
 	get_delivery_configuration,
 	get_directions_url,
+	get_free_delivery,
 	get_pickup_addresses,
 	get_pickup_warehouses,
 )
@@ -103,6 +104,7 @@ def set_guest_cart_context(context):
 	context.cart_quotation = None
 	context.cart_payable_total = 0
 	context.checkout_summary = {}
+	context.free_delivery_above, context.free_delivery_shortfall = None, 0
 	context.coupon_code = ""
 	context.discount_code_states = []
 	context.items = []
@@ -118,6 +120,7 @@ def set_cart_context(context, commera_settings):
 	context.cart_quotation = cart_quotation
 	context.cart_payable_total = get_charge_amount(cart_quotation)
 	context.checkout_summary = get_checkout_summary(cart_quotation)
+	context.update(get_free_delivery(cart_quotation))
 	context.coupon_code = get_coupon_code(cart_quotation)
 	context.discount_code_states = get_code_states(cart_quotation)
 	items = get_checkout_items(cart_quotation)

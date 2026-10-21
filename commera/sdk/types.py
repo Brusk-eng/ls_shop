@@ -172,7 +172,8 @@ class PricedCartLine(TypedDict):
 	rate: float
 	# Per unit.
 	code_discount: float
-	discount_code: str | None
+	# The Commera Discount on this line.
+	discount: str | None
 	amount: float
 
 
@@ -196,6 +197,9 @@ class PricedCart(TypedDict):
 	subtotal: float
 	order_discount: float
 	total: float
+	# The store Shipping Rule's free band, judged after every discount; None when it has none.
+	free_delivery_above: float | None
+	free_delivery_shortfall: float
 
 
 class ChargeSummary(TypedDict):
@@ -211,6 +215,8 @@ class ChargeSummary(TypedDict):
 	discount_amount: float
 	rounding_adjustment: float
 	total: float
+	free_delivery_above: float | None
+	free_delivery_shortfall: float
 
 
 class CheckoutSummary(ChargeSummary):

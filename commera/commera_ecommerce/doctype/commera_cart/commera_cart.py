@@ -21,7 +21,7 @@ from commera.discounts.selection import (
 )
 from commera.guest import clear_guest_cart_cookie, get_guest_cart_key, is_guest, set_guest_cart_cookie
 from commera.plugin_events import fire_event, get_handlers
-from commera.utils import get_available_stocks
+from commera.utils import get_available_stocks, get_free_delivery
 
 MAX_CART_LINES = 50
 # Discount pricing slows down with every unit, so even an item that never runs out has a limit.
@@ -201,6 +201,7 @@ class CommeraCart(Document):
 			"subtotal": flt(quotation.total),
 			"order_discount": flt(quotation.custom_code_order_discount),
 			"total": flt(quotation.net_total),
+			**get_free_delivery(quotation),
 		}
 
 	def get_quotation_preview(self):

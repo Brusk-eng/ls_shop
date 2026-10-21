@@ -12,6 +12,7 @@ from commera.utils import (
 	COD_CHARGE_DESCRIPTION,
 	get_charge_account_head,
 	get_cod_configuration,
+	get_free_delivery,
 	validate_document_access,
 )
 
@@ -384,6 +385,7 @@ def get_charge_summary(quotation) -> dict:
 		"discount_amount": discount_amount,
 		"rounding_adjustment": flt(quotation.rounding_adjustment),
 		"total": get_charge_amount(quotation),
+		**get_free_delivery(quotation),
 	}
 
 
