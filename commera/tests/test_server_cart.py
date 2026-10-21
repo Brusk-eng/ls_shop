@@ -6,7 +6,7 @@ from frappe.utils.data import add_days, now_datetime
 from werkzeug.test import EnvironBuilder
 from werkzeug.wrappers import Request
 
-from commera.api.payments import generate_quotation_for_cart
+from commera.api.payments import generate_quotation_for_cart, save_cart_quotation
 from commera.api.server_cart import (
 	apply_discount_code,
 	get_priced_server_cart,
@@ -14,6 +14,7 @@ from commera.api.server_cart import (
 	remove_discount_code,
 	sync_server_cart,
 )
+from commera.api.shipping import apply_delivery_option
 from commera.commera_ecommerce.doctype.commera_cart.commera_cart import (
 	ABANDONED_GUEST_CART_DAYS,
 	MAX_LINE_QUANTITY,
@@ -24,6 +25,7 @@ from commera.commera_ecommerce.doctype.commera_cart.commera_cart import (
 )
 from commera.core import _get_cart_quotation
 from commera.discounts.codes import generate_codes, get_code_discount
+from commera.discounts.shipping import apply_shipping_discounts
 from commera.guest import GUEST_CART_COOKIE
 from commera.sdk import cart as cart_sdk
 from commera.tests.test_discount_codes import CAP_RATE, SHIRT_RATE, DiscountCodeTestCase
@@ -316,6 +318,27 @@ class TestServerCart(DiscountCodeTestCase):
 		self.assertFalse(quotation.custom_discount_codes)
 		self.assertEqual(quotation.net_total, SHIRT_RATE)
 		self.assertEqual(response["checkout_summary"]["discount_amount"], 0)
+
+	def test_a_code_change_at_checkout_reprices_the_delivery_discount(self):
+		self.set_charge_account_head()
+		frappe.set_user("Administrator")
+		frappe.db.set_value("Commera Discount", {"method": "Automatic"}, "enabled", 0)
+		free_shipping = self.create_code(discount_type="Free Shipping", shipping_percentage=100)
+		frappe.set_user(self.shopper)
+		cart_sdk.add_lines([{"item_code": self.shirt, "qty": 1}])
+		cart_sdk.add_discount_code(free_shipping)
+		generate_quotation_for_cart({"items": [self.browser_line(self.shirt, 1)]})
+		quotation = _get_cart_quotation()
+		option = {"title": "Standard", "amount": 60}
+		apply_delivery_option(quotation, apply_shipping_discounts(quotation, [option])[0])
+		save_cart_quotation(quotation)
+		self.assertEqual(_get_cart_quotation().custom_delivery_charge, 0)
+
+		remove_discount_code(free_shipping)
+
+		quotation = _get_cart_quotation()
+		self.assertEqual((quotation.custom_delivery_charge, quotation.custom_shipping_discount), (60, 0))
+		self.assertFalse(quotation.custom_shipping_discount_id)
 
 	def test_a_code_that_does_not_apply_yet_says_why(self):
 		code = self.create_code(percentage=10, minimum_requirement="Subtotal", minimum_subtotal=500)

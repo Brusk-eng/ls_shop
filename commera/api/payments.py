@@ -260,6 +260,7 @@ def drop_refused_codes(quotation):
 		return
 
 	quotation.custom_discount_codes = "\n".join(kept_codes) or None
+	reprice_shipping_discount(quotation)
 	save_cart_quotation(quotation)
 	if server_cart := get_session_cart():
 		for code in set(codes) - set(kept_codes):

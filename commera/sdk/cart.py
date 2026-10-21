@@ -3,7 +3,7 @@ from frappe import _
 from frappe.utils.data import flt
 
 from commera.api.payments import cart_write_lock, save_cart_quotation, validate_cart_is_not_in_checkout
-from commera.api.shipping import get_checkout_summary
+from commera.api.shipping import get_checkout_summary, reprice_shipping_discount
 from commera.checkout_hooks import apply_plugin_fees
 from commera.commera_ecommerce.doctype.commera_cart.commera_cart import CommeraCart, get_session_cart
 from commera.core import _get_cart_quotation
@@ -134,6 +134,8 @@ def save_discount_codes(cart: CommeraCart) -> PricedCart:
 		with cart_write_lock(quotation):
 			validate_cart_is_not_in_checkout(quotation.name)
 			quotation.custom_discount_codes = cart.discount_codes
+			# The delivery discount was chosen with the old codes.
+			reprice_shipping_discount(quotation)
 			save_cart_quotation(quotation)
 	return save_server_cart(cart)
 
