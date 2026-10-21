@@ -1,5 +1,6 @@
 import frappe
 from frappe.query_builder import DocType
+from frappe.rate_limiter import rate_limit
 from frappe.utils.data import cstr
 
 from commera.api.payments import (
@@ -102,6 +103,7 @@ def get_checkout_prefill(country_list: list[dict]) -> dict:
 def set_guest_cart_context(context):
 	# The guest's cart lives in the browser until the address step books it to the typed email.
 	context.cart_quotation = None
+	context.cart_needs_refresh = False
 	context.cart_payable_total = 0
 	context.checkout_summary = {}
 	context.free_delivery_above, context.free_delivery_shortfall = None, 0
@@ -118,6 +120,7 @@ def set_cart_context(context, commera_settings):
 		frappe.redirect(f"/{frappe.local.lang}/cart")
 	default_price_list = commera_settings.get("default_price_list")
 	context.cart_quotation = cart_quotation
+	context.cart_needs_refresh = cart_needs_refresh(cart_quotation)
 	context.cart_payable_total = get_charge_amount(cart_quotation)
 	context.checkout_summary = get_checkout_summary(cart_quotation)
 	context.update(get_free_delivery(cart_quotation))
@@ -138,28 +141,50 @@ def set_cart_context(context, commera_settings):
 
 def refresh_cart_quotation(quotation):
 	# Rebuild if ticked lines changed since the Checkout click, unless a payment is under way.
-	if quotation.is_new() or frappe.flags.read_only:
+	if quotation.is_new() or frappe.flags.read_only or not cart_needs_refresh(quotation):
 		return quotation
-	server_cart = get_session_cart()
-	if not server_cart:
+	rebuilt, redirect = rebuild_checkout_cart(quotation)
+	if redirect:
+		frappe.redirect(redirect)
+	if not rebuilt:
 		return quotation
-	quotation_lines = [row for row in quotation.items if not row.is_free_item]
-	selected_lines = server_cart.get_selected_lines()
-	if get_quantities_by_item_code(selected_lines) == get_quantities_by_item_code(quotation_lines):
-		return quotation
+	# A page GET is rolled back at the end of the request unless it asks for a commit.
+	frappe.local.flags.commit = True
+	return rebuilt
 
+
+def cart_needs_refresh(quotation) -> bool:
+	server_cart = get_session_cart()
+	if quotation.is_new() or not server_cart:
+		return False
+	quotation_lines = [row for row in quotation.items if not row.is_free_item]
+	return get_quantities_by_item_code(server_cart.get_selected_lines()) != get_quantities_by_item_code(
+		quotation_lines
+	)
+
+
+def rebuild_checkout_cart(quotation) -> tuple:
+	"""The rebuilt quotation (None when a payment is under way), or where to send a shopper with nothing ticked."""
 	with cart_write_lock(quotation):
 		try:
 			validate_cart_is_not_in_checkout(quotation.name)
 		except frappe.ValidationError:
 			frappe.clear_last_message()
-			return quotation
-		if not selected_lines:
-			frappe.redirect(f"/{frappe.local.lang}/cart")
-		quotation = get_quotation_for_cart(get_checkout_cart({}), quotation)
-	# A page GET is rolled back at the end of the request unless it asks for a commit.
-	frappe.local.flags.commit = True
-	return quotation
+			return None, None
+		if not get_session_cart().get_selected_lines():
+			return None, f"/{frappe.local.lang}/cart"
+		return get_quotation_for_cart(get_checkout_cart({}), quotation), None
+
+
+# The page calls this on load, so a page GET never has to write the cart.
+@frappe.whitelist(methods=["POST"])
+@rate_limit(limit=100, seconds=60 * 60)
+def refresh_checkout_cart() -> dict:
+	quotation = _get_cart_quotation()
+	if not cart_needs_refresh(quotation):
+		return {"refreshed": False, "redirect": None}
+	rebuilt, redirect = rebuild_checkout_cart(quotation)
+	return {"refreshed": bool(rebuilt), "redirect": redirect}
 
 
 def get_coupon_code(cart_quotation):

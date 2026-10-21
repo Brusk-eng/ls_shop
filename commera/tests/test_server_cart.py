@@ -30,7 +30,7 @@ from commera.guest import GUEST_CART_COOKIE
 from commera.sdk import cart as cart_sdk
 from commera.tests.test_delivery_option_charges import make_store_rule, set_store_rule
 from commera.tests.test_discount_codes import CAP_RATE, SHIRT_RATE, DiscountCodeTestCase
-from commera.www.cart.checkout import refresh_cart_quotation
+from commera.www.cart.checkout import cart_needs_refresh, refresh_cart_quotation, refresh_checkout_cart
 
 
 class TestServerCart(DiscountCodeTestCase):
@@ -528,6 +528,22 @@ class TestServerCart(DiscountCodeTestCase):
 			{(self.shirt, 1), (self.cap, 2)},
 		)
 		self.assertTrue(frappe.local.flags.commit)
+
+	def test_the_checkout_page_can_rebuild_the_cart_with_a_post(self):
+		sync_server_cart([{"item_code": self.shirt, "qty": 1}])
+		generate_quotation_for_cart({"items": [self.browser_line(self.shirt, 1)]})
+		self.assertEqual(refresh_checkout_cart(), {"refreshed": False, "redirect": None})
+		cart_sdk.add_lines([{"item_code": self.cap, "qty": 2}])
+		self.assertTrue(cart_needs_refresh(_get_cart_quotation()))
+
+		self.assertEqual(refresh_checkout_cart(), {"refreshed": True, "redirect": None})
+
+		self.assertEqual(
+			{(row.item_code, row.qty) for row in _get_cart_quotation().items},
+			{(self.shirt, 1), (self.cap, 2)},
+		)
+		sync_server_cart([])
+		self.assertEqual(refresh_checkout_cart()["redirect"], f"/{frappe.local.lang}/cart")
 
 	def test_an_emptied_server_cart_checks_out_nothing(self):
 		sync_server_cart([{"item_code": self.shirt, "qty": 1}])
