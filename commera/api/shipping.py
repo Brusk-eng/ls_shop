@@ -343,8 +343,7 @@ def get_charge_lines(taxes, shipping_rule: str | None) -> dict:
 
 
 def get_charge_amount(quotation) -> float:
-	# rounded_total is 0 when rounding is disabled on the document; grand_total is the billed figure then.
-	return flt(quotation.rounded_total) or flt(quotation.grand_total)
+	return flt(quotation.grand_total if quotation.is_rounded_total_disabled() else quotation.rounded_total)
 
 
 def get_checkout_summary(quotation) -> dict:

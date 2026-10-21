@@ -4,6 +4,7 @@ from frappe import _
 from frappe.utils import flt
 
 from commera.api.payments import system_user_session
+from commera.api.shipping import get_charge_amount
 from commera.plugin_events import fire_order_refunded
 from commera.utils import update_sales_order_ecommerce_status, validate_document_access
 
@@ -248,12 +249,13 @@ def get_refund_status(order_id: str | int) -> dict:
 	)
 
 	total_refunded = sum(flt(pe.paid_amount) for pe in refund_payment_entries)
+	payable_total = get_charge_amount(order)
 
-	if total_refunded >= order.rounded_total:
+	if total_refunded >= payable_total:
 		return get_refund_refusal(order, _("This order has already been refunded in full."), total_refunded)
 
 	only_charges = total_refunded >= order.net_total
-	refundable_amount = order.rounded_total - total_refunded
+	refundable_amount = payable_total - total_refunded
 
 	return {
 		"can_refund": True,

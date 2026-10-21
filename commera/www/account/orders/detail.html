@@ -162,7 +162,7 @@ x-init="{% if is_owner %}fetch_returned_items('{{ order.name }}'){% endif %}" cl
                 </span>
                 <span class="flex">
                     {{get_currency_symbol()}}
-                    {{"%.2f"|format(order.rounded_total)}}
+                    {{"%.2f"|format(order.payable_total)}}
                 </span>
             </h3>
         </div>

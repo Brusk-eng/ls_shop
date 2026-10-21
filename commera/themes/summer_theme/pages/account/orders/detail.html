@@ -263,7 +263,7 @@
 				{% endif %}
 				<div class="tracking-item-content border-top pt-2">
 					<span>{{ _("Order Total") }}</span>
-					<h6>{{ get_currency_symbol() }}{{ "%.2f" | format(order.rounded_total or 0) }}</h6>
+					<h6>{{ get_currency_symbol() }}{{ "%.2f" | format(order.payable_total) }}</h6>
 				</div>
 			</div>
 
@@ -272,7 +272,7 @@
 				<ul class="tracking-receiver">
 					<li>{{ _("Order Number") }} : <strong>{{ order.name }}</strong></li>
 					<li>{{ _("Date") }} : <strong>{{ frappe.utils.format_datetime(order.creation, "medium") }}</strong></li>
-					<li>{{ _("Total") }} : <strong>{{ get_currency_symbol() }}{{ "%.2f" | format(order.rounded_total or 0) }}</strong></li>
+					<li>{{ _("Total") }} : <strong>{{ get_currency_symbol() }}{{ "%.2f" | format(order.payable_total) }}</strong></li>
 					<li>{{ _("Status") }} : <strong>{{ _(order.custom_ecommerce_status or "Draft") }}</strong></li>
 					{% if shows_private_details %}
 					<li>{{ address_label }} : <strong>{% if address_display %}{{ address_display }}{% else %}&mdash;{% endif %}</strong></li>

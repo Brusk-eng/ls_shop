@@ -10,7 +10,7 @@ from commera.api.payments import (
 	get_quotation_for_cart,
 	validate_cart_is_not_in_checkout,
 )
-from commera.api.shipping import get_checkout_summary
+from commera.api.shipping import get_charge_amount, get_checkout_summary
 from commera.commera_ecommerce.doctype.commera_cart.commera_cart import (
 	get_code_states,
 	get_quantities_by_item_code,
@@ -101,6 +101,7 @@ def get_checkout_prefill(country_list: list[dict]) -> dict:
 def set_guest_cart_context(context):
 	# The guest's cart lives in the browser until the address step books it to the typed email.
 	context.cart_quotation = None
+	context.cart_payable_total = 0
 	context.checkout_summary = {}
 	context.coupon_code = ""
 	context.discount_code_states = []
@@ -115,6 +116,7 @@ def set_cart_context(context, commera_settings):
 		frappe.redirect(f"/{frappe.local.lang}/cart")
 	default_price_list = commera_settings.get("default_price_list")
 	context.cart_quotation = cart_quotation
+	context.cart_payable_total = get_charge_amount(cart_quotation)
 	context.checkout_summary = get_checkout_summary(cart_quotation)
 	context.coupon_code = get_coupon_code(cart_quotation)
 	context.discount_code_states = get_code_states(cart_quotation)

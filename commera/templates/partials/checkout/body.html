@@ -60,7 +60,7 @@
                     }
 
                 }
-                if (this.billing_address_filled && this.payment_mode === COD_PAYMENT_MODE && parseFloat('{{cod_charge_applicable_below or 0}}') > parseFloat('{{cart_quotation.rounded_total or 0}}')) {
+                if (this.billing_address_filled && this.payment_mode === COD_PAYMENT_MODE && parseFloat('{{cod_charge_applicable_below or 0}}') > parseFloat('{{cart_payable_total or 0}}')) {
                     this.checkout_total += parseFloat('{{cod_charge or 0}}')
                 }
 
@@ -417,7 +417,7 @@
                                     {{ _('Cash on Delivery') }}
                                 </span>
                             </div>
-                            {% if cod_charge_applicable_below > cart_quotation.rounded_total and cod_charge %}
+                            {% if cod_charge_applicable_below > cart_payable_total and cod_charge %}
                             <div class="text-red-600 rounded-lg relative mt-4">
                                 <p class="text-sm">
                                     ({{ _('Additional cash on delivery charge of')}}  {{get_currency_symbol()}}{{"%.2f"|format(cod_charge)}} {{_('will apply')}})

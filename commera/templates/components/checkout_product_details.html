@@ -57,7 +57,7 @@
                 x-transition x-cloak>
                 {{_('Free')}}</span>
         </div>
-        {% if cod_charge_applicable_below > cart_quotation.rounded_total and cod_charge %}
+        {% if cod_charge_applicable_below > cart_payable_total and cod_charge %}
         <div class="flex justify-between text-gray-500 text-base"
             x-show="billing_address_filled && payment_mode === 'cod'" x-transition x-cloak>
             <span>{{ _('COD Charges') }}</span>

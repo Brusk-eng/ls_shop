@@ -359,6 +359,14 @@ def get_charge_account_head() -> str:
 	return account
 
 
+def get_rounded_or_grand_total(order) -> float:
+	"""ERPNext's `grand_total if is_rounded_total_disabled() else rounded_total`, for an order read as a row."""
+	rounding_disabled = order.get("disable_rounded_total")
+	if rounding_disabled is None:
+		rounding_disabled = frappe.db.get_single_value("Global Defaults", "disable_rounded_total")
+	return flt(order.grand_total if cint(rounding_disabled) else order.rounded_total)
+
+
 def format_theme_css():
 	# jinja's safe globals return documents as plain dicts, so controller methods are unreachable from templates
 	return frappe.get_cached_doc("Commera Settings", "Commera Settings").generate_theme_css()
