@@ -21,6 +21,7 @@ from commera.api.payments import (
 	update_quotation_address,
 	validate_cart_is_not_in_checkout,
 )
+from commera.api.server_cart import sync_server_cart
 from commera.api.shipping import (
 	DELIVERY_CHARGE_DESCRIPTION,
 	apply_delivery_option,
@@ -383,6 +384,7 @@ class TestCartCheckout(IntegrationTestCase):
 		ensure_fiscal_year()
 		frappe.set_user(self.shopper)
 		cart_sdk.set_cart_attributes({"gift_message": "Happy birthday"})
+		sync_server_cart([{"item_code": self.discounted_item, "qty": 1}])
 		cart = get_session_cart()
 		discount = frappe.get_doc(
 			{

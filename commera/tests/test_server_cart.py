@@ -444,6 +444,16 @@ class TestServerCart(DiscountCodeTestCase):
 		)
 		self.assertTrue(frappe.local.flags.commit)
 
+	def test_an_emptied_server_cart_checks_out_nothing(self):
+		sync_server_cart([{"item_code": self.shirt, "qty": 1}])
+		generate_quotation_for_cart({"items": [self.browser_line(self.shirt, 1)]})
+		sync_server_cart([])
+
+		with self.assertRaises(frappe.ValidationError):
+			generate_quotation_for_cart({"items": [self.browser_line(self.shirt, 1)]})
+		with self.assertRaises(frappe.Redirect):
+			refresh_cart_quotation(_get_cart_quotation())
+
 	def test_opening_checkout_leaves_a_cart_in_payment_alone(self):
 		sync_server_cart([{"item_code": self.shirt, "qty": 1}])
 		quotation = generate_quotation_for_cart({"items": [self.browser_line(self.shirt, 1)]})

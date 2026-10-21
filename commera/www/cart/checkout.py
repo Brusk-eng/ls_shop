@@ -137,7 +137,7 @@ def refresh_cart_quotation(quotation):
 	if quotation.is_new() or frappe.flags.read_only:
 		return quotation
 	server_cart = get_session_cart()
-	if not server_cart or not server_cart.lines:
+	if not server_cart:
 		return quotation
 	quotation_lines = [row for row in quotation.items if not row.is_free_item]
 	selected_lines = server_cart.get_selected_lines()

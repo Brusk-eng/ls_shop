@@ -478,9 +478,9 @@ def generate_quotation_for_cart(cart: dict):
 
 
 def get_checkout_cart(cart: dict) -> dict:
-	"""The lines to check out: the server cart's ticked lines, or the browser's when the server cart is empty."""
+	"""The server cart's ticked lines; the browser's only without a server cart, or when a guest's is empty."""
 	cart = frappe.parse_json(cart) or {}
-	if (server_cart := get_session_cart()) and server_cart.lines:
+	if (server_cart := get_session_cart()) and (server_cart.lines or not is_guest()):
 		cart["items"] = [
 			{"variant": {"item_code": item_code}, "qty": qty}
 			for item_code, qty in get_quantities_by_item_code(server_cart.get_selected_lines()).items()
