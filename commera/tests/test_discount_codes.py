@@ -8,6 +8,18 @@ from erpnext.controllers.sales_and_purchase_return import make_return_doc
 from frappe.tests import IntegrationTestCase
 from frappe.utils.data import add_days, money_in_words, today
 
+# ERPNext moved its transaction mappers to a sibling `mapper` module; both layouts are in the wild.
+try:
+	from erpnext.selling.doctype.sales_order.mapper import make_delivery_note
+	from erpnext.stock.doctype.delivery_note.mapper import (
+		make_sales_invoice as make_sales_invoice_from_delivery_note,
+	)
+except ImportError:
+	from erpnext.selling.doctype.sales_order.sales_order import make_delivery_note
+	from erpnext.stock.doctype.delivery_note.delivery_note import (
+		make_sales_invoice as make_sales_invoice_from_delivery_note,
+	)
+
 from commera.api.payments import (
 	CheckoutPriceChangedError,
 	_make_sales_order,
@@ -837,6 +849,58 @@ class TestDiscountsOnOrders(DiscountCodeTestCase):
 		self.assertEqual([invoice.custom_code_order_discount for invoice in invoices], [1.98, 4.01, 4.01])
 		self.assertEqual(self.get_line(invoices[1], self.shirt).rate, 81)
 		self.assertEqual(sum(invoice.net_total for invoice in invoices), sales_order.net_total)
+
+	def test_an_invoice_with_another_orders_lines_takes_only_its_orders_share(self):
+		code = self.create_code(amount=26)
+		discounted = self.place_order(self.create_quotation({self.shirt: 1, self.cap: 1}, (code,)))
+		discounted.submit()
+		plain = self.place_order(self.create_quotation({self.cap: 1}))
+		plain.submit()
+
+		sales_invoice = make_sales_invoice(discounted.name)
+		sales_invoice.items = [self.get_line(sales_invoice, self.shirt)]
+		other_line = make_sales_invoice(plain.name).items[0]
+		sales_invoice.append("items", other_line.as_dict(no_default_fields=True))
+		sales_invoice.insert(ignore_permissions=True)
+
+		self.assertEqual(sales_invoice.custom_code_order_discount, 18)
+
+	def test_two_discounted_orders_cannot_share_an_invoice(self):
+		code = self.create_code(amount=10)
+		first = self.place_order(self.create_quotation({self.shirt: 1}, (code,)))
+		second = self.place_order(self.create_quotation({self.shirt: 1}, (code,)))
+		first.submit()
+		second.submit()
+
+		sales_invoice = make_sales_invoice(first.name)
+		sales_invoice.append(
+			"items", make_sales_invoice(second.name).items[0].as_dict(no_default_fields=True)
+		)
+
+		with self.assertRaisesRegex(frappe.ValidationError, "separate"):
+			sales_invoice.insert(ignore_permissions=True)
+
+	def test_a_delivery_note_and_its_invoice_carry_the_delivered_share(self):
+		code = self.create_code(amount=26)
+		sales_order = self.place_order(self.create_quotation({self.shirt: 1, self.cap: 1}, (code,)))
+		sales_order.submit()
+
+		delivery_note = make_delivery_note(sales_order.name)
+		delivery_note.items = [self.get_line(delivery_note, self.shirt)]
+		delivery_note.items[0].allow_zero_valuation_rate = 1
+		delivery_note.insert(ignore_permissions=True)
+		self.assertEqual(delivery_note.custom_code_order_discount, 18)
+		self.assertEqual(delivery_note.discount_amount, 18)
+		allow_negative_stock = frappe.db.get_single_value("Stock Settings", "allow_negative_stock")
+		self.addCleanup(
+			frappe.db.set_single_value, "Stock Settings", "allow_negative_stock", allow_negative_stock
+		)
+		frappe.db.set_single_value("Stock Settings", "allow_negative_stock", 1)
+		delivery_note.submit()
+
+		sales_invoice = make_sales_invoice_from_delivery_note(delivery_note.name)
+		sales_invoice.insert(ignore_permissions=True)
+		self.assertEqual((sales_invoice.custom_code_order_discount, sales_invoice.discount_amount), (18, 18))
 
 	def test_a_credit_note_keeps_the_invoice_rates_and_its_share_of_the_order_discount(self):
 		product = self.create_code(amount=9, item_codes=(self.shirt,), combines_with_order=1)

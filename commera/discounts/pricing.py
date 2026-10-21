@@ -380,9 +380,9 @@ def get_order_discount_shares(doc, order_rows: list[dict], source) -> list[float
 	if not source:
 		return [flt(row["amount"]) for row in order_rows]
 
-	source_doc, siblings = source
+	source_doc, siblings, doc_total = source
 	source_total = abs(flt(source_doc.total))
-	covered = abs(flt(doc.total)) + sum(abs(flt(sibling.total)) for sibling in siblings)
+	covered = abs(doc_total) + sum(abs(flt(sibling.total)) for sibling in siblings)
 	is_complete = covered >= source_total - 0.005
 	sign = -1 if doc.get("is_return") else 1
 	precision = doc.precision("discount_amount")
@@ -401,7 +401,7 @@ def get_order_discount_shares(doc, order_rows: list[dict], source) -> list[float
 		left = max(source_amount - used, 0)
 		share = left
 		if not is_complete and source_total:
-			share = min(left, source_amount * abs(flt(doc.total)) / source_total)
+			share = min(left, source_amount * abs(doc_total) / source_total)
 		shares.append(sign * flt(share, precision))
 	return shares
 
@@ -410,37 +410,72 @@ def get_allocation_key(row: dict) -> tuple:
 	return (row["discount_class"], row.get("discount"), row.get("code"))
 
 
+# The item field naming the order a delivery or invoice line comes from.
+ORDER_LINK_FIELDS = {"Sales Invoice": "sales_order", "Delivery Note": "against_sales_order"}
+
+
 def get_discount_source(doc):
+	"""The document this one's order discount is a share of, the earlier shares of it, and this one's part."""
 	fields = ["name", "total", "custom_code_order_discount", ALLOCATIONS_FIELD]
 	if doc.get("is_return"):
 		if not doc.return_against:
 			return None
 		filters = {"return_against": doc.return_against, "is_return": 1, "name": ["!=", doc.name or ""]}
 		source_doctype, source_name = doc.doctype, doc.return_against
-	elif doc.doctype == "Sales Invoice":
-		source_name = next((item.sales_order for item in doc.items if item.get("sales_order")), None)
+		siblings = frappe.get_all(doc.doctype, filters={**filters, "docstatus": 1}, fields=fields)
+		doc_total = flt(doc.total)
+	elif link_field := ORDER_LINK_FIELDS.get(doc.doctype):
+		source_doctype, source_name = "Sales Order", get_discounted_order(doc, link_field)
 		if not source_name:
 			return None
-		invoices = frappe.get_all(
-			"Sales Invoice Item",
-			filters={"sales_order": source_name, "docstatus": 1, "parent": ["!=", doc.name or ""]},
-			pluck="parent",
-		)
-		filters = {"name": ["in", invoices], "is_return": 0} if invoices else None
-		source_doctype = "Sales Order"
+		siblings = get_order_siblings(doc, link_field, source_name, fields)
+		doc_total = sum(flt(item.amount) for item in doc.items if item.get(link_field) == source_name)
 	else:
 		source_name = next((item.prevdoc_docname for item in doc.items if item.get("prevdoc_docname")), None)
 		if not source_name:
 			return None
-		source_doctype, filters = "Quotation", None
+		source_doctype, siblings, doc_total = "Quotation", [], flt(doc.total)
 
 	source_doc = frappe.db.get_value(source_doctype, source_name, fields, as_dict=True)
-	if not source_doc:
-		return None
-	siblings = []
-	if filters:
-		siblings = frappe.get_all(doc.doctype, filters={**filters, "docstatus": 1}, fields=fields)
-	return source_doc, siblings
+	return (source_doc, siblings, doc_total) if source_doc else None
+
+
+def get_discounted_order(doc, link_field: str) -> str | None:
+	orders = sorted({item.get(link_field) for item in doc.items if item.get(link_field)})
+	if len(orders) <= 1:
+		return orders[0] if orders else None
+	discounted = frappe.get_all(
+		"Sales Order", filters={"name": ["in", orders], "custom_code_order_discount": [">", 0]}, pluck="name"
+	)
+	if len(discounted) > 1:
+		frappe.throw(
+			_("Orders {0} each have a discount code order discount. Make a separate {1} for each.").format(
+				", ".join(sorted(discounted)), _(doc.doctype)
+			)
+		)
+	return discounted[0] if discounted else orders[0]
+
+
+def get_order_siblings(doc, link_field: str, sales_order: str, fields: list[str]) -> list:
+	# Only their lines from this order count: a combined document also carries other orders' lines.
+	item_doctype = f"{doc.doctype} Item"
+	lines = frappe.get_all(
+		item_doctype,
+		filters={link_field: sales_order, "docstatus": 1, "parenttype": doc.doctype},
+		fields=["parent", "amount"],
+	)
+	totals = {}
+	for line in lines:
+		if line.parent != doc.name:
+			totals[line.parent] = totals.get(line.parent, 0) + flt(line.amount)
+	if not totals:
+		return []
+	siblings = frappe.get_all(
+		doc.doctype, filters={"name": ["in", list(totals)], "is_return": 0}, fields=fields
+	)
+	for sibling in siblings:
+		sibling.total = totals[sibling.name]
+	return siblings
 
 
 def get_shipping_allocations(doc) -> list[dict]:
