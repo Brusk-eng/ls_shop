@@ -1,5 +1,6 @@
 
 {% extends "components/theme_layout.html" %}
+{% from "components/macros/discount_codes.html" import discount_code_chips %}
 
 {% set language = frappe.lang or "en" %}
 {% set currency_symbol = get_currency_symbol() %}
@@ -119,6 +120,9 @@
 								{{ _("Add") }} {{ currency_symbol }}<span x-text="format_amount(free_delivery_shortfall)"></span>
 								{{ _("more to get free delivery") }}
 							</span>
+						</div>
+						<div class="m-b15" x-show="$store.cart.discount_codes.length" x-cloak>
+							{{ discount_code_chips("$store.cart.discount_codes", "$store.cart.removing_code", "$store.cart.remove_discount_code") }}
 						</div>
 						<table>
 							<tbody>

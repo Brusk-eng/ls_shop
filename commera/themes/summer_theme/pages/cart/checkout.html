@@ -1,6 +1,7 @@
 
 {% extends "components/theme_layout.html" %}
 {% from "components/macros/combobox.html" import combobox, country_combobox %}
+{% from "components/macros/discount_codes.html" import discount_code_chips %}
 
 {% set language = frappe.lang or "en" %}
 {% set currency_symbol = get_currency_symbol() %}
@@ -341,21 +342,7 @@
 									{{ _("Apply") }}
 								</button>
 							</div>
-							<div class="checkout-discount-codes" x-show="discount_codes.length" x-cloak>
-								<template x-for="code_state in discount_codes" :key="code_state.code">
-									<div class="checkout-discount-code-state">
-										<span class="checkout-discount-chip">
-											<i class="fa-solid fa-tag"></i>
-											<span x-text="code_state.code"></span>
-											<button type="button" :aria-label="`{{ _('Remove') }} ${code_state.code}`"
-												:disabled="discount_code_saving" @click="remove_discount_code(code_state.code)">
-												<i class="fa-solid fa-xmark"></i>
-											</button>
-										</span>
-										<p class="checkout-discount-reason" x-show="code_state.reason" x-text="code_state.reason"></p>
-									</div>
-								</template>
-							</div>
+							{{ discount_code_chips("discount_codes", "discount_code_saving", "remove_discount_code") }}
 						</div>
 
 						<table>

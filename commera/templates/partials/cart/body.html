@@ -219,6 +219,26 @@
 					<p class="text-base font-medium flex">{{get_currency_symbol()}}<span x-text="$store.cart.total.toFixed(2)" class="me-2"></span>
 						</p>
 				</div>
+				<div class="mb-3 flex flex-wrap gap-2" x-show="$store.cart.discount_codes.length" x-cloak>
+					<template x-for="code_state in $store.cart.discount_codes" :key="code_state.code">
+						<span class="inline-flex flex-col gap-1">
+							<span class="w-fit inline-flex overflow-hidden rounded-lg border border-dashed border-gray-400 bg-white text-xs font-medium text-gray-600">
+								<span class="flex items-center gap-1 bg-gray-400/10 px-2 py-1">
+									<span x-text="code_state.code"></span>
+									<button type="button" class="flex items-center disabled:cursor-not-allowed"
+										:aria-label="`{{ _('Remove') }} ${code_state.code}`" :disabled="$store.cart.removing_code"
+										@click="$store.cart.remove_discount_code(code_state.code)">
+										<span x-show="$store.cart.removing_code !== code_state.code">{{ icon(name="close", classes="h-4 w-4 cursor-pointer") }}</span>
+										<span x-show="$store.cart.removing_code === code_state.code"
+											class="animate-spin size-3 border-3 border-current border-t-transparent rounded-full ms-2"
+											role="status" aria-label="loading"></span>
+									</button>
+								</span>
+							</span>
+							<span class="max-w-60 text-xs text-gray-500" x-show="code_state.reason" x-text="code_state.reason"></span>
+						</span>
+					</template>
+				</div>
 				<template x-for="discount in $store.cart.discounts" :key="discount.label">
 					<div class="mb-3 flex items-center justify-between">
 						<p class="text-base font-normal text-gray-400">
