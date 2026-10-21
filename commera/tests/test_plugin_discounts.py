@@ -9,8 +9,9 @@ from commera.api.payments import (
 )
 from commera.discounts.doctype.commera_discount.commera_discount import DiscountCodeError
 from commera.sdk import cart as cart_sdk
+from commera.sdk import orders as orders_sdk
 from commera.tests import test_cart_checkout
-from commera.tests.test_discount_codes import CAP_RATE, DiscountCodeTestCase
+from commera.tests.test_discount_codes import CAP_RATE, SHIRT_RATE, DiscountCodeTestCase
 from commera.tests.test_payment_hooks import patch_app_hooks
 
 
@@ -35,6 +36,14 @@ class TestDiscountEvents(DiscountCodeTestCase):
 		)
 		self.assertEqual((data["code"], data["amount"]), (code, 9))
 		self.assertEqual(data["discounts"][0]["code"], code)
+
+	def test_the_order_snapshot_lists_the_discounts_it_used(self):
+		code = self.create_code(percentage=10)
+
+		sales_order = self.place_order(self.create_quotation({self.shirt: 1}, (code,)))
+
+		[allocation] = orders_sdk.get_order(sales_order.name)["discounts"]
+		self.assertEqual((allocation["code"], allocation["amount"]), (code, 9))
 
 	def test_a_new_cart_fires_cart_created_only_when_an_app_listens(self):
 		frappe.set_user("Administrator")
@@ -90,6 +99,15 @@ class TestValidateDiscountCodeHook(DiscountCodeTestCase):
 		quotation = self.create_quotation({self.shirt: 1}, (code,))
 
 		self.assertFalse(quotation.custom_code_order_discount)
+
+	def test_a_refused_code_never_reaches_the_order(self):
+		code = self.create_code(percentage=10)
+
+		sales_order = self.place_order(self.create_quotation({self.shirt: 1}, (code,)))
+
+		self.assertFalse(sales_order.custom_code_order_discount)
+		self.assertEqual(sales_order.net_total, SHIRT_RATE)
+		self.assertFalse(frappe.db.exists("Commera Discount Use", {"sales_order": sales_order.name}))
 
 	def test_a_refused_code_cannot_be_added_and_says_why(self):
 		code = self.create_code(percentage=10)
