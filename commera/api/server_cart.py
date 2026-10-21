@@ -7,6 +7,7 @@ from commera.api.shipping import get_checkout_summary
 from commera.commera_ecommerce.doctype.commera_cart.commera_cart import (
 	MAX_CART_LINES,
 	CommeraCart,
+	get_quantities_by_item_code,
 	get_session_cart,
 )
 from commera.discounts.selection import get_discount_codes
@@ -26,16 +27,18 @@ def get_server_cart() -> dict | None:
 @frappe.whitelist(allow_guest=True, methods=["POST"])  # nosemgrep: guest-whitelisted-method
 @rate_limit_per_method(limit=600, seconds=60 * 60)
 def sync_server_cart(items: list | str, version: str | None = None) -> dict:
-	"""Copy the browser cart's quantities to the server cart. When the server cart changed after the
-	browser last saw it, nothing is written and the server cart comes back for the browser to show."""
+	"""Copy the browser cart's quantities and checkout ticks to the server cart. When the server cart changed
+	after the browser last saw it, nothing is written and the server cart comes back for the browser to show."""
 	quantities = get_browser_quantities(items)
+	selection = get_browser_selection(items)
 	cart = get_session_cart(create=bool(quantities))
 	if not cart:
 		return {"version": None}
 	if version and not cart.is_new() and version != cart.version:
 		return {"conflict": True, **get_cart_state(cart)}
 
-	if cart.set_quantities(quantities) or cart.is_new():
+	changed = cart.set_quantities(quantities)
+	if cart.set_selection(selection) or changed or cart.is_new():
 		cart.save(ignore_permissions=True)
 	return {"version": cart.version}
 
@@ -82,13 +85,23 @@ def get_browser_quantities(items: list | str) -> dict[str, int]:
 	return quantities
 
 
+def get_browser_selection(items: list | str) -> dict[str, bool]:
+	"""Whether each item goes to checkout; a browser that does not say ticks it."""
+	selection = {}
+	for entry in frappe.parse_json(items) or []:
+		item_code = cstr(entry.get("item_code")).strip()
+		selection[item_code] = selection.get(item_code, False) or bool(cint(entry.get("selected", 1)))
+	return selection
+
+
 def get_cart_state(cart: CommeraCart) -> dict:
 	"""The server cart as storefront cart lines, so the browser can replace its own copy."""
-	quantities = {}
-	for row in cart.lines:
-		quantities[row.item_code] = quantities.get(row.item_code, 0) + cint(row.qty)
+	selected_item_codes = {row.item_code for row in cart.get_selected_lines()}
+	lines = get_cart_lines(get_quantities_by_item_code(cart.lines), [])
+	for line in lines:
+		line["selected"] = line["variant"]["item_code"] in selected_item_codes
 	return {
 		"version": cart.version,
-		"lines": get_cart_lines(quantities, []),
+		"lines": lines,
 		"discount_codes": get_discount_codes(cart),
 	}

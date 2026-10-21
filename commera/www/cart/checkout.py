@@ -2,9 +2,20 @@ import frappe
 from frappe.query_builder import DocType
 from frappe.utils.data import cstr
 
-from commera.api.payments import COD_PAYMENT_MODE, get_checkout_payment_methods
+from commera.api.payments import (
+	COD_PAYMENT_MODE,
+	cart_write_lock,
+	get_checkout_cart,
+	get_checkout_payment_methods,
+	get_quotation_for_cart,
+	validate_cart_is_not_in_checkout,
+)
 from commera.api.shipping import get_checkout_summary
-from commera.commera_ecommerce.doctype.commera_cart.commera_cart import get_code_states
+from commera.commera_ecommerce.doctype.commera_cart.commera_cart import (
+	get_code_states,
+	get_quantities_by_item_code,
+	get_session_cart,
+)
 from commera.core import _get_cart_quotation
 from commera.discounts.selection import get_discount_codes
 from commera.guest import is_guest
@@ -99,7 +110,7 @@ def set_guest_cart_context(context):
 
 
 def set_cart_context(context, commera_settings):
-	cart_quotation = _get_cart_quotation()
+	cart_quotation = refresh_cart_quotation(_get_cart_quotation())
 	if not cart_quotation or not cart_quotation.items:
 		frappe.redirect(f"/{frappe.local.lang}/cart")
 	default_price_list = commera_settings.get("default_price_list")
@@ -118,6 +129,33 @@ def set_cart_context(context, commera_settings):
 	context.items = items
 	context.billing_addresses = get_addresses()
 	context.shipping_addresses = get_addresses(address_type="Shipping")
+
+
+def refresh_cart_quotation(quotation):
+	"""The Quotation was built at the Checkout click; rebuild it when the server cart's ticked lines changed
+	since, unless a payment for it is already under way."""
+	if quotation.is_new() or frappe.flags.read_only:
+		return quotation
+	server_cart = get_session_cart()
+	if not server_cart or not server_cart.lines:
+		return quotation
+	quotation_lines = [row for row in quotation.items if not row.is_free_item]
+	selected_lines = server_cart.get_selected_lines()
+	if get_quantities_by_item_code(selected_lines) == get_quantities_by_item_code(quotation_lines):
+		return quotation
+
+	with cart_write_lock(quotation):
+		try:
+			validate_cart_is_not_in_checkout(quotation.name)
+		except frappe.ValidationError:
+			frappe.clear_last_message()
+			return quotation
+		if not selected_lines:
+			frappe.redirect(f"/{frappe.local.lang}/cart")
+		quotation = get_quotation_for_cart(get_checkout_cart({}), quotation)
+	# A page GET is rolled back at the end of the request unless it asks for a commit.
+	frappe.local.flags.commit = True
+	return quotation
 
 
 def get_coupon_code(cart_quotation):

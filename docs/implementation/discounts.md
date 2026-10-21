@@ -74,7 +74,7 @@ sequenceDiagram
   S-->>B: conflict + server lines, v4 (nothing written)
 ```
 
-At sign-in, a guest's server cart becomes the account's cart, or its lines, codes and attributes join the account cart when there is one. At checkout, quantities come from the browser, so a shopper can check out only the selected lines. The server cart adds each line's attributes and the codes. A code applied or removed while checkout is open goes onto its Quotation too.
+At sign-in, a guest's server cart becomes the account's cart, or its lines, codes and attributes join the account cart when there is one. Each line also keeps whether the shopper ticked it for checkout. The priced cart and checkout use only the ticked lines, with each line's attributes and the codes. When the cart changes after the Checkout click, the checkout page builds the Quotation again, unless a payment is already under way. A code applied or removed while checkout is open goes onto its Quotation too.
 
 ## Dashboard
 

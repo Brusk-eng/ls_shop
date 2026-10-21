@@ -9,6 +9,7 @@
 			state.checkout_loading = false;
 			return;
 		}
+		await Alpine.store("cart").flush_sync();
 		frappe_call("/api/v2/method/commera.api.payments.generate_quotation_for_cart", { cart: { items: selected_items } })
 			.then((d) => {
 				window.location.href = "/{{frappe.lang}}/cart/checkout" + window.location.search

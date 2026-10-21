@@ -160,6 +160,8 @@ class NewCartLine(TypedDict, total=False):
 	item_code: str
 	qty: int
 	attributes: dict[str, str]
+	# Whether the line goes to checkout; True when left out.
+	selected: bool
 
 
 class PricedCartLine(TypedDict):
@@ -167,6 +169,8 @@ class PricedCartLine(TypedDict):
 	item_code: str
 	title: str
 	qty: int
+	# False for a line the shopper left out of checkout: priced on its own, with no discount.
+	selected: bool
 	attributes: dict[str, str]
 	price: float
 	rate: float

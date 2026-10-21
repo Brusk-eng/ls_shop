@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 import frappe
 from frappe.auth import CookieManager
 from werkzeug.test import EnvironBuilder
@@ -21,6 +23,7 @@ from commera.discounts.codes import generate_codes, get_code_discount
 from commera.guest import GUEST_CART_COOKIE
 from commera.sdk import cart as cart_sdk
 from commera.tests.test_discount_codes import CAP_RATE, SHIRT_RATE, DiscountCodeTestCase
+from commera.www.cart.checkout import refresh_cart_quotation
 
 
 class TestServerCart(DiscountCodeTestCase):
@@ -386,3 +389,99 @@ class TestServerCart(DiscountCodeTestCase):
 			[(row.item_code, row.qty, row.rate) for row in quotation.items], [(self.cap, 2, CAP_RATE)]
 		)
 		self.assertFalse(quotation.custom_discount_codes)
+
+	def test_the_checkout_ticks_are_kept_on_the_server_cart(self):
+		sync_server_cart([{"item_code": self.shirt, "qty": 1}, {"item_code": self.cap, "qty": 2}])
+		version = get_server_cart()["version"]
+
+		response = sync_server_cart(
+			[{"item_code": self.shirt, "qty": 1, "selected": False}, {"item_code": self.cap, "qty": 2}],
+			version,
+		)
+
+		self.assertNotEqual(response["version"], version)
+		self.assertEqual(
+			{line["item_code"]: line["selected"] for line in cart_sdk.get_priced_cart()["lines"]},
+			{self.shirt: False, self.cap: True},
+		)
+
+	def test_the_priced_cart_discounts_only_the_ticked_lines(self):
+		code = self.create_code(percentage=10)
+		sync_server_cart(
+			[{"item_code": self.shirt, "qty": 2}, {"item_code": self.cap, "qty": 1, "selected": False}]
+		)
+
+		priced = cart_sdk.add_discount_code(code)
+
+		cap = next(line for line in priced["lines"] if line["item_code"] == self.cap)
+		self.assertEqual((cap["rate"], cap["code_discount"], cap["amount"]), (CAP_RATE, 0, CAP_RATE))
+		self.assertEqual(priced["subtotal"], 2 * SHIRT_RATE)
+		self.assertEqual(priced["total"], 2 * SHIRT_RATE * 0.9)
+		self.assertEqual([row["amount"] for row in priced["discounts"]], [2 * SHIRT_RATE * 0.1])
+
+	def test_checkout_takes_only_the_ticked_lines(self):
+		sync_server_cart(
+			[{"item_code": self.shirt, "qty": 1}, {"item_code": self.cap, "qty": 1, "selected": False}]
+		)
+
+		quotation = generate_quotation_for_cart(
+			{"items": [self.browser_line(self.shirt, 1), self.browser_line(self.cap, 1)]}
+		)
+
+		self.assertEqual([(row.item_code, row.qty) for row in quotation.items], [(self.shirt, 1)])
+
+	def test_opening_checkout_rebuilds_a_cart_changed_since_the_checkout_click(self):
+		self.addCleanup(frappe.local.flags.pop, "commit", None)
+		sync_server_cart([{"item_code": self.shirt, "qty": 1}])
+		generate_quotation_for_cart({"items": [self.browser_line(self.shirt, 1)]})
+		cart_sdk.add_lines([{"item_code": self.cap, "qty": 2}])
+
+		refresh_cart_quotation(_get_cart_quotation())
+
+		self.assertEqual(
+			{(row.item_code, row.qty) for row in _get_cart_quotation().items},
+			{(self.shirt, 1), (self.cap, 2)},
+		)
+		self.assertTrue(frappe.local.flags.commit)
+
+	def test_opening_checkout_leaves_a_cart_in_payment_alone(self):
+		sync_server_cart([{"item_code": self.shirt, "qty": 1}])
+		quotation = generate_quotation_for_cart({"items": [self.browser_line(self.shirt, 1)]})
+		self.create_pending_payment_request(quotation.name)
+		cart_sdk.add_lines([{"item_code": self.cap, "qty": 2}])
+
+		with patch(
+			"bwh_payments.bwh_payments.doctype.gateway_payment_request.gateway_payment_request"
+			".GatewayPaymentRequest.release_if_unpaid",
+			return_value=False,
+		):
+			refresh_cart_quotation(_get_cart_quotation())
+
+		self.assertEqual([(row.item_code, row.qty) for row in _get_cart_quotation().items], [(self.shirt, 1)])
+		self.assertFalse(frappe.local.flags.commit)
+
+	def create_pending_payment_request(self, quotation_name: str):
+		payment_request = frappe.new_doc("Gateway Payment Request")
+		payment_request.update(
+			{
+				"name": frappe.generate_hash(length=10),
+				"ref_doctype": "Quotation",
+				"ref_docname": quotation_name,
+				"status": "Pending",
+			}
+		)
+		# db_insert, not insert(): insert() opens a real gateway session.
+		payment_request.db_insert()
+
+	def test_sign_in_keeps_the_guest_cart_ticks(self):
+		cart_sdk.add_lines([{"item_code": self.cap, "qty": 1}])
+		self.use_guest_cart()
+		cart_sdk.add_lines([{"item_code": self.shirt, "qty": 2, "selected": False}])
+
+		frappe.set_user(self.shopper)
+		keep_guest_cart()
+
+		self.assertEqual(
+			{(row.item_code, row.selected) for row in get_session_cart().lines},
+			{(self.cap, 1), (self.shirt, 0)},
+		)

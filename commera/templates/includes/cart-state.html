@@ -1,5 +1,9 @@
 <script defer>
     document.addEventListener('alpine:init', () => {
+        // Kept off the store: a promise inside Alpine's reactive proxy cannot be awaited, and the effect
+        // below would re-run on every timer change.
+        let sync_timer = null;
+        let pending_sync = null;
         Alpine.store('cart', {
             items: Alpine.$persist([]),
             // The server cart's version this browser last saw; the server cart wins when they differ.
@@ -13,13 +17,13 @@
                 await this.loaded;
                 let is_first_run = true;
                 Alpine.effect(() => {
-                    this.items.forEach(item => [item.variant?.item_code, item.qty]);
+                    this.items.forEach(item => [item.variant?.item_code, item.qty, item.selected]);
                     if (is_first_run) {
                         is_first_run = false;
                         return;
                     }
-                    clearTimeout(this.sync_timer);
-                    this.sync_timer = setTimeout(() => this.sync(), 400);
+                    clearTimeout(sync_timer);
+                    sync_timer = setTimeout(() => this.sync(), 400);
                 });
             },
             async load_server_cart() {
@@ -34,40 +38,22 @@
                     else await this.sync();
                 } catch (error) {}
             },
-            // Checkout shows the Quotation saved by the last Checkout click; rebuild it when the cart changed since.
-            async resync_checkout(quotation_item_codes, quotation_quantities, only_selected = true) {
-                await this.loaded;
-                const checkout_items = this.items.filter(item => item.selected || !only_selected);
-                if (!checkout_items.length) return;
-                const get_key = rows => JSON.stringify(Object.entries(rows.reduce((quantities, [item_code, qty]) => {
-                    quantities[item_code] = (quantities[item_code] || 0) + parseFloat(qty);
-                    return quantities;
-                }, {})).sort());
-                const cart_key = get_key(checkout_items.map(item => [item.variant.item_code, item.qty]));
-                const quotation_key = get_key(quotation_item_codes.map((item_code, index) => [item_code, quotation_quantities[index]]));
-                if (cart_key === quotation_key) {
-                    try { sessionStorage.removeItem("commera_checkout_resync"); } catch (error) {}
-                    return;
-                }
-                try {
-                    // A Quotation that still differs after the rebuild must not reload the page again.
-                    if (sessionStorage.getItem("commera_checkout_resync") === cart_key) return;
-                    sessionStorage.setItem("commera_checkout_resync", cart_key);
-                } catch (error) {}
-                try {
-                    await frappe_call("/api/v2/method/commera.api.payments.generate_quotation_for_cart", { cart: { items: checkout_items } });
-                    window.location.reload();
-                } catch (error) {}
-            },
             async sync() {
-                clearTimeout(this.sync_timer);
-                const items = this.items.map(item => ({ item_code: item.variant.item_code, qty: item.qty }));
+                clearTimeout(sync_timer);
+                sync_timer = null;
+                const items = this.items.map(item => ({ item_code: item.variant.item_code, qty: item.qty, selected: item.selected !== false }));
                 try {
-                    const response = (await frappe_call("/api/v2/method/commera.api.server_cart.sync_server_cart", { items, version: this.version })).data;
+                    pending_sync = frappe_call("/api/v2/method/commera.api.server_cart.sync_server_cart", { items, version: this.version });
+                    const response = (await pending_sync).data;
                     if (response.conflict) this.apply_server_cart(response);
                     else this.version = response.version;
                 } catch (error) {}
                 if (this.wants_pricing) await this.load_priced();
+            },
+            // Checkout builds from the server cart, so a change still waiting on the debounce must land first.
+            async flush_sync() {
+                if (sync_timer) return this.sync();
+                try { await pending_sync; } catch (error) {}
             },
             async load_priced() {
                 this.wants_pricing = true;
@@ -78,7 +64,6 @@
             // Only while the priced cart is the cart on screen, so the rows never belong to an older cart.
             get discounts() {
                 if (!this.priced || this.priced.version !== this.version) return [];
-                if (this.items.some(item => !item.selected)) return [];
                 return this.priced.discounts || [];
             },
             get saved() {
@@ -101,7 +86,7 @@
                     default_price: line.default_price,
                     brand: line.brand,
                     stock_qty: line.variant.stock_detail?.stock_qty ?? 0,
-                    selected: true,
+                    selected: line.selected ?? true,
                     sizes: line.sizes,
                 }));
                 this.version = server_cart.version;

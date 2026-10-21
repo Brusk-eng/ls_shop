@@ -28,7 +28,11 @@ from commera.checkout_hooks import (
 	get_cart_refusal,
 	get_discount_code_refusal,
 )
-from commera.commera_ecommerce.doctype.commera_cart.commera_cart import clear_ordered_cart, get_session_cart
+from commera.commera_ecommerce.doctype.commera_cart.commera_cart import (
+	clear_ordered_cart,
+	get_quantities_by_item_code,
+	get_session_cart,
+)
 from commera.core import _get_cart_quotation, create_party, get_customer_contact, new_cart_quotation
 from commera.discounts.selection import get_discount_codes, get_unusable_code_reason
 from commera.guest import (
@@ -474,7 +478,13 @@ def generate_quotation_for_cart(cart: dict):
 
 
 def get_checkout_cart(cart: dict) -> dict:
+	"""The lines to check out: the server cart's ticked lines, or the browser's when the server cart is empty."""
 	cart = frappe.parse_json(cart) or {}
+	if (server_cart := get_session_cart()) and server_cart.lines:
+		cart["items"] = [
+			{"variant": {"item_code": item_code}, "qty": qty}
+			for item_code, qty in get_quantities_by_item_code(server_cart.get_selected_lines()).items()
+		]
 	if len(cart.get("items", [])) < 1:
 		frappe.throw(_("Can't checkout with empty cart"))
 	validate_stock_available(cart["items"])

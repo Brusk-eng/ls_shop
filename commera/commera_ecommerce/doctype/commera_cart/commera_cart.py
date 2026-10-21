@@ -61,6 +61,7 @@ class CommeraCart(Document):
 		for line in lines:
 			attributes = parse_attributes(line.get("attributes"))
 			qty = cint(line.get("qty") or 1)
+			selected = cint(line.get("selected", 1))
 			existing_line = next(
 				(
 					row
@@ -71,8 +72,17 @@ class CommeraCart(Document):
 			)
 			if existing_line:
 				existing_line.qty = cint(existing_line.qty) + qty
+				existing_line.selected = cint(existing_line.selected) or selected
 			else:
-				self.append("lines", {"item_code": line["item_code"], "qty": qty, "attributes": attributes})
+				self.append(
+					"lines",
+					{
+						"item_code": line["item_code"],
+						"qty": qty,
+						"attributes": attributes,
+						"selected": selected,
+					},
+				)
 
 	def update_lines(self, lines: list[dict]):
 		"""Set the quantity or attributes of lines by `line_id`. A quantity of 0 removes the line."""
@@ -114,6 +124,19 @@ class CommeraCart(Document):
 			change_quantity_from_the_end(self, rows, delta)
 		return changed
 
+	def set_selection(self, selection: dict[str, bool]) -> bool:
+		"""Tick or untick every line of each item for checkout; an item left out stays ticked."""
+		changed = False
+		for row in self.lines:
+			selected = cint(selection.get(row.item_code, 1))
+			changed = changed or cint(row.selected) != selected
+			# Set even when unchanged: a new line's None would take the field's default of 1 on insert.
+			row.selected = selected
+		return changed
+
+	def get_selected_lines(self) -> list:
+		return [row for row in self.lines if cint(row.selected)]
+
 	def add_discount_code(self, code: str):
 		codes = [applied_code for applied_code in get_discount_codes(self) if get_code_discount(applied_code)]
 		preview = self.get_quotation_preview()
@@ -129,14 +152,21 @@ class CommeraCart(Document):
 
 	def get_lines_by_item_code(self) -> dict[str, list]:
 		lines_by_item_code = {}
-		for row in self.lines:
+		for row in self.get_selected_lines():
 			lines_by_item_code.setdefault(row.item_code, []).append(row)
 		return lines_by_item_code
 
 	def get_priced_cart(self) -> dict:
-		"""The cart priced as checkout would price it: ERPNext price lists and rules, then the codes."""
+		"""The cart priced as checkout would price it: ERPNext price lists and rules, then the codes. Lines
+		left out of checkout are priced on their own, without discounts."""
 		quotation = self.get_quotation_preview()
-		lines_by_row = dict(zip([row.name for row in self.lines], quotation.items, strict=True))
+		selected_lines = self.get_selected_lines()
+		items_by_row = dict(zip([row.name for row in selected_lines], quotation.items, strict=True))
+		if other_lines := [row for row in self.lines if not cint(row.selected)]:
+			plain_quotation = get_preview_quotation(
+				get_preview_lines(other_lines), user=self.user, flags={"commera_discounts": []}
+			)
+			items_by_row.update(zip([row.name for row in other_lines], plain_quotation.items, strict=True))
 		return {
 			"name": self.name,
 			"version": self.version,
@@ -145,20 +175,21 @@ class CommeraCart(Document):
 			"discount_codes": get_code_states(quotation),
 			"automatic_discounts": get_automatic_discounts(quotation),
 			"discounts": get_price_discount_rows(quotation),
-			"lines": [get_priced_line(row, lines_by_row[row.name]) for row in self.lines],
+			"lines": [get_priced_line(row, items_by_row[row.name]) for row in self.lines],
 			"subtotal": flt(quotation.total),
 			"order_discount": flt(quotation.custom_code_order_discount),
 			"total": flt(quotation.net_total),
 		}
 
 	def get_quotation_preview(self):
-		lines = [{"item_code": row.item_code, "qty": row.qty} for row in self.lines]
 		fields = {**frappe.parse_json(self.plugin_fields or "{}"), "custom_cart_attributes": self.attributes}
-		return get_preview_quotation(lines, self.discount_codes, self.user, fields=fields)
+		return get_preview_quotation(
+			get_preview_lines(self.get_selected_lines()), self.discount_codes, self.user, fields=fields
+		)
 
 	def update_quotation(self, quotation):
-		"""Copy the attributes and codes onto a checkout Quotation whose lines came from the browser. When
-		the browser's quantity matches, an item held on several lines stays split by attributes."""
+		"""Copy the attributes and codes onto a checkout Quotation. When the quantity matches the cart's ticked
+		lines, an item held on several lines stays split by attributes."""
 		lines_by_item_code = self.get_lines_by_item_code()
 		items = []
 		for item in quotation.items:
@@ -190,6 +221,17 @@ class CommeraCart(Document):
 		self.plugin_fields = frappe.as_json(
 			{**frappe.parse_json(self.plugin_fields or "{}"), **values}, indent=None
 		)
+
+
+def get_preview_lines(rows: list) -> list[dict]:
+	return [{"item_code": row.item_code, "qty": row.qty} for row in rows]
+
+
+def get_quantities_by_item_code(rows: list) -> dict[str, int]:
+	quantities = {}
+	for row in rows:
+		quantities[row.item_code] = quantities.get(row.item_code, 0) + cint(row.qty)
+	return quantities
 
 
 def change_quantity_from_the_end(cart, rows: list, delta: int):
@@ -263,6 +305,7 @@ def get_priced_line(row, item) -> dict:
 		"item_code": row.item_code,
 		"title": item.item_name,
 		"qty": cint(row.qty),
+		"selected": bool(cint(row.selected)),
 		"attributes": parse_attributes(row.attributes),
 		"price": flt(item.price_list_rate),
 		"rate": flt(item.rate),
@@ -336,7 +379,12 @@ def keep_guest_cart(login_manager=None):
 def merge_carts(guest_cart: CommeraCart, account_cart: CommeraCart):
 	account_cart.add_lines(
 		[
-			{"item_code": row.item_code, "qty": row.qty, "attributes": parse_attributes(row.attributes)}
+			{
+				"item_code": row.item_code,
+				"qty": row.qty,
+				"attributes": parse_attributes(row.attributes),
+				"selected": row.selected,
+			}
 			for row in guest_cart.lines
 		]
 	)

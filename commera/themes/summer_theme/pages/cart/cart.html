@@ -218,6 +218,7 @@
 					try {
 						const items = this.$store.cart.items;
 						if (!await this.$store.cart.validate_stock_before_checkout(items)) return;
+						await this.$store.cart.flush_sync();
 
 						await frappe_call("/api/v2/method/commera.api.payments.generate_quotation_for_cart", {
 							cart: { items: items },
