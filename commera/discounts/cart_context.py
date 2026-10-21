@@ -5,6 +5,7 @@ from erpnext.setup.utils import get_exchange_rate
 from frappe.utils.data import cint, cstr, flt
 
 from commera.api.cart import get_cart_price
+from commera.core import is_cod
 
 
 @dataclass
@@ -85,9 +86,6 @@ def get_cart_context(doc) -> CartContext:
 
 def get_payment_kind(doc) -> str:
 	"""A cart is priced as prepaid until checkout says otherwise; an order knows how it is paid."""
-	# Imported here: commera.api.payments imports the cart, which imports this module.
-	from commera.api.payments import is_cod
-
 	if doc.flags.commera_payment_kind:
 		return doc.flags.commera_payment_kind
 	return "cod" if is_cod(doc.get("custom_ecommerce_payment_mode")) else "prepaid"

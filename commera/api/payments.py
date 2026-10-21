@@ -27,14 +27,21 @@ from commera.checkout_hooks import (
 	apply_plugin_fees,
 	filter_payment_methods,
 	get_cart_refusal,
-	get_discount_code_refusal,
 )
 from commera.commera_ecommerce.doctype.commera_cart.commera_cart import (
 	clear_ordered_cart,
 	get_quantities_by_item_code,
 	get_session_cart,
 )
-from commera.core import _get_cart_quotation, create_party, get_customer_contact, new_cart_quotation
+from commera.core import (
+	COD_PAYMENT_MODE,
+	_get_cart_quotation,
+	create_party,
+	get_customer_contact,
+	is_cod,
+	new_cart_quotation,
+	system_user_session,
+)
 from commera.discounts.selection import get_discount_codes, get_unusable_code_reason
 from commera.guest import (
 	get_guest_cart_name,
@@ -66,12 +73,6 @@ try:
 	from erpnext.selling.doctype.sales_order.mapper import make_sales_invoice
 except ImportError:
 	from erpnext.selling.doctype.sales_order.sales_order import make_sales_invoice
-
-COD_PAYMENT_MODE = "COD"
-
-
-def is_cod(payment_mode: str | None) -> bool:
-	return (payment_mode or "").strip().casefold() == COD_PAYMENT_MODE.casefold()
 
 
 def get_open_gateway_payment_request(quotation_name: str) -> str | None:
@@ -326,26 +327,6 @@ def gateway_mode_of_payment(gateway: str) -> str:
 	if not mode_of_payment:
 		frappe.throw(_("No Mode of Payment found matching gateway {0}").format(frappe.bold(gateway)))
 	return mode_of_payment
-
-
-@contextmanager
-def system_user_session(user: str = "Administrator"):
-	"""Place the accounting documents as `user`, then hand the session back.
-
-	ERPNext's get_party_account checks frappe.has_permission directly, so no ignore_permissions reaches it.
-	"""
-	# frappe.set_user() mutates frappe.local.session in place, stamping "sid" with the username and wiping
-	# local.session.data, so restore the snapshot verbatim rather than calling it again for the shopper.
-	live_session_snapshot = frappe.local.session.copy()
-	try:
-		# Audited: the docstring above and the snapshot restore below are why this is safe.
-		frappe.set_user(user)  # nosemgrep: frappe-semgrep-rules.rules.security.frappe-setuser
-		yield
-	finally:
-		frappe.local.session.update(live_session_snapshot)
-		frappe.local.cache = {}
-		frappe.local.role_permissions = {}
-		frappe.local.user_perms = None
 
 
 @contextmanager

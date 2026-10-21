@@ -1,4 +1,5 @@
 from collections import defaultdict
+from contextlib import contextmanager
 
 import frappe
 from frappe import _
@@ -836,3 +837,21 @@ def validate_plugin_fieldnames(doctype: str, fieldnames) -> None:
 			),
 			frappe.ValidationError,
 		)
+
+
+@contextmanager
+def handle_hook_error(key: str, handler: str, quotation, strict: bool):
+	message_count = len(frappe.local.message_log)
+	try:
+		yield
+	except Exception:
+		frappe.log_error(
+			title=f'commera_hooks["{key}"] hook failed: {handler}'[:140],
+			reference_doctype="Quotation",
+			reference_name=quotation.name,
+			defer_insert=True,
+		)
+		# Whatever the app msgprinted is meant for its developer, never for the shopper.
+		del frappe.local.message_log[message_count:]
+		if strict:
+			frappe.throw(_("Something went wrong, please try again."))

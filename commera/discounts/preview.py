@@ -1,5 +1,6 @@
 import frappe
 
+from commera.core import system_user_session
 from commera.discounts.pricing import apply_code_discounts
 
 
@@ -11,9 +12,6 @@ def get_preview_quotation(
 	fields: dict | None = None,
 ):
 	# Elevated, like checkout: ERPNext reads Items the shopper cannot.
-	# Imported here: commera.api.payments imports the cart, which imports this module.
-	from commera.api.payments import system_user_session
-
 	settings = frappe.get_cached_doc("Commera Settings")
 	quotation = frappe.new_doc("Quotation")
 	quotation.update(

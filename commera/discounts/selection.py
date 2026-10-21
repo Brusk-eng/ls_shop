@@ -5,7 +5,7 @@ from frappe import _
 from frappe.utils.data import cstr, flt
 
 from commera.discounts.cart_context import get_cart_context
-from commera.discounts.codes import get_code_discount, normalize_code
+from commera.discounts.codes import get_code_discount, get_discount_code_refusal, normalize_code
 from commera.discounts.doctype.commera_discount.commera_discount import (
 	CommeraDiscount,
 	DiscountCodeError,
@@ -13,7 +13,6 @@ from commera.discounts.doctype.commera_discount.commera_discount import (
 from commera.discounts.usage import has_used_before, is_first_order
 
 MAX_DISCOUNT_CODES = 5
-MAX_PRICED_COMBINATIONS = 20
 
 
 @dataclass
@@ -63,9 +62,6 @@ def validate_new_discount_code(code: str, codes: list[str], active_codes: list[s
 
 
 def get_unusable_code_reason(doc, code: str) -> str | None:
-	# Imported here: commera.checkout_hooks imports the shipping step, which imports this module.
-	from commera.checkout_hooks import get_discount_code_refusal
-
 	discount_name = get_code_discount(code)
 	if not discount_name:
 		return _("{0} is no longer a valid discount code.").format(code)
@@ -86,57 +82,9 @@ def is_single_use_spent(code: str) -> bool:
 	return bool(is_generated and times_used)
 
 
-def select_discounts(cart) -> list[Selection]:
-	# On a tie, the code applied first wins.
-	# Imported here: pricing imports this module.
-	from commera.discounts.pricing import get_saving
-
-	applicable = []
-	for selection in get_candidates(cart.doc):
-		discount = selection.discount
-		if discount.status != "Active" or not discount.is_for_currency(cart):
-			continue
-		if any(other.discount.name == discount.name for other in applicable):
-			continue
-		if get_unmet_reason(discount, cart) or not discount.gives_anything(cart):
-			continue
-		applicable.append(selection)
-
-	combinations = get_combinations(applicable)[:MAX_PRICED_COMBINATIONS]
-	if len(combinations) == 1:
-		return combinations[0]
-	return max(combinations, key=lambda combination: flt(get_saving(cart, combination), 2))
-
-
-def get_combinations(selections: list[Selection]) -> list[list[Selection]]:
-	combinations = []
-
-	def extend(combination: list, candidates: list, skipped: list):
-		if not candidates and not skipped:
-			combinations.append(combination)
-		for selection in list(candidates):
-			extend(
-				[*combination, selection],
-				[
-					other
-					for other in candidates
-					if other is not selection and other.discount.can_combine_with(selection.discount)
-				],
-				[other for other in skipped if other.discount.can_combine_with(selection.discount)],
-			)
-			candidates.remove(selection)
-			skipped.append(selection)
-
-	extend([], list(selections), [])
-	return combinations
-
-
 def get_candidates(doc) -> list[Selection]:
 	if doc.flags.commera_discounts is not None:
 		return [Selection(discount) for discount in doc.flags.commera_discounts]
-
-	# Imported here: commera.checkout_hooks imports the shipping step, which imports this module.
-	from commera.checkout_hooks import get_discount_code_refusal
 
 	candidates = []
 	for code in get_discount_codes(doc):

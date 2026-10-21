@@ -2,7 +2,7 @@ from frappe.utils.data import flt
 
 from commera.discounts.cart_context import get_cart_context
 from commera.discounts.doctype.commera_discount.commera_discount import SHIPPING
-from commera.discounts.selection import select_discounts
+from commera.discounts.pricing import select_discounts
 
 
 def apply_shipping_discounts(quotation, options: list[dict]) -> list[dict]:

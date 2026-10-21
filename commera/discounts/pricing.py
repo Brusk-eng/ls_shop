@@ -6,12 +6,20 @@ from commera.discounts.allocations import ALLOCATIONS_FIELD, get_allocation, get
 from commera.discounts.cart_context import get_cart_context
 from commera.discounts.codes import get_code_discount
 from commera.discounts.doctype.commera_discount.commera_discount import ORDER, PRODUCT, SHIPPING
-from commera.discounts.selection import Selection, get_discount, get_discount_codes, select_discounts
+from commera.discounts.selection import (
+	Selection,
+	get_candidates,
+	get_discount,
+	get_discount_codes,
+	get_unmet_reason,
+)
 
 try:
 	from erpnext.accounts.services.payment_schedule import PaymentScheduleService
 except ImportError:
 	PaymentScheduleService = None
+
+MAX_PRICED_COMBINATIONS = 20
 
 
 def is_storefront_cart(doc) -> bool:
@@ -177,6 +185,48 @@ def get_saving(cart, selections: list) -> float:
 		if option and s.discount.discount_class == SHIPPING
 	]
 	return sum(flt(row["amount"]) for row in allocations) + max(shipping, default=0)
+
+
+def select_discounts(cart) -> list[Selection]:
+	# On a tie, the code applied first wins.
+	applicable = []
+	for selection in get_candidates(cart.doc):
+		discount = selection.discount
+		if discount.status != "Active" or not discount.is_for_currency(cart):
+			continue
+		if any(other.discount.name == discount.name for other in applicable):
+			continue
+		if get_unmet_reason(discount, cart) or not discount.gives_anything(cart):
+			continue
+		applicable.append(selection)
+
+	combinations = get_combinations(applicable)[:MAX_PRICED_COMBINATIONS]
+	if len(combinations) == 1:
+		return combinations[0]
+	return max(combinations, key=lambda combination: flt(get_saving(cart, combination), 2))
+
+
+def get_combinations(selections: list[Selection]) -> list[list[Selection]]:
+	combinations = []
+
+	def extend(combination: list, candidates: list, skipped: list):
+		if not candidates and not skipped:
+			combinations.append(combination)
+		for selection in list(candidates):
+			extend(
+				[*combination, selection],
+				[
+					other
+					for other in candidates
+					if other is not selection and other.discount.can_combine_with(selection.discount)
+				],
+				[other for other in skipped if other.discount.can_combine_with(selection.discount)],
+			)
+			candidates.remove(selection)
+			skipped.append(selection)
+
+	extend([], list(selections), [])
+	return combinations
 
 
 def has_inclusive_tax(doc) -> bool:

@@ -1,12 +1,11 @@
 import math
-from contextlib import contextmanager
 
 import frappe
 from frappe import _
 from frappe.utils.data import cstr, flt
 
 from commera.discounts.shipping import apply_shipping_discounts
-from commera.plugin_events import get_handler_app, get_handlers
+from commera.plugin_events import get_handlers, handle_hook_error
 from commera.utils import get_charge_account_head
 
 PLUGIN_FEE_FIELD = "commera_plugin_fee"
@@ -18,22 +17,6 @@ def get_cart_refusal(quotation) -> str | None:
 			reason = frappe.get_attr(handler)(quotation)
 			if reason and not isinstance(reason, str):
 				raise TypeError(f'commera_hooks["validate_cart"] must return a str or None, got {reason!r}')
-		if reason:
-			return reason
-	return None
-
-
-def get_discount_code_refusal(quotation, code: str) -> str | None:
-	for handler in get_handlers("commera_hooks", "validate_discount_code"):
-		reason = None
-		with handle_hook_error(
-			"validate_discount_code", handler, quotation, bool(quotation.flags.strict_plugin_fees)
-		):
-			reason = frappe.get_attr(handler)(quotation, code)
-			if reason and not isinstance(reason, str):
-				raise TypeError(
-					f'commera_hooks["validate_discount_code"] must return a str or None, got {reason!r}'
-				)
 		if reason:
 			return reason
 	return None
@@ -150,21 +133,3 @@ def filter_payment_methods(quotation, methods: list[str], strict: bool) -> list[
 				)
 			methods = [method for method in methods if method in kept_methods]
 	return methods
-
-
-@contextmanager
-def handle_hook_error(key: str, handler: str, quotation, strict: bool):
-	message_count = len(frappe.local.message_log)
-	try:
-		yield
-	except Exception:
-		frappe.log_error(
-			title=f'commera_hooks["{key}"] hook failed: {handler}'[:140],
-			reference_doctype="Quotation",
-			reference_name=quotation.name,
-			defer_insert=True,
-		)
-		# Whatever the app msgprinted is meant for its developer, never for the shopper.
-		del frappe.local.message_log[message_count:]
-		if strict:
-			frappe.throw(_("Something went wrong, please try again."))

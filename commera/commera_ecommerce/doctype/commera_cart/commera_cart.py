@@ -8,14 +8,13 @@ from commera.discounts.cart_context import get_cart_context
 from commera.discounts.codes import get_code_discount, normalize_code
 from commera.discounts.doctype.commera_discount.commera_discount import SHIPPING, DiscountCodeError
 from commera.discounts.preview import get_preview_quotation
-from commera.discounts.pricing import get_saving
+from commera.discounts.pricing import get_saving, select_discounts
 from commera.discounts.selection import (
 	Selection,
 	get_discount,
 	get_discount_codes,
 	get_unmet_reason,
 	get_unusable_code_reason,
-	select_discounts,
 	validate_new_discount_code,
 )
 from commera.guest import clear_guest_cart_cookie, get_guest_cart_key, is_guest, set_guest_cart_cookie
