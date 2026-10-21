@@ -20,6 +20,8 @@ except ImportError:
 	PaymentScheduleService = None
 
 MAX_PRICED_COMBINATIONS = 20
+# At most 3^(12/3) = 81 combinations, however many automatic discounts are live.
+MAX_SEARCHED_SELECTIONS = 12
 
 
 def is_storefront_cart(doc) -> bool:
@@ -200,33 +202,59 @@ def select_discounts(cart) -> list[Selection]:
 			continue
 		applicable.append(selection)
 
-	combinations = get_combinations(applicable)[:MAX_PRICED_COMBINATIONS]
+	combinations = get_combinations(get_searched_selections(applicable, cart))[:MAX_PRICED_COMBINATIONS]
 	if len(combinations) == 1:
 		return combinations[0]
 	return max(combinations, key=lambda combination: flt(get_saving(cart, combination), 2))
 
 
+def get_searched_selections(selections: list[Selection], cart) -> list[Selection]:
+	# Every code the shopper typed is searched; past the cap, only the automatic discounts that save most alone.
+	if len(selections) <= MAX_SEARCHED_SELECTIONS:
+		return selections
+	codes = [selection for selection in selections if selection.code]
+	automatic = [selection for selection in selections if not selection.code]
+	automatic.sort(key=lambda selection: get_solo_saving(selection.discount, cart), reverse=True)
+	kept = {id(selection) for selection in codes + automatic[: MAX_SEARCHED_SELECTIONS - len(codes)]}
+	return [selection for selection in selections if id(selection) in kept]
+
+
+def get_solo_saving(discount, cart) -> float:
+	if discount.discount_class == PRODUCT:
+		return sum(discount.get_line_discounts(cart).values())
+	if discount.discount_class == ORDER:
+		return flt(discount.get_order_discount(cart))
+	option = cart.delivery_option
+	return discount.get_delivery_discount(option, cart) if option else 0.0
+
+
 def get_combinations(selections: list[Selection]) -> list[list[Selection]]:
-	combinations = []
+	"""Every largest set of discounts that all combine with each other, in the order the selections came."""
+	order = {id(selection): index for index, selection in enumerate(selections)}
+
+	def combines(selection, other) -> bool:
+		return selection is not other and selection.discount.can_combine_with(other.discount)
 
 	def extend(combination: list, candidates: list, skipped: list):
 		if not candidates and not skipped:
-			combinations.append(combination)
-		for selection in list(candidates):
-			extend(
+			yield combination
+			return
+		# Bron-Kerbosch with a pivot: a set the pivot could join is found from the pivot's own branch.
+		pivot = max(candidates + skipped, key=lambda other: sum(combines(other, c) for c in candidates))
+		for selection in [c for c in candidates if not combines(c, pivot)]:
+			yield from extend(
 				[*combination, selection],
-				[
-					other
-					for other in candidates
-					if other is not selection and other.discount.can_combine_with(selection.discount)
-				],
-				[other for other in skipped if other.discount.can_combine_with(selection.discount)],
+				[other for other in candidates if combines(other, selection)],
+				[other for other in skipped if combines(other, selection)],
 			)
 			candidates.remove(selection)
 			skipped.append(selection)
 
-	extend([], list(selections), [])
-	return combinations
+	combinations = [
+		sorted(combination, key=lambda selection: order[id(selection)])
+		for combination in extend([], list(selections), [])
+	]
+	return sorted(combinations, key=lambda combination: [order[id(selection)] for selection in combination])
 
 
 def has_inclusive_tax(doc) -> bool:

@@ -236,38 +236,34 @@ class CommeraDiscount(Document):
 
 	def get_buy_x_get_y_discounts(self, cart) -> dict[int, float]:
 		"""The cheapest units the customer gets are discounted; the units that earn them cannot also be them."""
-		# Matched once per line: an item group match walks the group tree, and the loop below runs per unit.
+		# One bucket per line, cheapest first: quantities are taken arithmetically, never unit by unit.
 		buy_lines = {item.idx for item in cart.items if self.is_for_line(item, cart, "Buys")}
 		get_lines = {item.idx for item in cart.items if self.is_for_line(item, cart, "Gets")}
-		units = sorted(
-			(flt(item.rate), item.idx, item)
+		buckets = sorted(
+			[flt(item.rate), item.idx, flt(item.qty)]
 			for item in cart.items
-			for _unit in range(cint(item.qty))
-			if item.idx in buy_lines or item.idx in get_lines
+			if flt(item.qty) > 0 and (item.idx in buy_lines or item.idx in get_lines)
 		)
 		discounts = {}
 		applications = 0
 		while not self.uses_per_order or applications < cint(self.uses_per_order):
-			rewarded = take_units(units, cint(self.get_quantity), lambda item: item.idx in get_lines)
-			if not rewarded or not self.take_buy_units(units, buy_lines, cart):
+			rewarded = take_quantity(buckets, cint(self.get_quantity), get_lines)
+			if not rewarded or not self.take_buy_units(buckets, buy_lines, cart):
 				break
-			for rate, idx, _item in rewarded:
-				discounts[idx] = discounts.get(idx, 0) + self.get_reward(rate, cart)
+			for rate, idx, qty in rewarded:
+				discounts[idx] = discounts.get(idx, 0) + self.get_reward(rate, cart) * qty
 			applications += 1
 		return discounts
 
-	def take_buy_units(self, units: list, buy_lines: set[int], cart) -> bool:
-		buys = [unit for unit in units if unit[1] in buy_lines]
+	def take_buy_units(self, buckets: list, buy_lines: set[int], cart) -> bool:
+		buys = [bucket for bucket in buckets if bucket[1] in buy_lines]
 		if self.buy_requirement == "Quantity":
-			if len(buys) < cint(self.buy_value):
-				return False
-			for unit in buys[-cint(self.buy_value) :]:
-				units.remove(unit)
-			return True
+			# The dearest bought units earn the reward, leaving the cheap ones to be rewarded.
+			return bool(take_quantity(buckets, flt(self.buy_value), buy_lines, dearest_first=True))
 		# An amount requirement is met once by everything bought; it does not repeat per order.
-		if sum(unit[0] for unit in buys) < self.get_money(self.buy_value, cart):
+		if sum(rate * qty for rate, _idx, qty in buys) < self.get_money(self.buy_value, cart):
 			return False
-		units.clear()
+		buckets.clear()
 		return True
 
 	def get_reward(self, rate: float, cart) -> float:
@@ -307,13 +303,23 @@ class CommeraDiscount(Document):
 		return amount * flt(self.shipping_percentage) / 100
 
 
-def take_units(units: list, quantity: int, is_wanted) -> list:
-	wanted = [unit for unit in units if is_wanted(unit[2])][:quantity]
-	if len(wanted) < quantity:
+def take_quantity(buckets: list, quantity: float, lines: set[int], dearest_first: bool = False) -> list:
+	"""Takes `quantity` units from the wanted lines' buckets, or nothing when there are not enough."""
+	wanted = [bucket for bucket in buckets if bucket[1] in lines]
+	if dearest_first:
+		wanted.reverse()
+	if not quantity or sum(bucket[2] for bucket in wanted) < quantity:
 		return []
-	for unit in wanted:
-		units.remove(unit)
-	return wanted
+	taken = []
+	for bucket in wanted:
+		qty = min(bucket[2], quantity)
+		taken.append((bucket[0], bucket[1], qty))
+		bucket[2] -= qty
+		quantity -= qty
+		if quantity <= 0:
+			break
+	buckets[:] = [bucket for bucket in buckets if bucket[2] > 0]
+	return taken
 
 
 def cap_discounts(discounts: dict[int, float], cap: float) -> dict[int, float]:

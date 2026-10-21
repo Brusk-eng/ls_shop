@@ -1,4 +1,6 @@
 import threading
+import time
+from types import SimpleNamespace
 from unittest.mock import patch
 
 import frappe
@@ -17,7 +19,12 @@ from commera.core import new_cart_quotation
 from commera.discounts.allocations import get_allocations
 from commera.discounts.codes import add_code, generate_codes, get_code_discount
 from commera.discounts.doctype.commera_discount.commera_discount import DiscountCodeError
-from commera.discounts.pricing import refresh_code_discounts
+from commera.discounts.pricing import (
+	MAX_SEARCHED_SELECTIONS,
+	get_combinations,
+	get_saving,
+	refresh_code_discounts,
+)
 from commera.discounts.selection import MAX_DISCOUNT_CODES, validate_new_discount_code
 from commera.discounts.shipping import apply_shipping_discounts
 from commera.discounts.usage import (
@@ -300,6 +307,23 @@ class TestDiscountCodes(DiscountCodeTestCase):
 
 		self.assertEqual(self.get_line(quotation, self.cap).rate, CAP_RATE)
 
+	def test_buy_x_get_y_on_thousands_of_units_is_quick(self):
+		code = self.create_code(
+			discount_type="Buy X Get Y",
+			buy_value=1,
+			get_quantity=1,
+			targets=[
+				{"role": "Buys", "target_type": "Item", "target": self.shirt},
+				{"role": "Gets", "target_type": "Item", "target": self.shirt},
+			],
+		)
+
+		started = time.monotonic()
+		quotation = self.create_quotation({self.shirt: 5000}, (code,))
+
+		self.assertLess(time.monotonic() - started, 5)
+		self.assertEqual(self.get_line(quotation, self.shirt).amount, 2500 * SHIRT_RATE)
+
 	def test_a_budget_caps_the_discount(self):
 		code = self.create_code(percentage=50, item_codes=(self.shirt,), budget=20)
 
@@ -317,6 +341,28 @@ class TestDiscountSelection(DiscountCodeTestCase):
 		with self.assertRaises(DiscountCodeError):
 			validate_new_discount_code(strict_order, [product])
 		self.assertEqual(validate_new_discount_code(open_order, [product]), open_order)
+
+	def test_many_automatic_discounts_are_searched_within_a_bound(self):
+		frappe.db.set_value("Commera Discount", {"method": "Automatic"}, "enabled", 0)
+		self.addCleanup(frappe.db.set_value, "Commera Discount", {"method": "Automatic"}, "enabled", 0)
+		for amount in range(1, 31):
+			self.create_discount(amount=amount, method="Automatic")
+
+		with patch("commera.discounts.pricing.get_saving", wraps=get_saving) as saving:
+			quotation = self.create_quotation({self.shirt: 1})
+
+		self.assertEqual(quotation.custom_code_order_discount, 30)
+		self.assertLessEqual(saving.call_count, 2 * MAX_SEARCHED_SELECTIONS)
+
+	def test_combinations_of_many_combinable_discounts_are_found_without_a_blow_up(self):
+		discount = SimpleNamespace(can_combine_with=lambda other: True)
+		selections = [SimpleNamespace(discount=discount) for _index in range(40)]
+
+		started = time.monotonic()
+		combinations = get_combinations(selections)
+
+		self.assertLess(time.monotonic() - started, 1)
+		self.assertEqual(combinations, [selections])
 
 	def test_of_two_codes_that_do_not_combine_the_bigger_saving_applies(self):
 		order = self.create_code(amount=10)
