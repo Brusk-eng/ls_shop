@@ -21,7 +21,8 @@
             delivery_charge: parseFloat('{{delivery_charge or 0}}'),
 
 
-            init() {
+            async init() {
+                if ({{ (cart_needs_refresh or False) | tojson }} && await this.refresh_checkout_cart()) return;
                 this.calculate_checkout_total();
                 this.$watch('payment_mode', (value, oldValue) => {
                     if (oldValue && value) {
@@ -38,6 +39,19 @@
                 this.apply_shipping_rule()
                 this.validate_payment_mode()
                 this.apply_pending_discount()
+            },
+            // Returns true when it leaves the page.
+            async refresh_checkout_cart() {
+                let response;
+                try {
+                    response = (await frappe_call("/api/v2/method/commera.www.cart.checkout.refresh_checkout_cart", {})).data;
+                } catch (error) {
+                    return false;
+                }
+                const { refreshed, redirect } = response;
+                if (redirect) window.location.replace(redirect);
+                else if (refreshed) window.location.reload();
+                return Boolean(redirect || refreshed);
             },
             async apply_pending_discount() {
                 const url = new URL(window.location.href);

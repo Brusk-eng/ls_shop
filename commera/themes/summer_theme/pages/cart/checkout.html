@@ -14,6 +14,7 @@
 	"has_store_pickup": store_pickup_addresses | length > 0,
 	"is_guest": is_guest,
 	"delivery_charge": delivery_charge,
+	"cart_needs_refresh": cart_needs_refresh or False,
 	"prefill": checkout_prefill,
 	"coupon_code": coupon_code,
 	"discount_codes": discount_code_states,
@@ -585,7 +586,8 @@
 				discount_code: "",
 				discount_codes: config.discount_codes,
 
-				init() {
+				async init() {
+					if (this.config.cart_needs_refresh && await this.refresh_checkout_cart()) return;
 					this.set_available_payment_mode();
 					const url = new URL(window.location.href);
 					this.pending_discount = url.searchParams.get("discount");
@@ -607,6 +609,20 @@
 					}
 					this.summary = this.get_browser_cart_summary();
 					this.load_discount_codes();
+				},
+
+				// Returns true when it leaves the page.
+				async refresh_checkout_cart() {
+					let response;
+					try {
+						response = (await frappe_call("/api/v2/method/commera.www.cart.checkout.refresh_checkout_cart", {})).data;
+					} catch (error) {
+						return false;
+					}
+					const { refreshed, redirect } = response;
+					if (redirect) window.location.replace(redirect);
+					else if (refreshed) window.location.reload();
+					return Boolean(redirect || refreshed);
 				},
 
 				async load_discount_codes() {
