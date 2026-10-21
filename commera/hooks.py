@@ -133,6 +133,9 @@ doc_events = {
 	"Item Group": {
 		"before_validate": "commera.utils.set_item_group_displayname",
 	},
+	"Price List": {
+		"validate": "commera.commera_ecommerce.doctype.commera_settings.commera_settings.validate_store_price_list",
+	},
 	"Gateway Payment Request": {
 		"on_update": "commera.api.payment_hooks.on_payment_request_update",
 	},

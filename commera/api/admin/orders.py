@@ -12,7 +12,7 @@ from commera.api.admin.inventory import get_inventory
 from commera.api.admin.plugins import query_deliveries
 from commera.api.shipping import get_order_charge_lines
 from commera.discounts.allocations import get_allocations, get_discount_rows, get_order_discount_rows
-from commera.utils import get_address_lines, get_item_images
+from commera.utils import get_address_lines, get_item_images, get_store_currency
 
 PAGE_LENGTH = 20
 
@@ -1008,9 +1008,7 @@ def percent_change(current, previous):
 
 
 def get_reporting_currency():
-	company = frappe.get_cached_value("Commera Settings", "Commera Settings", "company")
-	currency = frappe.get_cached_value("Company", company, "default_currency") if company else None
-	return currency or frappe.defaults.get_global_default("currency")
+	return get_store_currency()
 
 
 def get_reporting_currency_symbol(currency):
