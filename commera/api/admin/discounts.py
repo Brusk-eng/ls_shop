@@ -341,6 +341,7 @@ def test_discount(
 			}
 			for item in quotation.items
 		],
+		"currency": quotation.currency,
 		"subtotal": subtotal,
 		"discount": subtotal - flt(quotation.net_total),
 		"total": flt(quotation.net_total),
