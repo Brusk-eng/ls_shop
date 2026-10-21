@@ -3,6 +3,7 @@ from functools import wraps
 import frappe
 from erpnext.controllers.website_list_for_contact import get_transaction_list
 from frappe import _
+from frappe.rate_limiter import rate_limit
 from frappe.translate import get_all_translations
 from frappe.utils import cstr
 
@@ -10,7 +11,6 @@ from commera.search import query as search_query
 from commera.utils import (
 	get_available_stocks,
 	get_product_list,
-	rate_limit_per_method,
 	validate_document_access,
 )
 
@@ -44,7 +44,7 @@ ORDER_DETAIL_ITEM_FIELDS = ("item_code", "item_name", "qty", "rate", "amount", "
 
 # Guests read an order only with its private link key; validate_document_access compares it.
 @frappe.whitelist(allow_guest=True)  # nosemgrep: guest-whitelisted-method
-@rate_limit_per_method(limit=120, seconds=60 * 60)
+@rate_limit(limit=120, seconds=60 * 60)
 def get_order_detail(order_name: str, key: str | None = None):
 	sales_order = validate_document_access("Sales Order", order_name, key)
 
@@ -109,7 +109,7 @@ def get_item_details(items):
 
 # Catalogue search is public and rate limited; it returns only published products.
 @frappe.whitelist(allow_guest=True)  # nosemgrep: guest-whitelisted-method
-@rate_limit_per_method(limit=120, seconds=60)
+@rate_limit(limit=120, seconds=60)
 def get_search_results(search: str):
 	filters = {"search": cstr(search)}
 	if search_query.relevance_sort_available(filters):

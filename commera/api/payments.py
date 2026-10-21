@@ -5,6 +5,7 @@ from bwh_payments.bwh_payments.utils import get_available_payment_modes, resolve
 from erpnext.accounts.doctype.journal_entry.journal_entry import get_default_bank_cash_account
 from erpnext.accounts.doctype.payment_entry.payment_entry import get_payment_entry
 from frappe import _
+from frappe.rate_limiter import rate_limit
 from frappe.utils import getdate, validate_email_address
 from frappe.utils.data import cstr, flt, fmt_money
 
@@ -48,7 +49,6 @@ from commera.utils import (
 	get_charge_account_head,
 	get_pickup_addresses,
 	get_pickup_warehouses,
-	rate_limit_per_method,
 )
 
 
@@ -145,7 +145,7 @@ def refuse_payment(message: str, quotation: str | None = None, **context):
 
 # Guest checkout: refuses any caller without a guest cart cookie, and is rate limited.
 @frappe.whitelist(allow_guest=True, methods=["POST"])  # nosemgrep: guest-whitelisted-method
-@rate_limit_per_method(limit=100, seconds=60 * 60)
+@rate_limit(limit=100, seconds=60 * 60)
 def initiate_checkout_with_mode(
 	payment_mode: str, delivery_option: str | None = None, expected_total: float | None = None
 ):
@@ -585,7 +585,7 @@ def set_cod_charges(quotation):
 
 # Guest checkout starts here; it creates at most one Customer per email and is rate limited.
 @frappe.whitelist(allow_guest=True, methods=["POST"])  # nosemgrep: guest-whitelisted-method
-@rate_limit_per_method(limit=100, seconds=60 * 60)
+@rate_limit(limit=100, seconds=60 * 60)
 def update_quotation_address(address: dict, cart: dict | None = None):
 	address = frappe.parse_json(address)
 	if is_guest():
@@ -722,7 +722,7 @@ def set_gst_details(quotation):
 
 # Gateway return page for guests too: validate_reference_owner ties the reference to the caller's cart.
 @frappe.whitelist(allow_guest=True, methods=["POST"])  # nosemgrep: guest-whitelisted-method
-@rate_limit_per_method(limit=100, seconds=60 * 60)
+@rate_limit(limit=100, seconds=60 * 60)
 def confirm_payment(reference_id: str, payment_mode: str | None = None):
 	"""Resolve the outcome of a checkout the shopper has just come back from.
 
