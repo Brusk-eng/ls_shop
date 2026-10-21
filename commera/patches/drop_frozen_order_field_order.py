@@ -12,13 +12,17 @@ SHIPPED_LAYOUT_SETTERS = {
 
 def execute():
 	"""A frozen field_order keeps the Ecommerce tab fields where the old layout put them."""
+	drop_shipped_setters(SHIPPED_LAYOUT_SETTERS)
+
+
+def drop_shipped_setters(shipped_setters):
 	setters = frappe.get_all(
 		"Property Setter",
-		filters={"name": ["in", list(SHIPPED_LAYOUT_SETTERS)]},
+		filters={"name": ["in", list(shipped_setters)]},
 		fields=["name", "doc_type", "value"],
 	)
 	for setter in setters:
-		if hashlib.sha256((setter.value or "").encode()).hexdigest() != SHIPPED_LAYOUT_SETTERS[setter.name]:
+		if hashlib.sha256((setter.value or "").encode()).hexdigest() != shipped_setters[setter.name]:
 			continue
 		frappe.delete_doc("Property Setter", setter.name, ignore_permissions=True, force=True)
 		frappe.clear_cache(doctype=setter.doc_type)
