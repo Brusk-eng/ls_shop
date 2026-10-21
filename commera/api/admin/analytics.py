@@ -249,6 +249,7 @@ def get_revenue_report(months: int = REPORT_MONTHS_DEFAULT):
 			sales_order.name,
 			sales_order.transaction_date,
 			sales_order.base_grand_total,
+			sales_order.base_discount_amount,
 			sales_order.conversion_rate,
 			sales_order.custom_discount_allocations,
 		)
@@ -268,9 +269,7 @@ def get_revenue_report(months: int = REPORT_MONTHS_DEFAULT):
 		)
 		bucket["revenue"] += flt(row.base_grand_total)
 		bucket["orders"] += 1
-		bucket["discounts"] += sum(
-			get_base_allocation_amount(row, allocation) for allocation in get_allocations(row)
-		)
+		bucket["discounts"] += get_base_discount_given(row)
 		bucket["refunds"] += flt(refunds_by_order.get(row.name, 0))
 
 	series = []
@@ -336,6 +335,18 @@ def get_discount_summary(order_rows) -> dict:
 		"orders": orders,
 		"top": [{**entry, "given": flt(entry["given"], 2)} for entry in top],
 	}
+
+
+def get_base_discount_given(row) -> float:
+	# Codes, plus what ERPNext gave on its own (a Pricing Rule, staff's Additional Discount) beyond the order code.
+	allocations = get_allocations(row)
+	codes = sum(get_base_allocation_amount(row, allocation) for allocation in allocations)
+	order_codes = sum(
+		get_base_allocation_amount(row, allocation)
+		for allocation in allocations
+		if allocation.get("discount_class") == "Order"
+	)
+	return codes + max(flt(row.base_discount_amount) - order_codes, 0)
 
 
 def get_base_allocation_amount(row, allocation: dict) -> float:
