@@ -73,9 +73,9 @@ function usage(row) {
       <!-- 52rem fits the six columns; a phone keeps the discount and its status. Do not lower the
            min-w: below the columns' own sum the 1fr track collapses and the discount cell vanishes. -->
       <List
-        class="max-sm:[--list-columns:minmax(0,1fr)_auto] sm:min-w-[52rem]"
+        class="sm:min-w-[52rem]"
         :row-height="Math.max(ia.density, 56)"
-        :columns="['1fr', '9rem', '7rem', '6rem', '8rem', '6rem']"
+        :columns="{ base: ['minmax(0,1fr)', 'auto'], sm: ['1fr', '9rem', '7rem', '6rem', '8rem', '6rem'] }"
       >
         <ListHeader>
           <ListHeaderCell>Discount</ListHeaderCell>
@@ -87,7 +87,7 @@ function usage(row) {
         </ListHeader>
         <ListSkeleton v-if="discountsRequest.loading && !rows.length" :columns="isMobile ? 2 : 6" />
         <ListRows v-else :items="rows" row-key="name" v-slot="{ item }">
-          <ListRow :to="{ name: 'DiscountDetail', params: { id: item.name } }" :value="item.name">
+          <ListRow :route="{ name: 'DiscountDetail', params: { id: item.name } }" :value="item.name">
             <ListCell>
               <div class="min-w-0">
                 <p class="truncate text-base-medium text-ink-gray-8">{{ heading(item) }}</p>
