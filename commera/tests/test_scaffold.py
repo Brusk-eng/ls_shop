@@ -226,6 +226,23 @@ class TestAddPlace(UnitTestCase):
 
 		self.assertEqual(self.load_api().sync_now(), "Sync now ran")
 
+	def test_settings_gets_a_sidebar_row_that_opens_it(self):
+		self.add("settings")
+
+		config = (self.app_root / "commera" / "plugin.config.ts").read_text()
+		self.assertIn("definePlugin({", config)
+		self.assertIn("name: 'settings'", config)
+		self.assertIn("openSettings()", config)
+
+	def test_an_existing_plugin_config_is_kept(self):
+		config = self.app_root / "commera" / "plugin.config.ts"
+		config.write_text("export default {}\n")
+
+		changes = self.add("settings")
+
+		self.assertIn(("skipped", "commera/plugin.config.ts"), changes)
+		self.assertEqual(config.read_text(), "export default {}\n")
+
 	def test_an_existing_placement_or_method_is_not_overwritten(self):
 		self.add("order-card", "status")
 		with self.assertRaisesRegex(click.ClickException, "already exists"):

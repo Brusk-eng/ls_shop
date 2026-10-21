@@ -174,6 +174,8 @@ class AppScaffold:
 				# nosemgrep: frappe-direct-jinja-construction
 				Template(get_starter("places/detail.vue")).substitute(values),
 			)
+		if place == "settings":
+			self.add_file(self.source_dir / "plugin.config.ts", get_starter("places/plugin.config.ts"))
 		if starter in ("action", "command"):
 			self.add_api_method(
 				function,
