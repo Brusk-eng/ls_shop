@@ -1,5 +1,5 @@
 {% import "templates/macros/modal.html" as modal %}
-{% from "templates/macros/discount_codes.html" import discount_code_chips %}
+{% from "templates/macros/discount_code_chips.html" import discount_code_chips %}
 <div x-data='{ discount_codes: {{ discount_code_states | tojson }} }'>
     {{ discount_code_chips("discount_codes", "$store.cart.saving_code", "remove_discount_code") }}
 </div>
