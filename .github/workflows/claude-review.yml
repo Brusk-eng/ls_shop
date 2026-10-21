@@ -38,7 +38,7 @@ jobs:
       - name: Get frappe-reviewer token
         id: app-token
         if: vars.FRAPPE_REVIEWER_APP_ID != ''
-        uses: actions/create-github-app-token@v2
+        uses: actions/create-github-app-token@v3
         with:
           app-id: ${{ vars.FRAPPE_REVIEWER_APP_ID }}
           private-key: ${{ secrets.FRAPPE_REVIEWER_APP_PRIVATE_KEY }}
