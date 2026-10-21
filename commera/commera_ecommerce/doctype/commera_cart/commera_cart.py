@@ -1,8 +1,10 @@
 import frappe
 from frappe import _
 from frappe.model.document import Document
-from frappe.utils.data import cint, cstr, flt, get_datetime
+from frappe.utils import create_batch
+from frappe.utils.data import add_days, cint, cstr, flt, get_datetime, now_datetime
 
+from commera.api.cart import validate_stock_available
 from commera.discounts.allocations import get_allocations, get_price_discount_rows
 from commera.discounts.cart_context import get_cart_context
 from commera.discounts.codes import get_code_discount, normalize_code
@@ -19,10 +21,12 @@ from commera.discounts.selection import (
 )
 from commera.guest import clear_guest_cart_cookie, get_guest_cart_key, is_guest, set_guest_cart_cookie
 from commera.plugin_events import fire_event, get_handlers
+from commera.utils import get_available_stocks
 
 MAX_CART_LINES = 50
 # Discount pricing slows down with every unit, so even an item that never runs out has a limit.
 MAX_LINE_QUANTITY = 100
+ABANDONED_GUEST_CART_DAYS = 30
 
 
 def get_max_line_quantity() -> int:
@@ -43,6 +47,32 @@ class CommeraCart(Document):
 				)
 			attributes = parse_attributes(line.attributes)
 			line.attributes = frappe.as_json(attributes, indent=None) if attributes else None
+		self.validate_stock()
+
+	def validate_stock(self):
+		# Only what grew: a line stock fell under since it was added must not block every other cart edit.
+		previous = self.get_doc_before_save()
+		previous_quantities = get_quantities_by_item_code(previous.lines) if previous else {}
+		grown = {
+			item_code: qty
+			for item_code, qty in get_quantities_by_item_code(self.lines).items()
+			if qty > previous_quantities.get(item_code, 0)
+		}
+		if grown:
+			validate_stock_available(
+				[{"variant": {"item_code": item_code}, "qty": qty} for item_code, qty in grown.items()]
+			)
+
+	def cap_at_stock(self):
+		quantities = get_quantities_by_item_code(self.lines)
+		warehouse = frappe.get_cached_value("Commera Settings", "Commera Settings", "ecommerce_warehouse")
+		stock_by_item_code = get_available_stocks(list(quantities), warehouse)
+		for item_code, qty in quantities.items():
+			stock = stock_by_item_code.get(item_code, {})
+			available = max(cint(stock.get("stock_qty")), 0)
+			if not stock.get("unlimited") and qty > available:
+				rows = [row for row in self.lines if row.item_code == item_code]
+				change_quantity_from_the_end(self, rows, available - qty)
 
 	def after_insert(self):
 		# Most guest carts never reach checkout, so the event is only logged when an app listens for it.
@@ -338,7 +368,28 @@ def clear_ordered_cart(quotation, shopper: str | None):
 		condition = cart.user == shopper
 	else:
 		return
-	frappe.qb.update(cart).set(cart.discount_codes, None).set(cart.attributes, None).where(condition).run()
+	cart_name = frappe.qb.from_(cart).select(cart.name).where(condition).run(pluck=True)
+	if not cart_name:
+		return
+	frappe.qb.update(cart).set(cart.discount_codes, None).set(cart.attributes, None).where(
+		cart.name == cart_name[0]
+	).run()
+	# The webhook can place the order while the shopper never comes back to sync the browser cart.
+	line = frappe.qb.DocType("Commera Cart Line")
+	frappe.qb.from_(line).delete().where(
+		(line.parent == cart_name[0]) & (line.parenttype == "Commera Cart") & (line.selected == 1)
+	).run()
+
+
+def delete_abandoned_guest_carts():
+	cutoff = add_days(now_datetime(), -ABANDONED_GUEST_CART_DAYS)
+	names = frappe.get_all(
+		"Commera Cart", filters={"user": ["is", "not set"], "modified": ["<", cutoff]}, pluck="name"
+	)
+	for batch in create_batch(names, 500):
+		frappe.db.delete("Commera Cart Line", {"parent": ["in", batch], "parenttype": "Commera Cart"})
+		frappe.db.delete("Commera Cart", {"name": ["in", batch]})
+		frappe.db.commit()  # nosemgrep: frappe-manual-commit  # a daily job; each batch stands alone
 
 
 def keep_guest_cart(login_manager=None):
@@ -374,6 +425,7 @@ def merge_carts(guest_cart: CommeraCart, account_cart: CommeraCart):
 			for row in guest_cart.lines
 		]
 	)
+	account_cart.cap_at_stock()
 	account_cart.set_attributes(parse_attributes(guest_cart.attributes))
 	for code in get_discount_codes(guest_cart):
 		try:

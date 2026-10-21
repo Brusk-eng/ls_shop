@@ -2,6 +2,7 @@ from unittest.mock import patch
 
 import frappe
 from frappe.auth import CookieManager
+from frappe.utils.data import add_days, now_datetime
 from werkzeug.test import EnvironBuilder
 from werkzeug.wrappers import Request
 
@@ -14,7 +15,10 @@ from commera.api.server_cart import (
 	sync_server_cart,
 )
 from commera.commera_ecommerce.doctype.commera_cart.commera_cart import (
+	ABANDONED_GUEST_CART_DAYS,
 	MAX_LINE_QUANTITY,
+	clear_ordered_cart,
+	delete_abandoned_guest_carts,
 	get_session_cart,
 	keep_guest_cart,
 )
@@ -111,7 +115,71 @@ class TestServerCart(DiscountCodeTestCase):
 		with self.assertRaisesRegex(frappe.ValidationError, "out of stock"):
 			sync_server_cart([{"item_code": self.shirt, "qty": 11}])
 
+	def test_an_app_cannot_add_more_than_the_stock(self):
+		cart_sdk.add_lines([{"item_code": self.shirt, "qty": 10}])
+
+		with self.assertRaisesRegex(frappe.ValidationError, "out of stock"):
+			cart_sdk.add_lines([{"item_code": self.shirt, "qty": 1}])
+		with self.assertRaisesRegex(frappe.ValidationError, "out of stock"):
+			cart_sdk.update_lines([{"line_id": get_session_cart().lines[0].name, "qty": 11}])
+
+	def test_a_line_that_ran_out_does_not_block_other_edits(self):
+		cart_sdk.add_lines([{"item_code": self.shirt, "qty": 5}])
+		self.set_stock(self.shirt, 1)
+
+		priced = cart_sdk.add_lines([{"item_code": self.cap, "qty": 1}])
+
+		self.assertEqual(
+			{(line["item_code"], line["qty"]) for line in priced["lines"]}, {(self.shirt, 5), (self.cap, 1)}
+		)
+
+	def test_sign_in_caps_the_merged_cart_at_the_stock(self):
+		cart_sdk.add_lines([{"item_code": self.shirt, "qty": 6}])
+		self.use_guest_cart()
+		cart_sdk.add_lines([{"item_code": self.shirt, "qty": 6}])
+
+		frappe.set_user(self.shopper)
+		keep_guest_cart()
+
+		self.assertEqual([(row.item_code, row.qty) for row in get_session_cart().lines], [(self.shirt, 10)])
+
+	def test_a_placed_order_clears_the_ordered_lines_from_the_server_cart(self):
+		cart_sdk.add_lines(
+			[{"item_code": self.shirt, "qty": 1}, {"item_code": self.cap, "qty": 1, "selected": 0}]
+		)
+		version = get_session_cart().version
+
+		clear_ordered_cart(frappe._dict(custom_guest_cart_key=None), self.shopper)
+
+		cart = get_session_cart()
+		self.assertEqual([row.item_code for row in cart.lines], [self.cap])
+		self.assertEqual(cart.version, version)
+
+	def test_abandoned_guest_carts_are_deleted(self):
+		self.use_guest_cart()
+		cart_sdk.add_lines([{"item_code": self.shirt, "qty": 1}])
+		guest_cart = get_session_cart().name
+		frappe.set_user(self.shopper)
+		cart_sdk.add_lines([{"item_code": self.shirt, "qty": 1}])
+		account_cart = get_session_cart().name
+		old = add_days(now_datetime(), -ABANDONED_GUEST_CART_DAYS - 1)
+		frappe.db.set_value(
+			"Commera Cart",
+			{"name": ["in", [guest_cart, account_cart]]},
+			"modified",
+			old,
+			update_modified=False,
+		)
+
+		with patch.object(frappe.db, "commit"):
+			delete_abandoned_guest_carts()
+
+		self.assertFalse(frappe.db.exists("Commera Cart", guest_cart))
+		self.assertFalse(frappe.db.exists("Commera Cart Line", {"parent": guest_cart}))
+		self.assertTrue(frappe.db.exists("Commera Cart", account_cart))
+
 	def test_a_cart_line_holds_a_limited_quantity(self):
+		self.set_stock(self.shirt, 1000)
 		cart_sdk.add_lines([{"item_code": self.shirt, "qty": MAX_LINE_QUANTITY}])
 
 		with self.assertRaisesRegex(frappe.ValidationError, "at most"):
@@ -121,6 +189,7 @@ class TestServerCart(DiscountCodeTestCase):
 		previous = frappe.db.get_single_value("Commera Settings", "max_cart_line_quantity")
 		self.addCleanup(self.set_max_line_quantity, previous)
 		self.set_max_line_quantity(250)
+		self.set_stock(self.shirt, 1000)
 		cart_sdk.add_lines([{"item_code": self.shirt, "qty": 250}])
 		with self.assertRaisesRegex(frappe.ValidationError, "at most 250"):
 			cart_sdk.add_lines([{"item_code": self.shirt, "qty": 1}])
@@ -128,6 +197,9 @@ class TestServerCart(DiscountCodeTestCase):
 		self.set_max_line_quantity(0)
 		with self.assertRaisesRegex(frappe.ValidationError, f"at most {MAX_LINE_QUANTITY} "):
 			cart_sdk.add_lines([{"item_code": self.shirt, "qty": 1}])
+
+	def set_stock(self, item_code: str, qty: float):
+		frappe.db.set_value("Bin", {"item_code": item_code, "warehouse": self.warehouse}, "actual_qty", qty)
 
 	def set_max_line_quantity(self, quantity: int):
 		frappe.db.set_single_value("Commera Settings", "max_cart_line_quantity", quantity)

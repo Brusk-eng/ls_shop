@@ -498,6 +498,7 @@ scheduler_events = {
 	"daily": [
 		"commera.jobs.delete_notified_oos",
 		"commera.jobs.delete_old_draft_quotations",
+		"commera.commera_ecommerce.doctype.commera_cart.commera_cart.delete_abandoned_guest_carts",
 		"commera.search.build.rebuild_index_nightly",
 		"commera.og.generator.clear_old_cards",
 	],
