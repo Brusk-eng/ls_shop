@@ -307,6 +307,15 @@ class TestDiscountCodes(DiscountCodeTestCase):
 
 		self.assertEqual(self.get_line(quotation, self.cap).rate, CAP_RATE)
 
+	def test_a_budget_split_over_units_never_overshoots(self):
+		code = self.create_code(percentage=50, item_codes=(self.shirt,), budget=100.01)
+
+		quotation = self.create_quotation({self.shirt: 3}, (code,))
+
+		shirt = self.get_line(quotation, self.shirt)
+		self.assertEqual(shirt.custom_code_discount, 33.33)
+		self.assertLessEqual(sum(row["amount"] for row in get_allocations(quotation)), 100.01)
+
 	def test_buy_x_get_y_on_thousands_of_units_is_quick(self):
 		code = self.create_code(
 			discount_type="Buy X Get Y",

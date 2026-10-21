@@ -1,3 +1,5 @@
+import math
+
 import frappe
 from frappe import _
 from frappe.utils.data import flt
@@ -122,7 +124,12 @@ def apply_line_discounts(doc, selections: list) -> list[dict]:
 		if item.idx not in best_by_line:
 			continue
 		amount, allocation = best_by_line[item.idx]
-		unit_discount = flt(min(amount / flt(item.qty), flt(item.rate)), item.precision("discount_amount"))
+		if flt(item.qty) <= 0:
+			continue
+		# Rounded down: a unit rate cannot carry a part of a paisa, and rounding up would overshoot a budget.
+		unit_discount = round_down(
+			min(amount / flt(item.qty), flt(item.rate)), item.precision("discount_amount")
+		)
 		add_line_discount(item, unit_discount)
 		item.custom_discount_code = allocation["discount"]
 		allocations.append({**allocation, "amount": flt(unit_discount * flt(item.qty), 2)})
@@ -143,12 +150,9 @@ def apply_order_discount(doc, selections: list) -> list[dict]:
 	for selection in selections:
 		amount = flt(selection.discount.get_order_discount(cart))
 		budget_left = selection.discount.get_budget_left(cart)
-		offers.append(
-			(
-				min(amount, budget_left) if budget_left is not None else amount,
-				get_allocation(selection, ORDER, 0),
-			)
-		)
+		if budget_left is not None and amount > budget_left:
+			amount = round_down(budget_left, doc.precision("discount_amount"))
+		offers.append((amount, get_allocation(selection, ORDER, 0)))
 
 	allocations = []
 	subtotal = flt(doc.total)
@@ -445,6 +449,11 @@ def get_shipping_allocations(doc) -> list[dict]:
 		return []
 	code = next((code for code in get_discount_codes(doc) if get_code_discount(code) == discount), None)
 	return [get_allocation(Selection(get_discount(discount), code), SHIPPING, doc.custom_shipping_discount)]
+
+
+def round_down(amount: float, precision: int) -> float:
+	# The epsilon keeps a float like 8.999999999 from dropping a whole paisa.
+	return math.floor(flt(amount) * 10**precision + 1e-6) / 10**precision
 
 
 def cap_by_budget(budget_left: float | None, line_discounts: dict[int, float]) -> dict[int, float]:
