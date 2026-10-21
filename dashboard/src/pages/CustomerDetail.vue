@@ -14,7 +14,7 @@ import PluginSlot from '../components/PluginSlot.vue'
 import { useAdminRead, useAdminAction, trySubmit } from '../data/api'
 import { erpnextLink } from '../data/erpnext'
 import { errorMessage } from '../data/errors'
-import { longDate, money } from '../data/format'
+import { discountMoney, longDate, money } from '../data/format'
 import { orderRoute, productRoute } from '../ia/routes'
 import { useRecordPlugins } from '../data/recordPlugins'
 
@@ -246,7 +246,7 @@ function plural(count, word) {
                 </p>
               </div>
               <p class="w-28 shrink-0 text-right text-base text-ink-gray-8 tabular-nums">
-                −{{ money(use.amount) }}
+                {{ discountMoney(use.amount) }}
               </p>
               <span class="lucide-chevron-right size-4 shrink-0 text-ink-gray-4" aria-hidden="true" />
             </router-link>

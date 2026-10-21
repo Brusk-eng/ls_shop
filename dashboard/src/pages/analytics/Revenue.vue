@@ -100,7 +100,12 @@ const noRevenueState = {
       <Skeleton v-if="reportRequest.loading && !months.length" class="h-[17.75rem] w-full rounded-5" />
 
       <section v-else class="rounded-5 border border-outline-gray-1 p-4">
-        <h2 class="text-lg-semibold text-ink-gray-8">Discounts given</h2>
+        <div class="flex flex-wrap items-baseline justify-between gap-x-3">
+          <h2 class="text-lg-semibold text-ink-gray-8">Discounts given</h2>
+          <span v-if="discounts.orders" class="text-sm text-ink-gray-5 tabular-nums">
+            {{ money(discounts.given) }} on {{ discounts.orders }} {{ discounts.orders === 1 ? 'order' : 'orders' }}
+          </span>
+        </div>
         <EmptyState v-if="!hasValues(months, 'discounts')" compact v-bind="noRevenueState" />
         <div v-else class="h-56">
           <BarChart :data="months" x="label" :y="['discounts']" />
@@ -118,12 +123,7 @@ const noRevenueState = {
     </div>
 
     <section class="mt-6 rounded-5 border border-outline-gray-1">
-      <div class="flex flex-wrap items-baseline justify-between gap-x-3 px-4 py-3">
-        <h2 class="text-lg-semibold text-ink-gray-8">Discounts</h2>
-        <span v-if="discounts.orders" class="text-sm text-ink-gray-5 tabular-nums">
-          {{ money(discounts.given) }} given on {{ discounts.orders }} {{ discounts.orders === 1 ? 'order' : 'orders' }}
-        </span>
-      </div>
+      <h2 class="px-4 py-3 text-lg-semibold text-ink-gray-8">Top discounts</h2>
       <div class="px-2 pb-2">
         <List :columns="['minmax(0,1fr)', '6rem', '8rem']" :row-height="Math.max(ia.density, 44)">
           <ListHeader>
@@ -141,7 +141,7 @@ const noRevenueState = {
           </ListRows>
         </List>
         <EmptyState
-          v-if="!reportRequest.loading && !discounts.top.length"
+          v-if="!reportRequest.loading && !reportRequest.error && !discounts.top.length"
           compact
           icon="lucide-ticket-percent"
           title="No discounts in this period"
