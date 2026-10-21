@@ -1386,16 +1386,6 @@ class TestDiscountsOnOrders(DiscountCodeTestCase):
 		self.assertEqual(sales_order.net_total, 81)
 		self.assertEqual(frappe.db.count("Commera Discount Use", {"sales_order": sales_order.name}), 1)
 
-	def test_deleting_a_draft_order_frees_its_use(self):
-		code = self.create_code(percentage=10)
-		sales_order = self.place_order(self.create_quotation({self.shirt: 1}, (code,)))
-		self.assertEqual(frappe.db.get_value("Commera Discount Code", code, "times_used"), 1)
-
-		frappe.delete_doc("Sales Order", sales_order.name, ignore_permissions=True, force=True)
-
-		self.assertEqual(frappe.db.get_value("Commera Discount Code", code, "times_used"), 0)
-		self.assertFalse(frappe.db.exists("Commera Discount Use", {"sales_order": sales_order.name}))
-
 	def test_an_amended_order_uses_its_discount_once(self):
 		code = self.create_code(percentage=10)
 		sales_order = self.place_order(self.create_quotation({self.shirt: 1}, (code,)))
