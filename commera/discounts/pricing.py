@@ -8,6 +8,11 @@ from commera.discounts.codes import get_code_discount
 from commera.discounts.doctype.commera_discount.commera_discount import ORDER, PRODUCT, SHIPPING
 from commera.discounts.selection import Selection, get_discount, get_discount_codes, select_discounts
 
+try:
+	from erpnext.accounts.services.payment_schedule import PaymentScheduleService
+except ImportError:
+	PaymentScheduleService = None
+
 
 def is_storefront_cart(doc) -> bool:
 	return doc.doctype == "Quotation" and doc.order_type == "Shopping Cart"
@@ -250,7 +255,11 @@ def set_discount_links(doc, allocations: list[dict]):
 def set_amounts_from_grand_total(doc):
 	"""ERPNext writes these during validate, before this hook takes the discount off the total."""
 	doc.set_total_in_words()
-	if doc.meta.has_field("payment_schedule") and not doc.get("is_return"):
+	if not doc.meta.has_field("payment_schedule") or doc.get("is_return"):
+		return
+	if PaymentScheduleService:
+		PaymentScheduleService(doc).set_payment_schedule()
+	else:
 		doc.set_payment_schedule()
 
 

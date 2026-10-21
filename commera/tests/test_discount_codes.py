@@ -528,6 +528,14 @@ class TestDiscountSelection(DiscountCodeTestCase):
 		self.assertEqual(quotation.net_total, SHIRT_RATE)
 
 	def test_free_shipping_follows_how_the_order_is_paid(self):
+		settings = frappe.get_cached_doc("Commera Settings")
+		company = settings.get("company") or frappe.defaults.get_global_default("company")
+		charge_account_head = frappe.db.get_value(
+			"Account", {"company": company, "root_type": "Income", "is_group": 0}, "name"
+		)
+		frappe.db.set_single_value("Commera Settings", "charge_account_head", charge_account_head)
+		frappe.clear_document_cache("Commera Settings", "Commera Settings")
+		self.addCleanup(frappe.clear_document_cache, "Commera Settings", "Commera Settings")
 		for payment_condition, shipping, cod_shipping in (("Prepaid", 0, 60), ("Cash On Delivery", 60, 0)):
 			with self.subTest(payment_condition):
 				frappe.db.set_value("Commera Discount", {"method": "Automatic"}, "enabled", 0)
