@@ -30,7 +30,7 @@ from commera.guest import GUEST_CART_COOKIE
 from commera.sdk import cart as cart_sdk
 from commera.tests.test_delivery_option_charges import make_store_rule, set_store_rule
 from commera.tests.test_discount_codes import CAP_RATE, SHIRT_RATE, DiscountCodeTestCase
-from commera.www.cart.checkout import cart_needs_refresh, refresh_cart_quotation, refresh_checkout_cart
+from commera.www.cart.checkout import cart_needs_refresh, refresh_checkout_cart, set_cart_context
 
 
 class TestServerCart(DiscountCodeTestCase):
@@ -365,6 +365,23 @@ class TestServerCart(DiscountCodeTestCase):
 		self.assertEqual((summary["free_delivery_above"], summary["free_delivery_shortfall"]), (100, 10))
 		self.assertEqual(summary["shipping"], 50)
 
+	def test_a_band_charging_nothing_counts_as_free_delivery(self):
+		self.addCleanup(set_store_rule, frappe.db.get_single_value("Commera Settings", "shipping_rule"))
+		frappe.set_user("Administrator")
+		make_store_rule(
+			[
+				{"from_value": 0, "to_value": 999, "shipping_amount": 99},
+				{"from_value": 999, "to_value": 0, "shipping_amount": 0},
+			]
+		)
+		frappe.set_user(self.shopper)
+
+		priced = cart_sdk.add_lines([{"item_code": self.shirt, "qty": 1}])
+
+		self.assertEqual(
+			(priced["free_delivery_above"], priced["free_delivery_shortfall"]), (999, 999 - SHIRT_RATE)
+		)
+
 	def test_a_code_that_does_not_apply_yet_says_why(self):
 		code = self.create_code(percentage=10, minimum_requirement="Subtotal", minimum_subtotal=500)
 		cart_sdk.add_lines([{"item_code": self.cap, "qty": 1}])
@@ -515,19 +532,17 @@ class TestServerCart(DiscountCodeTestCase):
 
 		self.assertEqual([(row.item_code, row.qty) for row in quotation.items], [(self.shirt, 1)])
 
-	def test_opening_checkout_rebuilds_a_cart_changed_since_the_checkout_click(self):
-		self.addCleanup(frappe.local.flags.pop, "commit", None)
+	def test_opening_checkout_asks_the_page_to_rebuild_a_changed_cart_and_writes_nothing(self):
 		sync_server_cart([{"item_code": self.shirt, "qty": 1}])
 		generate_quotation_for_cart({"items": [self.browser_line(self.shirt, 1)]})
 		cart_sdk.add_lines([{"item_code": self.cap, "qty": 2}])
+		context = frappe._dict()
 
-		refresh_cart_quotation(_get_cart_quotation())
+		set_cart_context(context, frappe.get_cached_doc("Commera Settings"))
 
-		self.assertEqual(
-			{(row.item_code, row.qty) for row in _get_cart_quotation().items},
-			{(self.shirt, 1), (self.cap, 2)},
-		)
-		self.assertTrue(frappe.local.flags.commit)
+		self.assertTrue(context.cart_needs_refresh)
+		self.assertEqual([(row.item_code, row.qty) for row in _get_cart_quotation().items], [(self.shirt, 1)])
+		self.assertFalse(frappe.local.flags.commit)
 
 	def test_the_checkout_page_can_rebuild_the_cart_with_a_post(self):
 		sync_server_cart([{"item_code": self.shirt, "qty": 1}])
@@ -552,8 +567,7 @@ class TestServerCart(DiscountCodeTestCase):
 
 		with self.assertRaises(frappe.ValidationError):
 			generate_quotation_for_cart({"items": [self.browser_line(self.shirt, 1)]})
-		with self.assertRaises(frappe.Redirect):
-			refresh_cart_quotation(_get_cart_quotation())
+		self.assertEqual(refresh_checkout_cart()["redirect"], f"/{frappe.local.lang}/cart")
 
 	def test_opening_checkout_leaves_a_cart_in_payment_alone(self):
 		sync_server_cart([{"item_code": self.shirt, "qty": 1}])
@@ -566,10 +580,9 @@ class TestServerCart(DiscountCodeTestCase):
 			".GatewayPaymentRequest.release_if_unpaid",
 			return_value=False,
 		):
-			refresh_cart_quotation(_get_cart_quotation())
+			self.assertEqual(refresh_checkout_cart(), {"refreshed": False, "redirect": None})
 
 		self.assertEqual([(row.item_code, row.qty) for row in _get_cart_quotation().items], [(self.shirt, 1)])
-		self.assertFalse(frappe.local.flags.commit)
 
 	def create_pending_payment_request(self, quotation_name: str):
 		payment_request = frappe.new_doc("Gateway Payment Request")

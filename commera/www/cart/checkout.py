@@ -115,7 +115,7 @@ def set_guest_cart_context(context):
 
 
 def set_cart_context(context, commera_settings):
-	cart_quotation = refresh_cart_quotation(_get_cart_quotation())
+	cart_quotation = _get_cart_quotation()
 	if not cart_quotation or not cart_quotation.items:
 		frappe.redirect(f"/{frappe.local.lang}/cart")
 	default_price_list = commera_settings.get("default_price_list")
@@ -137,20 +137,6 @@ def set_cart_context(context, commera_settings):
 	context.items = items
 	context.billing_addresses = get_addresses()
 	context.shipping_addresses = get_addresses(address_type="Shipping")
-
-
-def refresh_cart_quotation(quotation):
-	# Rebuild if ticked lines changed since the Checkout click, unless a payment is under way.
-	if quotation.is_new() or frappe.flags.read_only or not cart_needs_refresh(quotation):
-		return quotation
-	rebuilt, redirect = rebuild_checkout_cart(quotation)
-	if redirect:
-		frappe.redirect(redirect)
-	if not rebuilt:
-		return quotation
-	# A page GET is rolled back at the end of the request unless it asks for a commit.
-	frappe.local.flags.commit = True
-	return rebuilt
 
 
 def cart_needs_refresh(quotation) -> bool:
@@ -176,7 +162,7 @@ def rebuild_checkout_cart(quotation) -> tuple:
 		return get_quotation_for_cart(get_checkout_cart({}), quotation), None
 
 
-# The page calls this on load, so a page GET never has to write the cart.
+# The page calls this on load when cart_needs_refresh, so the page GET never writes the cart.
 @frappe.whitelist(methods=["POST"])
 @rate_limit(limit=100, seconds=60 * 60)
 def refresh_checkout_cart() -> dict:
