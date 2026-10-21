@@ -1,10 +1,14 @@
 import frappe
-from erpnext.accounts.doctype.sales_invoice.sales_invoice import make_sales_return
 from frappe.utils.data import flt
 
 from commera.api.payments import COD_PAYMENT_MODE, make_sales_invoice, place_order
 from commera.discounts.codes import get_code_discount
 from commera.tests.test_discount_codes import CAP_RATE, SHIRT_RATE, DiscountCodeTestCase
+
+try:
+	from erpnext.accounts.doctype.sales_invoice.mapper import make_sales_return
+except ImportError:
+	from erpnext.accounts.doctype.sales_invoice.sales_invoice import make_sales_return
 
 
 def keep_rows(doc, item_codes: tuple[str, ...]):
