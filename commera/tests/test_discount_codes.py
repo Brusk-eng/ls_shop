@@ -51,6 +51,17 @@ class DiscountCodeTestCase(IntegrationTestCase):
 		self.cap = self.create_item(CAP_RATE)
 		self.customer = self.create_customer()
 
+	def set_charge_account_head(self):
+		company = frappe.get_cached_doc("Commera Settings").get(
+			"company"
+		) or frappe.defaults.get_global_default("company")
+		charge_account_head = frappe.db.get_value(
+			"Account", {"company": company, "root_type": "Income", "is_group": 0}, "name"
+		)
+		frappe.db.set_single_value("Commera Settings", "charge_account_head", charge_account_head)
+		frappe.clear_document_cache("Commera Settings", "Commera Settings")
+		self.addCleanup(frappe.clear_document_cache, "Commera Settings", "Commera Settings")
+
 	def create_item(self, rate: float) -> str:
 		item_code = f"ZZ-CODE-{frappe.generate_hash(length=8)}"
 		frappe.get_doc(
@@ -492,6 +503,7 @@ class TestDiscountSelection(DiscountCodeTestCase):
 		self.assertEqual(express["amount"], 150)
 
 	def test_a_shipping_code_that_excludes_order_discounts_never_stacks_with_one(self):
+		self.set_charge_account_head()
 		frappe.db.set_value("Commera Discount", {"method": "Automatic"}, "enabled", 0)
 		self.create_discount(
 			percentage=10, method="Automatic", combines_with_product=1, combines_with_shipping=1
@@ -528,14 +540,7 @@ class TestDiscountSelection(DiscountCodeTestCase):
 		self.assertEqual(quotation.net_total, SHIRT_RATE)
 
 	def test_free_shipping_follows_how_the_order_is_paid(self):
-		settings = frappe.get_cached_doc("Commera Settings")
-		company = settings.get("company") or frappe.defaults.get_global_default("company")
-		charge_account_head = frappe.db.get_value(
-			"Account", {"company": company, "root_type": "Income", "is_group": 0}, "name"
-		)
-		frappe.db.set_single_value("Commera Settings", "charge_account_head", charge_account_head)
-		frappe.clear_document_cache("Commera Settings", "Commera Settings")
-		self.addCleanup(frappe.clear_document_cache, "Commera Settings", "Commera Settings")
+		self.set_charge_account_head()
 		for payment_condition, shipping, cod_shipping in (("Prepaid", 0, 60), ("Cash On Delivery", 60, 0)):
 			with self.subTest(payment_condition):
 				frappe.db.set_value("Commera Discount", {"method": "Automatic"}, "enabled", 0)
@@ -898,7 +903,9 @@ class TestTaxInclusiveDiscounts(DiscountCodeTestCase):
 			"charge_type": "On Net Total",
 			"description": "GST 18% included",
 			"account_head": frappe.db.get_value(
-				"Account", {"company": company, "account_type": "Tax", "is_group": 0}, "name"
+				"Account",
+				{"company": company, "root_type": "Liability", "account_type": "", "is_group": 0},
+				"name",
 			),
 			"rate": 18,
 			"included_in_print_rate": 1,
