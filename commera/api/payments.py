@@ -63,6 +63,9 @@ class CheckoutPriceChangedError(frappe.ValidationError):
 	pass
 
 
+COD_TOTAL_TTL_SECONDS = 24 * 60 * 60
+
+
 # ERPNext moved its transaction mappers to a sibling `mapper` module; both layouts are in the wild.
 try:
 	from erpnext.selling.doctype.quotation.mapper import _make_sales_order
@@ -170,6 +173,11 @@ def open_checkout(
 	if is_cod(payment_mode):
 		if COD_PAYMENT_MODE not in payment_methods:
 			refuse_payment(_("Cash on delivery is not available."), quotation.name)
+		frappe.cache.set_value(
+			get_cod_total_key(quotation.name),
+			get_payable_total(quotation, payment_mode),
+			expires_in_sec=COD_TOTAL_TTL_SECONDS,
+		)
 		return {"order_url": get_confirmation_url(quotation.name, payment_mode=COD_PAYMENT_MODE)}
 
 	gateway = resolve_payment_mode(payment_mode)
@@ -300,6 +308,28 @@ def validate_expected_total(quotation, payment_mode: str, expected_total: float 
 	frappe.throw(
 		_("Your order total has changed to {0}. Please review it before placing your order.").format(
 			fmt_money(payable_total, currency=quotation.currency)
+		),
+		title=_("Order Total Changed"),
+		exc=CheckoutPriceChangedError,
+	)
+
+
+def get_cod_total_key(quotation_name: str) -> str:
+	return f"commera:cod_total:{quotation_name}"
+
+
+def validate_cod_total(quotation):
+	# Placement re-prices for cash on delivery; a discount that ran out since checkout must not raise it quietly.
+	confirmed_total = frappe.cache.get_value(get_cod_total_key(quotation.name))
+	if confirmed_total is None:
+		return
+	total = get_charge_amount(quotation)
+	precision = quotation.precision("grand_total")
+	if flt(confirmed_total, precision) == flt(total, precision):
+		return
+	frappe.throw(
+		_("Your order total has changed to {0}. Please review it before placing your order.").format(
+			fmt_money(total, currency=quotation.currency)
 		),
 		title=_("Order Total Changed"),
 		exc=CheckoutPriceChangedError,
@@ -810,8 +840,10 @@ def place_cod_order(quotation_name: str):
 	reprice_shipping_discount(quotation)
 	with system_user_session():
 		set_cod_charges(quotation)
+		validate_cod_total(quotation)
 		quotation.flags.ignore_permissions = True
 		quotation.submit()
+		frappe.cache.delete_value(get_cod_total_key(quotation.name))
 
 		sales_order = _make_sales_order(quotation_name, ignore_permissions=True)
 		sales_order.custom_ecommerce_payment_mode = COD_PAYMENT_MODE

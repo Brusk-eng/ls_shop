@@ -15,6 +15,7 @@ from commera.api.payments import (
 	CheckoutPriceChangedError,
 	confirm_payment,
 	generate_quotation_for_cart,
+	get_cod_total_key,
 	initiate_checkout_with_mode,
 	save_cart_quotation,
 	update_delivery_charges,
@@ -379,6 +380,31 @@ class TestCartCheckout(IntegrationTestCase):
 			get_order_charge_lines(sales_order.name, sales_order.shipping_rule)["taxes"],
 			[{"description": TAX_DESCRIPTION, "amount": 48.6}],
 		)
+
+	def test_cash_on_delivery_refuses_a_total_that_rose_since_checkout(self):
+		ensure_fiscal_year()
+		discount = frappe.get_doc(
+			{
+				"doctype": "Commera Discount",
+				"title": f"ZZ {frappe.generate_hash(length=6)}",
+				"method": "Automatic",
+				"discount_type": "Amount Off Order",
+				"value_type": "Fixed Amount",
+				"value": 5,
+			}
+		).insert(ignore_permissions=True)
+		self.addCleanup(frappe.db.set_value, "Commera Discount", discount.name, "enabled", 0)
+		frappe.set_user(self.shopper)
+		generate_quotation_for_cart({"items": [self.cart_line(self.discounted_item, 1)]})
+		update_quotation_address(self.address_payload())
+		initiate_checkout_with_mode(COD_PAYMENT_MODE)
+		self.addCleanup(frappe.cache.delete_value, get_cod_total_key(_get_cart_quotation().name))
+
+		frappe.db.set_value("Commera Discount", discount.name, "enabled", 0)
+		frappe.clear_document_cache("Commera Discount", discount.name)
+
+		with self.assertRaisesRegex(CheckoutPriceChangedError, "changed to"):
+			confirm_payment(_get_cart_quotation().name, payment_mode=COD_PAYMENT_MODE)
 
 	def test_a_placed_order_clears_the_codes_and_attributes_from_the_cart(self):
 		ensure_fiscal_year()
