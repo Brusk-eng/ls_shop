@@ -58,7 +58,7 @@
 										<td class="product-item-img">
 											<div class="d-flex align-items-center gap-3 position-relative">
 												<input type="checkbox" class="form-check-input m-0 flex-shrink-0" x-model="cart_item.selected"
-													:aria-label="`{{ _('Include in checkout') }}: ${cart_item.variant.item_name}`">
+													:aria-label="include_label.replace('{0}', cart_item.variant.item_name)">
 												<a :href="`/{{ language }}/products/${cart_item.item.route}`">
 													<img :src="cart_item.item.images.length > 0 ? cart_item.item.images[0].image : '/assets/commera/images/1.jpg'"
 														:alt="cart_item.variant.item_name">
@@ -125,16 +125,14 @@
 								{{ _("more to get free delivery") }}
 							</span>
 						</div>
-						<div class="m-b15" x-show="$store.cart.discount_codes.length" x-cloak>
-							{{ discount_code_chips("$store.cart.discount_codes", "$store.cart.removing_code", "$store.cart.remove_discount_code") }}
-						</div>
+						{{ discount_code_chips("$store.cart.discount_codes", "$store.cart.saving_code", "$store.cart.remove_discount_code", classes="m-b15") }}
 						<table>
 							<tbody>
 								<tr>
 									<td>{{ _("Subtotal") }} (<span x-text="$store.cart.selected_count"></span> {{ _("items") }})</td>
 									<td class="price">{{ currency_symbol }}<span x-text="format_amount(subtotal)"></span></td>
 								</tr>
-								<template x-for="discount in $store.cart.discounts" :key="discount.label">
+								<template x-for="(discount, index) in $store.cart.discounts" :key="index">
 									<tr class="discount">
 										<td>{{ _("Discount") }}<span x-show="discount.label" x-text="` (${discount.label})`"></span></td>
 										<td class="price">-{{ currency_symbol }}<span x-text="format_amount(discount.amount)"></span></td>
@@ -185,6 +183,7 @@
 				delivery_charge: delivery_charge,
 				delivery_charge_applicable_below: delivery_charge_applicable_below,
 				checkout_loading: false,
+				include_label: {{ _("Include {0} in checkout") | tojson }},
 
 				async init() {
 					await this.$store.cart.fetch_detail_for_cart();
@@ -229,7 +228,7 @@
 					try {
 						const items = this.$store.cart.items.filter(item => item.selected);
 						if (!await this.$store.cart.validate_stock_before_checkout(items)) return;
-						await this.$store.cart.flush_sync();
+						if (!await this.$store.cart.flush_sync()) return;
 
 						await frappe_call("/api/v2/method/commera.api.payments.generate_quotation_for_cart", {
 							cart: { items: items },
