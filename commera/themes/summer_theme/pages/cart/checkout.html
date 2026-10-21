@@ -4,6 +4,7 @@
 
 {% set language = frappe.lang or "en" %}
 {% set currency_symbol = get_currency_symbol() %}
+{% set quotation_rows = ((cart_quotation and cart_quotation.get("items")) or []) | rejectattr("is_free_item") | list %}
 {% set checkout_config = {
 	"payment_gateways": payment_gateways,
 	"show_cod": show_cod | int,
@@ -17,6 +18,8 @@
 	"prefill": checkout_prefill,
 	"coupon_code": coupon_code,
 	"discount_codes": discount_code_states,
+	"quotation_item_codes": quotation_rows | map(attribute="item_code") | list,
+	"quotation_quantities": quotation_rows | map(attribute="qty") | list,
 } %}
 
 {% block head %}
@@ -614,6 +617,7 @@
 					}
 					if (!this.config.is_guest) {
 						this.apply_pending_discount();
+						this.$store.cart.resync_checkout(this.config.quotation_item_codes, this.config.quotation_quantities, false);
 						return;
 					}
 					if (!this.$store.cart.items.length) {

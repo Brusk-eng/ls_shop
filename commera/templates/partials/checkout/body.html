@@ -38,6 +38,10 @@
                 this.apply_shipping_rule()
                 this.validate_payment_mode()
                 this.apply_pending_discount()
+                {% if not is_guest %}
+                {% set quotation_rows = cart_quotation.get("items") | rejectattr("is_free_item") | list %}
+                this.$store.cart.resync_checkout({{ quotation_rows | map(attribute="item_code") | list | tojson }}, {{ quotation_rows | map(attribute="qty") | list | tojson }})
+                {% endif %}
             },
             async apply_pending_discount() {
                 const url = new URL(window.location.href);
