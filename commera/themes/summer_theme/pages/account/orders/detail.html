@@ -221,7 +221,7 @@
 				</div>
 				{% for discount in order_summary.discounts %}
 				<div class="tracking-item-content">
-					<span class="text-success">{{ _("Discount") }}{% if discount.label %} ({{ discount.label }}){% endif %}</span>
+					<span class="text-success">{{ _("Discount") }}{% if discount.label %} ({{ discount.label | e }}){% endif %}</span>
 					<h6>&minus; {{ get_currency_symbol() }}{{ "%.2f" | format(discount.amount) }}</h6>
 				</div>
 				{% endfor %}
@@ -233,7 +233,7 @@
 				{% endif %}
 				{% for discount in order_summary.shipping_discounts %}
 				<div class="tracking-item-content">
-					<span class="text-success">{{ _("Shipping discount") }} ({{ discount.label }})</span>
+					<span class="text-success">{{ _("Shipping discount") }}{% if discount.label %} ({{ discount.label | e }}){% endif %}</span>
 					<h6>&minus; {{ get_currency_symbol() }}{{ "%.2f" | format(discount.amount) }}</h6>
 				</div>
 				{% endfor %}
