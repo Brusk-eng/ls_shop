@@ -8,15 +8,26 @@ from commera.discounts.cart_context import get_cart_context
 from commera.plugin_events import fire_event
 
 
-def has_used_before(discount: str, cart, excluded_orders: list[str] | None = None) -> bool:
-	identities = {"customer": cart.customer, "email": cart.email, "phone": cart.phone}
-	or_filters = {field: value for field, value in identities.items() if value}
-	if not or_filters:
+class DiscountLimitError(frappe.ValidationError):
+	pass
+
+
+def has_used_before(
+	discount: str, cart, excluded_orders: list[str] | None = None, for_update: bool = False
+) -> bool:
+	use = frappe.qb.DocType("Commera Discount Use")
+	identity = None
+	for field, value in (("customer", cart.customer), ("email", cart.email), ("phone", cart.phone)):
+		if value:
+			identity = (use[field] == value) if identity is None else identity | (use[field] == value)
+	if identity is None:
 		return False
-	filters = {"discount": discount}
+	query = frappe.qb.from_(use).select(use.name).where((use.discount == discount) & identity).limit(1)
 	if excluded_orders:
-		filters["sales_order"] = ["not in", excluded_orders]
-	return bool(frappe.get_all("Commera Discount Use", filters=filters, or_filters=or_filters, limit=1))
+		query = query.where(use.sales_order.notin(excluded_orders))
+	if for_update:
+		query = query.for_update()
+	return bool(query.run())
 
 
 def is_first_order(cart) -> bool:
@@ -41,27 +52,6 @@ def is_first_order(cart) -> bool:
 	return not query.run()
 
 
-def validate_amended_discount_uses(sales_order, method=None):
-	# An amended order keeps its predecessor's uses.
-	if not sales_order.amended_from:
-		return
-	earlier_orders = get_earlier_orders(sales_order)
-	cart = get_cart_context(sales_order)
-	for discount_name, code in {(row["discount"], row.get("code")) for row in get_allocations(sales_order)}:
-		discount = frappe.get_cached_doc("Commera Discount", discount_name)
-		label = code or discount.title
-		other_uses = {"sales_order": ["not in", earlier_orders]}
-		if code and frappe.get_cached_value("Commera Discount Code", code, "is_generated"):
-			if frappe.db.exists("Commera Discount Use", {**other_uses, "code": code}):
-				frappe.throw(_("{0} is a single-use code and another order has used it.").format(label))
-		if discount.once_per_customer and has_used_before(discount_name, cart, earlier_orders):
-			frappe.throw(_("This customer has already used {0} on another order.").format(label))
-		if discount.usage_limit and frappe.db.count(
-			"Commera Discount Use", {**other_uses, "discount": discount_name}
-		) >= cint(discount.usage_limit):
-			frappe.throw(_("{0} has been used up by other orders.").format(label))
-
-
 def get_earlier_orders(sales_order) -> list[str]:
 	orders = []
 	name = sales_order.amended_from
@@ -72,17 +62,24 @@ def get_earlier_orders(sales_order) -> list[str]:
 
 
 def record_discount_uses(sales_order, method=None):
-	# A use counts from placement; cancel, amend, bill or return never changes it.
-	if sales_order.amended_from and frappe.db.exists(
-		"Commera Discount Use", {"sales_order": ["in", get_earlier_orders(sales_order)]}
-	):
-		return
+	# A use counts from placement; cancel, amend, bill, return or delete never changes it.
 	amounts = {}
 	for allocation in get_allocations(sales_order):
 		key = (allocation["discount"], allocation.get("code"))
 		amounts[key] = amounts.get(key, 0) + flt(allocation["amount"])
+	if not amounts:
+		return
 
+	# An amended order is the same placement as the order it replaces, so it keeps that order's uses.
+	earlier_orders = get_earlier_orders(sales_order) if sales_order.amended_from else []
 	conversion_rate = flt(sales_order.conversion_rate) or 1
+	base_amounts = {}
+	for (discount, _code), amount in amounts.items():
+		base_amounts[discount] = base_amounts.get(discount, 0) + flt(amount * conversion_rate, 2)
+	validate_discount_limits(sales_order, amounts, base_amounts, earlier_orders)
+	if earlier_orders and frappe.db.exists("Commera Discount Use", {"sales_order": ["in", earlier_orders]}):
+		return
+
 	for (discount, code), amount in amounts.items():
 		frappe.get_doc(
 			{
@@ -99,7 +96,7 @@ def record_discount_uses(sales_order, method=None):
 				"phone": sales_order.contact_mobile or sales_order.contact_phone or None,
 			}
 		).insert(ignore_permissions=True)
-	refresh_usage({discount for discount, _code in amounts}, {code for _discount, code in amounts if code})
+	add_usage(base_amounts, {code for _discount, code in amounts if code}, flt(sales_order.base_grand_total))
 	for (discount, code), amount in amounts.items():
 		fire_event(
 			"discount_used",
@@ -110,33 +107,73 @@ def record_discount_uses(sales_order, method=None):
 		)
 
 
-def remove_discount_uses(sales_order, method=None):
-	uses = frappe.get_all(
-		"Commera Discount Use", filters={"sales_order": sales_order.name}, fields=["name", "discount", "code"]
-	)
-	for use in uses:
-		frappe.delete_doc("Commera Discount Use", use.name, ignore_permissions=True, force=True)
-	refresh_usage({use.discount for use in uses}, {use.code for use in uses if use.code})
-
-
-def refresh_usage(discounts: set[str], codes: set[str]):
-	# Row locks: two orders placed at once must not lose a count.
-	use = frappe.qb.DocType("Commera Discount Use")
-	for discount in discounts:
-		frappe.db.get_value("Commera Discount", discount, "name", for_update=True)
-		times_used, discount_given, sales = (
-			frappe.qb.from_(use)
-			.select(Count(use.name), Sum(use.base_amount), Sum(use.base_order_total))
-			.where(use.discount == discount)
-		).run()[0]
-		frappe.db.set_value(
-			"Commera Discount",
-			discount,
-			{"times_used": times_used, "discount_given": flt(discount_given), "sales": flt(sales)},
-			update_modified=False,
+def validate_discount_limits(sales_order, amounts: dict, base_amounts: dict, earlier_orders: list[str]):
+	# A locking read waits for a concurrent placement and sees its commit; a plain read would not (REPEATABLE READ).
+	cart = get_cart_context(sales_order)
+	labels = {discount: code for discount, code in amounts}
+	for discount_name in sorted(base_amounts):
+		counters = frappe.db.get_value(
+			"Commera Discount", discount_name, ["times_used", "discount_given"], as_dict=True, for_update=True
 		)
-		frappe.clear_document_cache("Commera Discount", discount)
+		discount = frappe.get_cached_doc("Commera Discount", discount_name)
+		label = labels[discount_name] or discount.title
+		earlier_uses, earlier_amount = get_earlier_usage({"discount": discount_name}, earlier_orders)
+		if discount.usage_limit and cint(counters.times_used) - earlier_uses >= cint(discount.usage_limit):
+			frappe.throw(_("{0} has been used up by other orders.").format(label), DiscountLimitError)
+		if flt(discount.budget):
+			budget = flt(discount.budget) * discount.get_company_exchange_rate()
+			given = flt(counters.discount_given) - earlier_amount + base_amounts[discount_name]
+			if flt(given, 2) > flt(budget, 2):
+				frappe.throw(_("{0} has run out of budget.").format(label), DiscountLimitError)
+		if discount.once_per_customer and has_used_before(
+			discount_name, cart, earlier_orders, for_update=True
+		):
+			frappe.throw(
+				_("This customer has already used {0} on another order.").format(label), DiscountLimitError
+			)
+
+	for code in sorted(code for _discount, code in amounts if code):
+		is_generated, times_used = frappe.db.get_value(
+			"Commera Discount Code", code, ["is_generated", "times_used"], for_update=True
+		)
+		if is_generated and cint(times_used) - get_earlier_usage({"code": code}, earlier_orders)[0] > 0:
+			frappe.throw(
+				_("{0} is a single-use code and another order has used it.").format(code), DiscountLimitError
+			)
+
+
+def get_earlier_usage(filters: dict, earlier_orders: list[str]) -> tuple[int, float]:
+	if not earlier_orders:
+		return 0, 0.0
+	use = frappe.qb.DocType("Commera Discount Use")
+	query = (
+		frappe.qb.from_(use)
+		.select(Count(use.name), Sum(use.base_amount))
+		.where(use.sales_order.isin(earlier_orders))
+	)
+	for field, value in filters.items():
+		query = query.where(use[field] == value)
+	count, amount = query.run()[0]
+	return cint(count), flt(amount)
+
+
+def add_usage(base_amounts: dict[str, float], codes: set[str], base_order_total: float):
+	# Increments, not recounts: the update reads the latest committed counter, whatever this snapshot holds.
+	discount = frappe.qb.DocType("Commera Discount")
+	for name, base_amount in base_amounts.items():
+		(
+			frappe.qb.update(discount)
+			.set(discount.times_used, discount.times_used + 1)
+			.set(discount.discount_given, discount.discount_given + base_amount)
+			.set(discount.sales, discount.sales + base_order_total)
+			.where(discount.name == name)
+		).run()
+		frappe.clear_document_cache("Commera Discount", name)
+	code_table = frappe.qb.DocType("Commera Discount Code")
 	for code in codes:
-		times_used = frappe.db.count("Commera Discount Use", {"code": code})
-		frappe.db.set_value("Commera Discount Code", code, "times_used", times_used, update_modified=False)
+		(
+			frappe.qb.update(code_table)
+			.set(code_table.times_used, code_table.times_used + 1)
+			.where(code_table.name == code)
+		).run()
 		frappe.clear_document_cache("Commera Discount Code", code)

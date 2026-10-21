@@ -141,14 +141,13 @@ doc_events = {
 		"validate": "commera.discounts.pricing.apply_code_discounts",
 	},
 	"Sales Order": {
-		"before_insert": "commera.discounts.usage.validate_amended_discount_uses",
+		"before_insert": "commera.discounts.pricing.drop_copied_discounts",
 		"before_validate": "commera.discounts.pricing.remove_code_discounts",
 		"validate": "commera.discounts.pricing.apply_code_discounts",
 		"after_insert": [
 			"commera.discounts.usage.record_discount_uses",
 			"commera.jobs.send_order_success_acknowledgement",
 		],
-		"on_trash": "commera.discounts.usage.remove_discount_uses",
 		"on_submit": [
 			"commera.jobs.send_order_success_acknowledgement",
 			"commera.utils.update_so_status_from_related_doc",
@@ -237,6 +236,8 @@ ignore_links_on_delete = [
 	"Bulk Style Attribute Configurator Creation Log",
 	"Commera Event",
 	"Commera Event Delivery",
+	# A use is never given back, so its row outlives a deleted order.
+	"Commera Discount Use",
 ]
 
 # Apps

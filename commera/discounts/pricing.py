@@ -58,6 +58,25 @@ def validate_order_discount_edit(doc):
 		)
 
 
+def drop_copied_discounts(sales_order, method=None):
+	# A Desk duplicate copies the allocations; only the first order from a cart, or its amendment, keeps them.
+	if is_repriced(sales_order) or sales_order.amended_from or not get_allocations(sales_order):
+		return
+	quotation = next(
+		(item.prevdoc_docname for item in sales_order.items if item.get("prevdoc_docname")), None
+	)
+	if (
+		quotation
+		and frappe.db.get_value("Quotation", quotation, "docstatus") == 1
+		and not frappe.db.exists("Sales Order Item", {"prevdoc_docname": quotation})
+	):
+		return
+	sales_order.flags.commera_discounts = []
+	remove_code_discounts(sales_order)
+	sales_order.flags.commera_discounts = None
+	set_allocations(sales_order, [])
+
+
 def apply_code_discounts(doc, method=None):
 	if not is_repriced(doc):
 		apply_recorded_discounts(doc)

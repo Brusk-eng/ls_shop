@@ -1,3 +1,4 @@
+import threading
 from unittest.mock import patch
 
 import frappe
@@ -19,7 +20,12 @@ from commera.discounts.doctype.commera_discount.commera_discount import Discount
 from commera.discounts.pricing import refresh_code_discounts
 from commera.discounts.selection import MAX_DISCOUNT_CODES, validate_new_discount_code
 from commera.discounts.shipping import apply_shipping_discounts
-from commera.discounts.usage import record_discount_uses
+from commera.discounts.usage import (
+	DiscountLimitError,
+	add_usage,
+	record_discount_uses,
+	validate_discount_limits,
+)
 
 SHIRT_RATE = 90.0
 CAP_RATE = 40.0
@@ -633,6 +639,52 @@ class TestDiscountsOnOrders(DiscountCodeTestCase):
 		self.assertEqual(amended.custom_code_order_discount, 10)
 		self.assertEqual(self.get_usage(discount, code), (1, 10, 1, [(sales_order.name, 10)]))
 
+	def test_a_deleted_order_keeps_its_discount_use(self):
+		discount = self.create_discount(amount=10, usage_limit=5)
+		code = generate_codes(discount, 1)[0]
+		sales_order = self.place_order(self.create_quotation({self.shirt: 1}, (code,)))
+
+		frappe.delete_doc("Sales Order", sales_order.name, ignore_permissions=True)
+
+		self.assertEqual(self.get_usage(discount, code), (1, 10, 1, [(sales_order.name, 10)]))
+
+	def test_a_limit_used_up_between_checkout_and_placement_refuses_the_order(self):
+		limits = {
+			"single use": {"usage_limit": 0},
+			"usage limit": {"usage_limit": 1},
+			"once per customer": {"once_per_customer": 1},
+			"budget": {"budget": 15},
+		}
+		for limit, fields in limits.items():
+			with self.subTest(limit):
+				discount = self.create_discount(amount=10, **fields)
+				code = (
+					generate_codes(discount, 1)[0]
+					if limit == "single use"
+					else add_code(discount, f"zz{frappe.generate_hash(length=8)}")
+				)
+				# Both carts were priced while the code was still unused, as two open checkouts are.
+				first = self.create_quotation({self.shirt: 1}, (code,))
+				second = self.create_quotation({self.shirt: 1}, (code,))
+				self.assertEqual(second.custom_code_order_discount, 10)
+
+				self.place_order(first)
+				with self.assertRaises(DiscountLimitError):
+					self.place_order(second)
+				self.assertEqual(self.get_usage(discount, code)[0], 1)
+
+	def test_a_duplicated_order_gets_no_discount_and_uses_nothing(self):
+		discount = self.create_discount(amount=10)
+		code = generate_codes(discount, 1)[0]
+		sales_order = self.place_order(self.create_quotation({self.shirt: 1}, (code,)))
+
+		duplicate = frappe.copy_doc(sales_order)
+		duplicate.insert(ignore_permissions=True)
+
+		self.assertEqual((duplicate.custom_code_order_discount, duplicate.net_total), (0, SHIRT_RATE))
+		self.assertEqual(get_allocations(duplicate), [])
+		self.assertEqual(self.get_usage(discount, code), (1, 10, 1, [(sales_order.name, 10)]))
+
 	def get_usage(self, discount: str, code: str) -> tuple:
 		times_used, discount_given = frappe.db.get_value(
 			"Commera Discount", discount, ["times_used", "discount_given"]
@@ -750,12 +802,10 @@ class TestDiscountsOnOrders(DiscountCodeTestCase):
 						"customer": other_order.customer,
 					}
 				).insert(ignore_permissions=True)
+				add_usage({discount: 10}, {code}, 0)
 
-				with self.assertRaisesRegex(frappe.ValidationError, "another order|used up"):
+				with self.assertRaisesRegex(DiscountLimitError, "another order|used up"):
 					self.amend(cancelled)
-
-				other_order.delete()
-				self.assertEqual(self.amend(cancelled).custom_code_order_discount, 10)
 
 	def amend(self, sales_order):
 		amended = frappe.copy_doc(sales_order)
@@ -963,6 +1013,12 @@ class TestDiscountCurrency(DiscountCodeTestCase):
 		foreign_order.currency, foreign_order.conversion_rate = self.foreign, 80
 		foreign_order.base_grand_total = foreign_order.grand_total * 80
 		frappe.db.delete("Commera Discount Use", {"sales_order": foreign_order.name})
+		frappe.db.set_value(
+			"Commera Discount",
+			discount,
+			{"times_used": 1, "discount_given": 10, "sales": sales_order.base_grand_total},
+		)
+		frappe.db.set_value("Commera Discount Code", code, "times_used", 1)
 		record_discount_uses(foreign_order)
 
 		self.assertEqual(
@@ -1007,4 +1063,83 @@ class TestDiscountCurrency(DiscountCodeTestCase):
 		options = [{"title": "Standard", "amount": 60}, {"title": "Express", "amount": 100}]
 		self.assertEqual(
 			[option["amount"] for option in apply_shipping_discounts(quotation, options)], [0, 100]
+		)
+
+
+def run_in_another_request(function):
+	site, sites_path = frappe.local.site, frappe.local.sites_path
+	errors = []
+
+	def target():
+		frappe.init(site, sites_path=sites_path)
+		frappe.connect()
+		try:
+			function()
+			frappe.db.commit()
+		except Exception as error:
+			errors.append(error)
+		finally:
+			frappe.destroy()
+
+	thread = threading.Thread(target=target)
+	thread.start()
+	thread.join()
+	if errors:
+		raise errors[0]
+
+
+class TestDiscountUsageAcrossRequests(IntegrationTestCase):
+	"""Commits on purpose: another connection only sees committed rows. Everything made here is deleted."""
+
+	def setUp(self):
+		self.discount = (
+			frappe.get_doc(
+				{
+					"doctype": "Commera Discount",
+					"title": f"ZZ Race {frappe.generate_hash(length=6)}",
+					"discount_type": "Amount Off Order",
+					"value_type": "Fixed Amount",
+					"value": 10,
+					"usage_limit": 1,
+				}
+			)
+			.insert(ignore_permissions=True)
+			.name
+		)
+		self.code = add_code(self.discount, f"zz{frappe.generate_hash(length=8)}")
+		frappe.db.commit()
+		self.addCleanup(self.delete_committed)
+
+	def delete_committed(self):
+		frappe.db.rollback()
+		frappe.delete_doc("Commera Discount Code", self.code, ignore_permissions=True, force=True)
+		frappe.delete_doc("Commera Discount", self.discount, ignore_permissions=True, force=True)
+		frappe.db.commit()
+
+	def test_a_placement_sees_a_use_another_request_committed_after_it_started(self):
+		self.assertEqual(frappe.db.get_value("Commera Discount", self.discount, "times_used"), 0)
+
+		run_in_another_request(lambda: add_usage({self.discount: 10}, {self.code}, 100))
+
+		# This request's snapshot still says unused; only a locking read sees the other order.
+		self.assertEqual(frappe.db.get_value("Commera Discount", self.discount, "times_used"), 0)
+		with self.assertRaises(DiscountLimitError):
+			validate_discount_limits(
+				frappe.new_doc("Sales Order"), {(self.discount, self.code): 10}, {self.discount: 10}, []
+			)
+
+	def test_two_placements_committed_together_both_count(self):
+		self.assertEqual(frappe.db.get_value("Commera Discount", self.discount, "times_used"), 0)
+
+		run_in_another_request(lambda: add_usage({self.discount: 10}, {self.code}, 100))
+		add_usage({self.discount: 10}, {self.code}, 100)
+
+		self.assertEqual(
+			frappe.db.get_value(
+				"Commera Discount", self.discount, ["times_used", "discount_given", "sales"], for_update=True
+			),
+			(2, 20, 200),
+		)
+		self.assertEqual(
+			frappe.db.get_value("Commera Discount Code", self.code, "times_used", for_update=True), 2
 		)
