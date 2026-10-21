@@ -341,11 +341,14 @@ def get_free_delivery(doc) -> dict:
 	"""Judged as ERPNext's Shipping Rule judges it: on base_net_total, which is after every discount."""
 	settings = frappe.get_cached_doc("Commera Settings")
 	rule = frappe.get_cached_doc("Shipping Rule", settings.shipping_rule) if settings.shipping_rule else None
-	free_band = (
-		next((condition for condition in rule.conditions if condition.free_shipping), None)
-		if rule and rule.calculate_based_on == "Net Total"
-		else None
-	)
+	# A band charging nothing is free too, ticked or not; bands naming a delivery option price only that option.
+	free_bands = [
+		condition
+		for condition in (rule.conditions if rule and rule.calculate_based_on == "Net Total" else [])
+		if (condition.free_shipping or not flt(condition.shipping_amount))
+		and not condition.get("shipping_service")
+	]
+	free_band = min(free_bands, key=lambda condition: flt(condition.from_value), default=None)
 	if not free_band:
 		return {"free_delivery_above": None, "free_delivery_shortfall": 0}
 	conversion_rate = flt(doc.get("conversion_rate")) or 1
