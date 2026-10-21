@@ -25,38 +25,26 @@
 	}
 </script>
 
-<div class=" space-y-10" x-data="{ 
+<div class=" space-y-10" x-data="{
 		checkout_loading: false,
 		cart_loading: true,
-		delivery_charge: {{delivery_charge}},
-		delivery_charge_applicable_below: {{delivery_charge_applicable_below}},
-		cart_total : $store.cart.total - $store.cart.saved,
-		show_delivery_charges: false,
+		delivery_charge: {{ delivery_charge | float }},
+		get show_delivery_charges() {
+			return this.delivery_charge > 0 && $store.cart.is_delivery_charged;
+		},
+		get cart_total() {
+			return $store.cart.total - $store.cart.saved + (this.show_delivery_charges ? this.delivery_charge : 0);
+		},
 	}" x-init="
-		if (delivery_charge_applicable_below > cart_total && delivery_charge > 0  && $store.cart.selected_count > 0) {
-			cart_total = cart_total + delivery_charge
-			show_delivery_charges = true
-		} 
-		else {
-			show_delivery_charges = false
-		};
 		await $store.cart.fetch_detail_for_cart();
 		cart_loading = false;
 		await $store.cart.load_priced();
-		await resume_checkout_after_sign_in($data);" x-effect="
-		cart_total = $store.cart.total - $store.cart.saved;
-		if (delivery_charge_applicable_below > $store.cart.total && delivery_charge > 0 && $store.cart.selected_count > 0) {
-			cart_total = cart_total + delivery_charge;
-			show_delivery_charges = true;
-		} 
-		else {
-			show_delivery_charges = false;
-	}">
+		await resume_checkout_after_sign_in($data);">
 
-	<div x-show="show_delivery_charges && $store.cart.selected_count >0" x-transition>
+	<div x-show="show_delivery_charges && $store.cart.free_delivery_shortfall > 0" x-transition>
 		{% call banner() %}
 		<div class="text-sm text-secondary-accent w-full text-center">
-			{{_('Add items worth')}} {{get_currency_symbol()}} <span x-text="(delivery_charge_applicable_below - $store.cart.total) > 0 ? (delivery_charge_applicable_below - $store.cart.total).toFixed(2) : 0"></span>
+			{{_('Add items worth')}} {{get_currency_symbol()}} <span x-text="($store.cart.free_delivery_shortfall || 0).toFixed(2)"></span>
 			{{_('more to get free delivery')}}
 		</div>
 		{% endcall %}

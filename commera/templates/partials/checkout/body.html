@@ -17,7 +17,7 @@
             payment_gateway_loading:false,
             delivery_option: 'home_delivery',
             checkout_total: parseFloat('{{cart_quotation.net_total or 0}}') + parseFloat('{{delivery_charge or 0}}') + parseFloat('{{cart_quotation.rounding_adjustment or 0}}'),
-            delivery_charge_applicable_below: parseFloat('{{delivery_charge_applicable_below or 0}}'),
+            is_free_delivery: {{ (checkout_summary.get("free_delivery_above") is not none and not checkout_summary.get("free_delivery_shortfall")) | tojson }},
             delivery_charge: parseFloat('{{delivery_charge or 0}}'),
 
 
@@ -54,11 +54,8 @@
             calculate_checkout_total() {
 
                 this.checkout_total = parseFloat('{{cart_quotation.net_total or 0}}') + parseFloat('{{cart_quotation.rounding_adjustment or 0}}')
-                if(this.delivery_option === 'home_delivery') {
-                    if (this.delivery_charge_applicable_below > parseFloat('{{cart_quotation.net_total or 0}}')) {
-                        this.checkout_total += this.delivery_charge 
-                    }
-
+                if (this.delivery_option === 'home_delivery' && !this.is_free_delivery) {
+                    this.checkout_total += this.delivery_charge
                 }
                 if (this.billing_address_filled && this.payment_mode === COD_PAYMENT_MODE && parseFloat('{{cod_charge_applicable_below or 0}}') > parseFloat('{{cart_payable_total or 0}}')) {
                     this.checkout_total += parseFloat('{{cod_charge or 0}}')
@@ -70,7 +67,6 @@
                     "/api/v2/method/commera.api.checkout.apply_shipping_rule"
                 )
                 this.delivery_charge = parseFloat(data.data[0])
-                this.delivery_charge_applicable_below = parseFloat(data.data[1])
             },
             validate_payment_mode() {
                 const payment_modes = get_available_payment_modes()

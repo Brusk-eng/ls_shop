@@ -28,7 +28,7 @@
 	</div>
 
 	<section class="content-inner shop-account"
-		x-data="summer_cart({{ delivery_charge | tojson }}, {{ delivery_charge_applicable_below | tojson }})">
+		x-data="summer_cart({{ delivery_charge | tojson }})">
 		<div class="container">
 			{{ plugin_slot("cart_banner") }}
 			<div class="cart-empty text-center" x-show="!$store.cart.items.length" x-cloak>
@@ -179,9 +179,8 @@
 	{{ super() }}
 	<script>
 		document.addEventListener("alpine:init", () => {
-			Alpine.data("summer_cart", (delivery_charge, delivery_charge_applicable_below) => ({
+			Alpine.data("summer_cart", (delivery_charge) => ({
 				delivery_charge: delivery_charge,
-				delivery_charge_applicable_below: delivery_charge_applicable_below,
 				checkout_loading: false,
 				include_label: {{ _("Include {0} in checkout") | tojson }},
 
@@ -210,8 +209,7 @@
 				},
 
 				get delivery_amount() {
-					if (!this.$store.cart.selected_count) return 0;
-					return this.subtotal < this.delivery_charge_applicable_below ? this.delivery_charge : 0;
+					return this.$store.cart.is_delivery_charged ? this.delivery_charge : 0;
 				},
 
 				get total() {
@@ -219,8 +217,8 @@
 				},
 
 				get free_delivery_shortfall() {
-					if (!this.delivery_charge || !this.$store.cart.selected_count) return 0;
-					return Math.max(this.delivery_charge_applicable_below - this.subtotal, 0);
+					if (!this.delivery_amount) return 0;
+					return this.$store.cart.free_delivery_shortfall || 0;
 				},
 
 				async save_quotation_for_checkout() {

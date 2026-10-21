@@ -49,11 +49,11 @@
         <div class="flex justify-between text-gray-500 text-base" x-show=" delivery_option === 'home_delivery'"
             x-transition>
             <span class="capitalize">{{ _('non-refundable delivery charge') }}</span>
-            <span class="font-medium" x-show="delivery_charge_applicable_below > parseFloat({{cart_quotation.total or 0}})"
+            <span class="font-medium" x-show="!is_free_delivery"
                 x-transition>
                 {{get_currency_symbol()}} <span x-text="delivery_charge.toFixed(2)"></span>
             </span>
-            <span class="font-medium" x-show="delivery_charge_applicable_below <= parseFloat({{cart_quotation.total or 0}})"
+            <span class="font-medium" x-show="is_free_delivery"
                 x-transition x-cloak>
                 {{_('Free')}}</span>
         </div>

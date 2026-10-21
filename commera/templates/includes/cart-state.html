@@ -160,6 +160,15 @@
                     this.saving_code = null;
                 }
             },
+            // The server judges it after discounts; null while unpriced or when the store has no free-delivery band.
+            get free_delivery_shortfall() {
+                if (!this.priced || this.priced.free_delivery_above == null) return null;
+                return this.priced.free_delivery_shortfall;
+            },
+            // Charged unless the server has said the cart reaches free delivery.
+            get is_delivery_charged() {
+                return this.selected_count > 0 && Boolean(this.priced) && this.free_delivery_shortfall !== 0;
+            },
             get saved() {
                 return this.discounts.reduce((sum, discount) => sum + discount.amount, 0);
             },

@@ -14,7 +14,6 @@
 	"has_store_pickup": store_pickup_addresses | length > 0,
 	"is_guest": is_guest,
 	"delivery_charge": delivery_charge,
-	"delivery_charge_applicable_below": delivery_charge_applicable_below,
 	"prefill": checkout_prefill,
 	"coupon_code": coupon_code,
 	"discount_codes": discount_code_states,
@@ -613,11 +612,12 @@
 				async load_discount_codes() {
 					await this.$store.cart.load_priced();
 					this.discount_codes = this.$store.cart.priced?.discount_codes || [];
+					this.summary = this.get_browser_cart_summary();
 				},
 
 				get_browser_cart_summary() {
 					const subtotal = this.$store.cart.total;
-					const shipping = subtotal < this.config.delivery_charge_applicable_below ? this.config.delivery_charge : 0;
+					const shipping = this.$store.cart.is_delivery_charged ? this.config.delivery_charge : 0;
 					const summary = {
 						subtotal: subtotal,
 						shipping: shipping,
