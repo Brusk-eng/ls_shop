@@ -11,7 +11,6 @@ SHIPPED_LAYOUT_SETTERS = {
 
 
 def execute():
-	"""A frozen field_order keeps the Ecommerce tab fields where the old layout put them."""
 	drop_shipped_setters(SHIPPED_LAYOUT_SETTERS)
 
 

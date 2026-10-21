@@ -53,7 +53,6 @@ class OrderLine(TypedDict):
 	rate: float
 	amount: float
 	image: str | None
-	# The whole line's discount from a discount code, an automatic discount or an app.
 	discount: float
 	attributes: dict[str, str]
 
@@ -115,8 +114,6 @@ class Cart(TypedDict):
 
 
 class DiscountInput(TypedDict, total=False):
-	"""Commera Discount fields. Only `discount_type` is required; see the doctype for every rule."""
-
 	title: str
 	# "Code" or "Automatic".
 	method: str
@@ -169,12 +166,11 @@ class PricedCartLine(TypedDict):
 	item_code: str
 	title: str
 	qty: int
-	# False for a line the shopper left out of checkout: priced on its own, with no discount.
 	selected: bool
 	attributes: dict[str, str]
 	price: float
 	rate: float
-	# Per unit, from the best product discount code on the line.
+	# Per unit.
 	code_discount: float
 	discount_code: str | None
 	amount: float
@@ -187,7 +183,7 @@ class DiscountRow(TypedDict):
 
 
 class PricedCart(TypedDict):
-	"""The server cart priced like checkout, before shipping and tax."""
+	"""Before shipping and tax."""
 
 	name: str
 	version: str
@@ -196,7 +192,6 @@ class PricedCart(TypedDict):
 	# {"code", "class"}, where class is "Product" or "Order".
 	discount_codes: list[dict]
 	lines: list[PricedCartLine]
-	# Line and order discounts by code or automatic discount.
 	discounts: list[DiscountRow]
 	subtotal: float
 	order_discount: float
@@ -205,7 +200,7 @@ class PricedCart(TypedDict):
 
 class ChargeSummary(TypedDict):
 	subtotal: float
-	# The lines before discount codes; `discounts` lists what came off them and off the order.
+	# Before discount codes; see discounts.
 	items_total: float
 	discounts: list[DiscountRow]
 	shipping_discounts: list[DiscountRow]

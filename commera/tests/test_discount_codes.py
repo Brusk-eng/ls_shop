@@ -91,7 +91,6 @@ class DiscountCodeTestCase(IntegrationTestCase):
 	def create_discount(
 		self, percentage: float = 0, amount: float = 0, item_codes: tuple[str, ...] = (), **fields
 	) -> str:
-		"""Amount off products on `item_codes` when given, else amount off the order."""
 		discount = frappe.get_doc(
 			{
 				"doctype": "Commera Discount",

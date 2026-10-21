@@ -10,8 +10,7 @@ def get_preview_quotation(
 	flags=None,
 	fields: dict | None = None,
 ):
-	"""An unsaved store cart priced as checkout would price it: ERPNext price lists and rules, then the
-	discounts. Priced elevated, like the checkout cart, because ERPNext reads Items the shopper cannot."""
+	# Elevated, like checkout: ERPNext reads Items the shopper cannot.
 	# Imported here: commera.api.payments imports the cart, which imports this module.
 	from commera.api.payments import system_user_session
 
@@ -24,12 +23,10 @@ def get_preview_quotation(
 			"order_type": "Shopping Cart",
 			"selling_price_list": settings.sale_price_list,
 			"custom_discount_codes": codes,
-			# Who is shopping, so first-order, group and once-per-customer rules can be judged.
 			"party_name": user and frappe.db.get_value("Portal User", {"user": user}, "parent"),
 			"contact_email": user,
 		}
 	)
-	# Plugin fields and cart attributes, so the apps' cart hooks see the cart as checkout will.
 	quotation.update(fields or {})
 	quotation.flags.update(flags or {})
 	for line in lines:

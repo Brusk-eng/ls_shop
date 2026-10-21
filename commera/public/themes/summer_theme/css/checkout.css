@@ -106,7 +106,6 @@
 	}
 }
 
-/* Upstream's checkout takes no discount code, so the box is net-new; its chips live in summer.css. */
 .order-detail .checkout-discount-code {
 	margin: 20px 0;
 }

@@ -19,8 +19,7 @@ def is_repriced(doc) -> bool:
 
 
 def remove_code_discounts(doc, method=None):
-	"""Take the code discounts off before ERPNext prices the document again, so they never apply twice.
-	Clamped at zero: other code may already have reset these fields."""
+	# Clamped at zero: other code may already have reset these fields.
 	if doc.get("is_return"):
 		return
 	keep_lines = not is_repriced(doc)
@@ -40,8 +39,7 @@ def remove_code_discounts(doc, method=None):
 
 
 def validate_order_discount_edit(doc):
-	"""Staff editing a placed order's Additional Discount Amount see the code discount inside it; a lower
-	figure would quietly lose their change, because the code discount comes back on."""
+	# Shown with the code discount inside; a lower figure loses staff's edit.
 	previous = doc.get_doc_before_save()
 	code_discount = flt(doc.custom_code_order_discount)
 	if not previous or flt(previous.discount_amount) == flt(doc.discount_amount):
@@ -56,8 +54,6 @@ def validate_order_discount_edit(doc):
 
 
 def apply_code_discounts(doc, method=None):
-	"""Product discounts per line (best wins), then order discounts on the discounted subtotal. A cart
-	prices its discounts on every save; once placed, it and its order and invoice keep those amounts."""
 	if not is_repriced(doc):
 		apply_recorded_discounts(doc)
 		return
@@ -73,7 +69,6 @@ def apply_code_discounts(doc, method=None):
 
 
 def apply_line_discounts(doc, selections: list) -> list[dict]:
-	"""Each line takes its single best product discount."""
 	cart = get_cart_context(doc)
 	best_by_line = {}
 
@@ -133,8 +128,7 @@ def apply_order_discount(doc, selections: list) -> list[dict]:
 
 	total = sum(row["amount"] for row in allocations)
 	if total:
-		# Like Shopify, an order discount comes off the subtotal before shipping: before tax, or with
-		# tax-inclusive prices off what the shopper pays, so ERPNext works the tax out inside it.
+		# Inclusive tax: discount Grand Total so ERPNext works the tax out inside it.
 		if not flt(doc.discount_amount):
 			doc.apply_discount_on = "Grand Total" if has_inclusive_tax(doc) else "Net Total"
 		# ERPNext's own percentage discount is kept as an amount, so this share can be added to it.
@@ -145,7 +139,6 @@ def apply_order_discount(doc, selections: list) -> list[dict]:
 
 
 def get_saving(cart, selections: list) -> float:
-	"""What these discounts would take off the cart together: lines, order and the chosen delivery."""
 	doc = frappe.copy_doc(cart.doc)
 	doc.flags.commera_discounts = []
 	remove_code_discounts(doc)
@@ -167,8 +160,6 @@ def has_inclusive_tax(doc) -> bool:
 
 
 def apply_recorded_discounts(doc):
-	"""Give an order, invoice or credit note the discounts its cart was priced with: the same amount off
-	each unit, and its share of each order discount by subtotal."""
 	recorded = get_allocations(doc)
 	if not recorded:
 		return
@@ -210,8 +201,7 @@ def apply_recorded_discounts(doc):
 
 
 def drop_unmet_order_discounts(doc, recorded: list[dict]) -> list[dict]:
-	"""Staff taking items off a draft order: an order discount whose minimum the order no longer meets goes.
-	Judged before the line discounts go back on, as the cart was."""
+	# Judged before the line discounts go back on, as the cart was.
 	cart = get_cart_context(doc)
 	kept = []
 	for row in recorded:
@@ -226,8 +216,6 @@ def drop_unmet_order_discounts(doc, recorded: list[dict]) -> list[dict]:
 
 
 def set_discount_links(doc, allocations: list[dict]):
-	"""Tag the document with its discount's campaign, unless staff chose another, and book the discounts to
-	their accounts for ERPNext's discount accounting."""
 	discounts = {
 		discount.name: discount
 		for discount in frappe.get_all(
@@ -267,8 +255,7 @@ def set_amounts_from_grand_total(doc):
 
 
 def get_other_order_discount(doc, source) -> float:
-	"""The order discount that is not ours. A new credit note comes with our whole share still positive,
-	and with ERPNext's discount net of what earlier credit notes reversed, ours included."""
+	# A new credit note carries our whole share; ERPNext's is net of earlier returns.
 	code_discount = flt(doc.custom_code_order_discount)
 	if not (doc.get("is_return") and code_discount > 0):
 		return flt(doc.discount_amount) - code_discount
@@ -279,8 +266,7 @@ def get_other_order_discount(doc, source) -> float:
 
 
 def get_order_discount_shares(doc, order_rows: list[dict], source) -> list[float]:
-	"""Each order discount in proportion to the part of the source document this one covers. The document
-	that completes the source takes what is left, so the parts add up to the source's discount exactly."""
+	# The document completing the source takes the remainder, so parts sum exactly.
 	if not source:
 		return [flt(row["amount"]) for row in order_rows]
 
@@ -315,7 +301,6 @@ def get_allocation_key(row: dict) -> tuple:
 
 
 def get_discount_source(doc):
-	"""The document this one was made from, and the other submitted documents made from it."""
 	fields = ["name", "total", "custom_code_order_discount", ALLOCATIONS_FIELD]
 	if doc.get("is_return"):
 		if not doc.return_against:
@@ -364,7 +349,6 @@ def cap_by_budget(budget_left: float | None, line_discounts: dict[int, float]) -
 
 
 def refresh_code_discounts(doc):
-	"""Price an unsaved document again, such as the checkout's cash on delivery preview."""
 	remove_code_discounts(doc)
 	doc.calculate_taxes_and_totals()
 	apply_code_discounts(doc)

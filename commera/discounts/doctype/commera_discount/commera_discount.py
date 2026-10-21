@@ -23,8 +23,6 @@ class DiscountCodeError(frappe.ValidationError):
 
 
 class CommeraDiscount(Document):
-	"""A discount's rules. Commera applies it on top of ERPNext's price, into the standard discount fields."""
-
 	def validate(self):
 		self.validate_values()
 		if self.starts_on and self.ends_on and getdate(self.starts_on) > getdate(self.ends_on):
@@ -112,7 +110,6 @@ class CommeraDiscount(Document):
 		return bool(self.get(fieldname[discount_class]))
 
 	def is_for_currency(self, cart) -> bool:
-		"""A fixed amount in another currency is converted, so only a currency with no exchange rate is out."""
 		return cart.get_exchange_rate(self.currency) > 0
 
 	def get_money(self, amount: float, cart) -> float:
@@ -123,7 +120,6 @@ class CommeraDiscount(Document):
 		return None if budget_left is None else cart.convert(budget_left, None)
 
 	def get_unmet_condition(self, cart) -> str | None:
-		"""Why this discount does not apply to the cart now, in the shopper's words; None when it does."""
 		if reason := self.get_unmet_minimum(cart):
 			return reason
 		if self.payment_condition == "Prepaid" and cart.payment_kind == "cod":
@@ -150,8 +146,7 @@ class CommeraDiscount(Document):
 		return None
 
 	def gives_anything(self, cart) -> bool:
-		"""Whether the discount would take anything off this cart. One that gives nothing must not take a
-		place that another, combinable discount could use."""
+		# A zero discount must not take a place a combinable one could use.
 		if self.discount_class == PRODUCT:
 			return any(self.get_line_discounts(cart).values())
 		if self.discount_class == ORDER:
@@ -199,8 +194,7 @@ class CommeraDiscount(Document):
 		return False
 
 	def get_line_discounts(self, cart) -> dict[int, float]:
-		"""The whole-line discount this product discount gives each eligible line, keyed by row idx: an
-		unsaved preview's rows have no name yet."""
+		# Keyed by idx: an unsaved preview's rows have no name.
 		if self.discount_type == "Buy X Get Y":
 			return self.get_buy_x_get_y_discounts(cart)
 
@@ -303,7 +297,6 @@ def cap_discounts(discounts: dict[int, float], cap: float) -> dict[int, float]:
 
 
 def spread_amount(amount: float, amounts: dict[int, float]) -> dict[int, float]:
-	"""Share one amount over lines in proportion to their value, never more than the lines are worth."""
 	total = sum(amounts.values())
 	if not total:
 		return {}

@@ -20,7 +20,6 @@ class TestQuantityBreaks(DiscountCodeTestCase):
 		test_server_cart.TestServerCart.set_sale_price_list(self, self.price_list)
 
 	def create_bulk_item(self, rate_or_discount: str) -> str:
-		"""An item at 500 with quantity breaks at 10 (450) and 50 (400), as rates or as percentages off."""
 		item_code = self.create_item(LIST_RATE)
 		frappe.db.set_value("Bin", {"item_code": item_code, "warehouse": self.warehouse}, "actual_qty", 100)
 		for min_qty, max_qty, rate, percentage in ((10, 49, 450, 10), (50, 0, 400, 20)):
@@ -85,7 +84,6 @@ class TestQuantityBreaks(DiscountCodeTestCase):
 					self.assertEqual((doc.items[0].rate, doc.net_total), (450, 4500), doc.doctype)
 
 	def test_codes_come_off_the_break_price(self):
-		"""A product code takes its percentage of the break rate, and an order code comes off after it."""
 		for rate_or_discount in ("Rate", "Discount Percentage"):
 			item_code = self.create_bulk_item(rate_or_discount)
 			product = self.create_code(percentage=10, item_codes=(item_code,), combines_with_order=1)

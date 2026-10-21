@@ -28,7 +28,6 @@ const performance = computed(() => props.discount.performance)
     </ul>
   </section>
 
-  <!-- A saved discount's results; a new one has none to show yet. -->
   <div v-if="performance" class="grid grid-cols-2 gap-3">
     <NumberCard title="Orders" :value="performance.orders" />
     <NumberCard title="Discount given" :value="money(performance.discount_given)" />

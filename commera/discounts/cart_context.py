@@ -9,8 +9,6 @@ from commera.api.cart import get_cart_price
 
 @dataclass
 class CartContext:
-	"""What a discount's conditions read about a cart, Sales Order or Sales Invoice."""
-
 	doc: object
 	payment_kind: str
 	customer: str | None
@@ -39,8 +37,7 @@ class CartContext:
 
 	@property
 	def delivery_option(self) -> dict | None:
-		"""The delivery option chosen at checkout, or the one being offered, at its price before any shipping
-		discount."""
+		# Priced before any shipping discount.
 		if self.offered_option:
 			return self.offered_option
 		if not self.doc.get("custom_delivery_option"):
@@ -52,7 +49,6 @@ class CartContext:
 		}
 
 	def get_exchange_rate(self, currency: str | None) -> float:
-		"""A discount's currency to the cart's, at the store's selling rate. Blank means the company's."""
 		currency = currency or frappe.get_cached_value("Company", self.doc.company, "default_currency")
 		if currency == self.currency:
 			return 1.0

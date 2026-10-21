@@ -27,8 +27,7 @@ def get_server_cart() -> dict | None:
 @frappe.whitelist(allow_guest=True, methods=["POST"])  # nosemgrep: guest-whitelisted-method
 @rate_limit(limit=600, seconds=60 * 60)
 def sync_server_cart(items: list | str, version: str | None = None) -> dict:
-	"""Copy the browser cart's quantities and checkout ticks to the server cart. When the server cart changed
-	after the browser last saw it, nothing is written and the server cart comes back for the browser to show."""
+	# A stale browser version writes nothing; the server cart comes back instead.
 	quantities = get_browser_quantities(items)
 	selection = get_browser_selection(items)
 	cart = get_session_cart(create=bool(quantities))
@@ -86,7 +85,6 @@ def get_browser_quantities(items: list | str) -> dict[str, int]:
 
 
 def get_browser_selection(items: list | str) -> dict[str, bool]:
-	"""Whether each item goes to checkout; a browser that does not say ticks it."""
 	selection = {}
 	for entry in frappe.parse_json(items) or []:
 		item_code = cstr(entry.get("item_code")).strip()
@@ -95,7 +93,6 @@ def get_browser_selection(items: list | str) -> dict[str, bool]:
 
 
 def get_cart_state(cart: CommeraCart) -> dict:
-	"""The server cart as storefront cart lines, so the browser can replace its own copy."""
 	selected_item_codes = {row.item_code for row in cart.get_selected_lines()}
 	lines = get_cart_lines(get_quantities_by_item_code(cart.lines), [])
 	for line in lines:

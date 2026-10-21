@@ -4,8 +4,6 @@ import { ref } from 'vue'
 const props = defineProps({
   title: { type: String, required: true },
   description: { type: String, default: '' },
-  // A collapsible section starts closed and shows `summary` in its header, so the editor
-  // opens on the few fields every discount needs.
   collapsible: { type: Boolean, default: false },
   summary: { type: String, default: '' },
   defaultOpen: { type: Boolean, default: false },

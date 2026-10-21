@@ -23,7 +23,6 @@ class Selection:
 
 
 def get_discount_codes(doc) -> list[str]:
-	"""The codes a cart, Quotation or Sales Order holds, in the order they were applied."""
 	fieldname = "discount_codes" if doc.doctype == "Commera Cart" else "custom_discount_codes"
 	return [code for code in cstr(doc.get(fieldname)).splitlines() if code.strip()]
 
@@ -33,8 +32,7 @@ def get_discount(name: str) -> CommeraDiscount:
 
 
 def validate_new_discount_code(code: str, codes: list[str], active_codes: list[str] | None = None) -> str:
-	"""Check that a shopper's code can join the codes already applied, and return it as stored. Only
-	`active_codes`, the ones that apply to the cart now, can keep it out for not combining."""
+	# Only active_codes can refuse it for not combining.
 	code = normalize_code(code)
 	discount_name = get_code_discount(code)
 	if not discount_name:
@@ -65,7 +63,6 @@ def validate_new_discount_code(code: str, codes: list[str], active_codes: list[s
 
 
 def get_unusable_code_reason(doc, code: str) -> str | None:
-	"""Why a code cannot apply to this cart whatever else it holds, in the shopper's words; None when it can."""
 	# Imported here: commera.checkout_hooks imports the shipping step, which imports this module.
 	from commera.checkout_hooks import get_discount_code_refusal
 
@@ -90,8 +87,7 @@ def is_single_use_spent(code: str) -> bool:
 
 
 def select_discounts(cart) -> list[Selection]:
-	"""Of the discounts that apply, the combination that saves the shopper the most, like Shopify. On a tie
-	the one holding the code applied first wins: codes come first, in the order they were applied."""
+	# On a tie, the code applied first wins.
 	# Imported here: pricing imports this module.
 	from commera.discounts.pricing import get_saving
 
@@ -113,7 +109,6 @@ def select_discounts(cart) -> list[Selection]:
 
 
 def get_combinations(selections: list[Selection]) -> list[list[Selection]]:
-	"""Every largest set of discounts that all combine with each other, each in the order given."""
 	combinations = []
 
 	def extend(combination: list, candidates: list, skipped: list):
@@ -157,7 +152,6 @@ def get_candidates(doc) -> list[Selection]:
 def get_unmet_reason(discount: CommeraDiscount, cart) -> str | None:
 	if reason := discount.get_unmet_condition(cart):
 		return reason
-	# A merchant's test cart says whether it stands for a first order; a real cart is looked up.
 	is_first = cart.doc.flags.commera_first_order
 	if discount.eligibility == "First Order" and not (
 		is_first if is_first is not None else is_first_order(cart)

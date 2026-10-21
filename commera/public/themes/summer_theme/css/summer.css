@@ -401,7 +401,6 @@ button:focus-visible {
 	}
 }
 
-/* Applied discount code chips, shared by the cart and checkout pages; upstream has none. */
 .checkout-discount-codes {
 	display: flex;
 	flex-wrap: wrap;

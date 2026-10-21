@@ -10,7 +10,6 @@ const props = defineProps({
 })
 
 const isFixed = computed(() => discount.value.value_type === 'Fixed Amount')
-// A blank currency is the company currency.
 const currency = computed({
   get: () => discount.value.currency || props.companyCurrency,
   set: (value) => (discount.value.currency = value),

@@ -30,7 +30,6 @@ def add_code(discount: str, code: str, is_generated: bool = False) -> str:
 
 
 def generate_codes(discount: str, count: int, prefix: str = "") -> list[str]:
-	"""Unique single-use codes that share one discount's rules, such as one per influencer or receipt."""
 	count = cint(count)
 	if not 0 < count <= MAX_GENERATED_CODES:
 		frappe.throw(_("Generate between 1 and {0} codes at a time.").format(MAX_GENERATED_CODES))

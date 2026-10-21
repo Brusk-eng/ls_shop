@@ -314,7 +314,6 @@ def get_revenue_report(months: int = REPORT_MONTHS_DEFAULT):
 
 
 def get_discount_summary(order_rows) -> dict:
-	"""What each code and automatic discount took off the window's orders, as billed on the orders."""
 	given, orders, by_label = 0.0, 0, {}
 	for row in order_rows:
 		allocations = get_allocations(row)

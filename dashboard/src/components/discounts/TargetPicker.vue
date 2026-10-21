@@ -3,8 +3,7 @@ import { ref, watch } from 'vue'
 import { MultiSelect } from 'frappe-ui'
 import { searchTargets } from '../../data/discounts'
 
-// A discount's targets are rows of { role, target_type, target }; this picker owns the rows
-// of one role and one type, and leaves every other row alone.
+// Owns rows of one role and type; leaves every other row alone.
 const targets = defineModel({ type: Array, required: true })
 const props = defineProps({
   role: { type: String, required: true },

@@ -6,8 +6,7 @@ from commera.discounts.selection import select_discounts
 
 
 def apply_shipping_discounts(quotation, options: list[dict]) -> list[dict]:
-	"""Discount each delivery option, priced as if chosen. Runs after the plugin hooks, so the price shown and
-	the price charged at payment are the same."""
+	# Runs after the plugin hooks, so shown price equals charged price.
 	return [get_discounted_option(option, quotation) for option in options]
 
 
@@ -31,7 +30,6 @@ def get_discounted_option(option: dict, quotation) -> dict:
 
 
 def set_shipping_discount(quotation, option: dict | None):
-	"""Record the chosen option's shipping discount; pricing reports it with the other discounts."""
 	option = option or {}
 	original_amount = flt(option.get("original_amount"))
 	quotation.custom_shipping_discount = original_amount - flt(option.get("amount")) if original_amount else 0

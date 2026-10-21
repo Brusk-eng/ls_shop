@@ -8,7 +8,7 @@
             items: Alpine.$persist([]),
             // The server cart's version this browser last saw; the server cart wins when they differ.
             version: Alpine.$persist(null).as('commera_cart_version'),
-            // The cart priced by the server, with its discounts. Only pages that show totals ask for it.
+            // Fetched only by pages that show totals.
             priced: null,
             wants_pricing: false,
             removing_code: null,

@@ -247,8 +247,6 @@ def validate_cart(quotation):
 
 
 def drop_refused_codes(quotation):
-	"""Take off the codes that can no longer apply, such as one deleted, used up by another order, or refused
-	by an app's validate_discount_code hook, and tell the shopper why and that the total changed."""
 	reasons = []
 	codes = get_discount_codes(quotation)
 	kept_codes = []

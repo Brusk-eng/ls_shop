@@ -134,8 +134,7 @@ def set_cart_context(context, commera_settings):
 
 
 def refresh_cart_quotation(quotation):
-	"""The Quotation was built at the Checkout click; rebuild it when the server cart's ticked lines changed
-	since, unless a payment for it is already under way."""
+	# Rebuild if ticked lines changed since the Checkout click, unless a payment is under way.
 	if quotation.is_new() or frappe.flags.read_only:
 		return quotation
 	server_cart = get_session_cart()

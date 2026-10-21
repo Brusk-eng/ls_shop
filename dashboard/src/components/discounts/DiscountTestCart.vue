@@ -18,7 +18,6 @@ const money = (value) => moneyIn(value, result.value?.currency)
 
 const QUANTITIES = [1, 2, 3, 4, 5].map((qty) => ({ label: String(qty), value: qty }))
 
-// Priced on the server with the unsaved draft, the same way checkout prices a cart.
 watchDebounced(
   () => [props.discount, lines.value, paymentKind.value, shopper.value, customer.value],
   async () => {
@@ -37,8 +36,7 @@ watchDebounced(
     <p class="mt-0.5 text-p-sm text-ink-gray-5">Priced the way checkout prices it, with this draft.</p>
 
     <div class="mt-3 space-y-2">
-      <!-- min-w-0 lets a long item name truncate inside its track instead of pushing the
-           remove button out of the card. -->
+      <!-- min-w-0: else a long name pushes the remove button out. -->
       <div v-for="(line, index) in lines" :key="index" class="grid grid-cols-[minmax(0,1fr)_4rem_auto] gap-1.5">
         <TestCartPicker v-model="line.item_code" class="min-w-0" target-type="Item" placeholder="Search items" />
         <Select v-model="line.qty" :options="QUANTITIES" />
@@ -52,7 +50,6 @@ watchDebounced(
       <Button v-if="customer" icon="lucide-x" variant="ghost" aria-label="Clear customer" @click="customer = null" />
     </div>
 
-    <!-- A chosen customer brings their own group and order history, so new or returning is not asked. -->
     <div class="mt-2 grid gap-2" :class="customer ? 'grid-cols-1' : 'grid-cols-2'">
       <Select v-model="paymentKind" :options="[{ label: 'Prepaid', value: 'prepaid' }, { label: 'Cash on delivery', value: 'cod' }]" />
       <Select

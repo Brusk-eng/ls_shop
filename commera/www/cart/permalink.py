@@ -20,7 +20,6 @@ def get_context(context):
 	requested_quantities, notices = parse_cart_codes(frappe.form_dict.get("codes"))
 	context.lines = get_cart_lines(requested_quantities, notices)
 	context.notices = notices
-	# `mode=add` keeps the shopper's cart and adds the link's lines to it; by default the link replaces it.
 	context.is_merge = frappe.form_dict.get("mode") == "add"
 	context.next_url = (
 		get_next_url(frappe.form_dict.get("return_to")) if context.lines else f"/{frappe.local.lang}/cart"
@@ -205,8 +204,6 @@ def get_variants(variant_names: list[str]) -> dict[str, dict]:
 
 
 def get_next_url(return_to: str | None = None) -> str:
-	"""`return_to` is "cart" or a path on this site; anything else keeps the default: checkout, or the
-	cart when checkout needs a sign-in."""
 	forwarded_params = [
 		(key, value)
 		for key, value in frappe.form_dict.items()

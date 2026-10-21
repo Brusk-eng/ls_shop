@@ -128,7 +128,6 @@ function remove() {
 
 const hasValue = computed(() => ['Amount Off Products', 'Amount Off Order'].includes(discount.value?.discount_type))
 
-// One line for each collapsed section's header, so a closed section still says what it holds.
 const minimumSummary = computed(() => {
   const value = discount.value
   if (value.minimum_requirement === 'Subtotal') return `Subtotal of ${money(value.minimum_subtotal)} or more`
@@ -203,7 +202,6 @@ watch(
     :breadcrumbs="[{ label: 'Discounts', route: '/discounts' }, { label: heading }]"
   >
     <template v-if="discount" #actions>
-      <!-- A phone has no room for the switch beside the title; it moves into the menu. -->
       <Switch
         v-if="!isNew"
         :model-value="Boolean(discount.enabled)"
@@ -233,8 +231,6 @@ watch(
     />
     <LoadingText v-else-if="!discount" />
 
-    <!-- The summary column sits beside the form from lg; below it the summary comes first,
-         so a phone reads what the discount does before the fields that make it. -->
     <div v-else class="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_20rem]">
       <Tabs v-model="tab" class="order-2 min-w-0 lg:order-1">
         <TabList variant="underline">

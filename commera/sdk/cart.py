@@ -58,8 +58,7 @@ def get_cart() -> Cart | None:
 
 
 def set_cart_fields(values: dict) -> CheckoutSummary:
-	"""Save an app's own Quotation fields (each named for an installed plugin) and re-price its fees. Before
-	checkout they wait on the server cart, a guest's too; a cart already in payment is refused."""
+	"""Before checkout the fields wait on the server cart; a cart in payment is refused."""
 	validate_plugin_fieldnames("Quotation", values)
 	quotation = get_open_cart_quotation()
 	if not quotation:
@@ -79,7 +78,6 @@ def set_cart_fields(values: dict) -> CheckoutSummary:
 
 
 def get_open_cart_quotation():
-	"""The shopper's saved checkout Quotation, or None before checkout has made one."""
 	if is_guest():
 		cart_name = get_guest_cart_name()
 		return frappe.get_doc("Quotation", cart_name) if cart_name else None
@@ -88,29 +86,25 @@ def get_open_cart_quotation():
 
 
 def set_cart_attributes(values: dict) -> PricedCart:
-	"""Merge cart-level attributes, such as a gift message or the campaign that brought the shopper, into
-	the server cart. A value of None removes its key. They reach the order as `attributes`."""
+	"""None removes a key; attributes reach the order as `attributes`."""
 	cart = get_session_cart(create=True)
 	cart.set_attributes(values)
 	return save_server_cart(cart)
 
 
 def get_priced_cart() -> PricedCart | None:
-	"""The session shopper's server cart with lines, attributes and code discounts, or None."""
 	cart = get_session_cart()
 	return cart.get_priced_cart() if cart else None
 
 
 def add_lines(lines: list[NewCartLine]) -> PricedCart:
-	"""Add lines to the session shopper's server cart, starting one when they have none. The storefront
-	shows the new lines on the shopper's next page load."""
+	"""The storefront shows new lines on the shopper's next page load."""
 	cart = get_session_cart(create=True)
 	cart.add_lines(lines)
 	return save_server_cart(cart)
 
 
 def update_lines(lines: list[dict]) -> PricedCart:
-	"""Set `qty` or `attributes` per `line_id`. A quantity of 0 removes the line."""
 	cart = get_existing_cart()
 	cart.update_lines(lines)
 	return save_server_cart(cart)
@@ -123,7 +117,6 @@ def remove_lines(line_ids: list[str]) -> PricedCart:
 
 
 def add_discount_code(code: str) -> PricedCart:
-	"""Apply a Commera Discount code, refused when it is invalid or does not combine with the codes applied."""
 	cart = get_existing_cart()
 	cart.add_discount_code(code)
 	return save_discount_codes(cart)

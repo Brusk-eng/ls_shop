@@ -5,7 +5,6 @@ from commera.discounts.usage import refresh_usage
 
 
 def execute():
-	"""Discount given, sales and budgets add up uses in the company currency, at each order's exchange rate."""
 	uses = frappe.get_all(
 		"Commera Discount Use", fields=["name", "discount", "sales_order", "amount", "order_total"]
 	)

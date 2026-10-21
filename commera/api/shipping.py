@@ -237,8 +237,7 @@ def apply_delivery_option(quotation, option: dict):
 
 
 def reprice_shipping_discount(quotation):
-	"""Discount the chosen delivery option again for how the order is paid; it was chosen on a cart priced
-	as prepaid."""
+	# The option was priced on a prepaid cart; re-price it for the payment mode.
 	if not quotation.custom_delivery_option:
 		return
 	option = {

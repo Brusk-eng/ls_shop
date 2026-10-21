@@ -1,5 +1,3 @@
-"""The Discounts screens: discount rules, their codes, a test cart and the pickers the editor needs."""
-
 import frappe
 from frappe import _
 from frappe.query_builder.functions import Count
@@ -78,7 +76,6 @@ LIST_FIELDS = (
 	"budget",
 	"times_used",
 	"discount_given",
-	# What the list's one-line summary reads.
 	"exclude_sale_items",
 	"minimum_requirement",
 	"minimum_subtotal",
@@ -99,7 +96,6 @@ LIST_FIELDS = (
 def get_discounts(
 	tab: str = "all", search: str | None = None, start: int = 0, page_length: int = PAGE_LENGTH
 ):
-	"""The Discounts list. A tab narrows by the dates and switch a status is read from."""
 	frappe.has_permission(DOCTYPE, ptype="read", throw=True)
 
 	discount = frappe.qb.DocType(DOCTYPE)
@@ -222,7 +218,6 @@ def get_discount(name: str) -> dict:
 
 @frappe.whitelist(methods=["POST"])
 def save_discount(discount: dict | str) -> dict:
-	"""Create or update a discount from the editor. A code discount's single code is kept in step."""
 	values = frappe.parse_json(discount)
 	name = values.get("name")
 	frappe.has_permission(DOCTYPE, ptype="write" if name else "create", throw=True)
@@ -242,7 +237,7 @@ def save_discount(discount: dict | str) -> dict:
 
 
 def set_single_code(discount: str, code: str):
-	"""Point the discount's typed code at `code`. An old code that was used is kept, so its orders still link."""
+	# A used code is kept, not renamed, so its orders still link.
 	code = normalize_code(code)
 	current = frappe.get_all(
 		"Commera Discount Code",
@@ -276,7 +271,6 @@ def create_codes(name: str, count: int, prefix: str | None = None) -> dict:
 
 @frappe.whitelist()
 def download_codes(name: str):
-	"""The discount's generated codes as CSV, with whether each was used."""
 	frappe.has_permission(DOCTYPE, ptype="read", throw=True)
 	rows = frappe.get_all(
 		"Commera Discount Code",
@@ -299,8 +293,7 @@ def test_discount(
 	first_order: int = 0,
 	customer: str | None = None,
 ) -> dict:
-	"""Price a cart with an unsaved draft of the discount, the way checkout would price it. With a
-	customer, their group and order history decide the customer rules instead of `first_order`."""
+	# With a customer, first_order is ignored: their group and history decide.
 	frappe.has_permission(DOCTYPE, ptype="read", throw=True)
 	if customer:
 		frappe.has_permission("Customer", doc=customer, ptype="read", throw=True)
@@ -351,7 +344,6 @@ def test_discount(
 
 @frappe.whitelist()
 def get_editor_options() -> dict:
-	"""The choices the editor's pickers offer that do not need a search."""
 	frappe.has_permission(DOCTYPE, ptype="read", throw=True)
 	company = frappe.defaults.get_global_default("company")
 	return {
@@ -389,8 +381,7 @@ def get_delivery_option_titles() -> list[str]:
 
 @frappe.whitelist()
 def search_targets(target_type: str, search: str | None = None, sellable: int = 0) -> list[dict]:
-	"""Products, collections or brands for a discount's target pickers. `sellable` lists the items a
-	cart can hold, such as each size, rather than the products they belong to."""
+	# sellable returns variants (each size), not the template products.
 	search = f"%{cstr(search)}%"
 	if target_type == "Item":
 		frappe.has_permission("Item", ptype="read", throw=True)

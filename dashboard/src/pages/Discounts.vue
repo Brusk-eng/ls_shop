@@ -38,7 +38,6 @@ const discountsRequest = useAdminRead('discounts.get_discounts', {
   refetch: true,
 })
 
-// A new tab or search changes what page one is, so it sends you back to it.
 watch([tab, query], () => (page.value = 1))
 
 const rows = computed(() => discountsRequest.data?.discounts ?? [])

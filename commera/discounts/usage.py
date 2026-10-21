@@ -20,7 +20,7 @@ def has_used_before(discount: str, cart, excluded_orders: list[str] | None = Non
 
 
 def is_first_order(cart) -> bool:
-	"""No earlier store order for this customer or email. Draft orders count: cash on delivery stays draft."""
+	# Draft orders count: cash on delivery stays draft.
 	sales_order = frappe.qb.DocType("Sales Order")
 	identity = None
 	if cart.customer:
@@ -42,8 +42,7 @@ def is_first_order(cart) -> bool:
 
 
 def validate_amended_discount_uses(sales_order, method=None):
-	"""An amended order is the same placement as the order it replaces, so it keeps that order's uses; a code
-	that another order used up meanwhile is refused."""
+	# An amended order keeps its predecessor's uses.
 	if not sales_order.amended_from:
 		return
 	earlier_orders = get_earlier_orders(sales_order)
@@ -64,7 +63,6 @@ def validate_amended_discount_uses(sales_order, method=None):
 
 
 def get_earlier_orders(sales_order) -> list[str]:
-	"""The cancelled orders an amended order replaces, most recent first."""
 	orders = []
 	name = sales_order.amended_from
 	while name:
@@ -74,8 +72,7 @@ def get_earlier_orders(sales_order) -> list[str]:
 
 
 def record_discount_uses(sales_order, method=None):
-	"""Log each discount a placed order used. Counts, budgets and once-per-customer read this log. A use
-	counts from placement on: cancelling, amending, billing or returning the order never changes it."""
+	# A use counts from placement; cancel, amend, bill or return never changes it.
 	if sales_order.amended_from and frappe.db.exists(
 		"Commera Discount Use", {"sales_order": ["in", get_earlier_orders(sales_order)]}
 	):
@@ -123,7 +120,7 @@ def remove_discount_uses(sales_order, method=None):
 
 
 def refresh_usage(discounts: set[str], codes: set[str]):
-	"""Recount from the log, under row locks, so two orders placed at once cannot lose a count."""
+	# Row locks: two orders placed at once must not lose a count.
 	use = frappe.qb.DocType("Commera Discount Use")
 	for discount in discounts:
 		frappe.db.get_value("Commera Discount", discount, "name", for_update=True)

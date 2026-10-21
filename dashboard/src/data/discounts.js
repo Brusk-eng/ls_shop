@@ -1,7 +1,6 @@
 import { createAdminCaller } from './adminCaller'
 import { moneyIn } from './format'
 
-// The route slug is what a new-discount URL carries; the label is what the server stores.
 export const DISCOUNT_TYPES = [
   {
     slug: 'products',
@@ -108,8 +107,6 @@ function valueLine(discount) {
   return `${off(discount.value)} off ${where}${cap}`
 }
 
-// One sentence per rule, in the order a shopper meets them. The list shows the first few,
-// the editor's summary shows them all.
 export function summaryLines(discount) {
   const money = (value) => moneyIn(value, discount.currency)
   const combines = [

@@ -31,8 +31,6 @@ def get_max_line_quantity() -> int:
 
 
 class CommeraCart(Document):
-	"""The shopper's cart on the server: lines with attributes, and discount codes. ERPNext prices it."""
-
 	def validate(self):
 		if len(self.lines) > MAX_CART_LINES:
 			frappe.throw(_("A cart holds at most {0} lines.").format(MAX_CART_LINES))
@@ -57,7 +55,6 @@ class CommeraCart(Document):
 		return str(get_datetime(self.modified))
 
 	def add_lines(self, lines: list[dict]):
-		"""Add lines; a line with the same item and attributes as an existing one adds to its quantity."""
 		for line in lines:
 			attributes = parse_attributes(line.get("attributes"))
 			qty = cint(line.get("qty") or 1)
@@ -85,7 +82,6 @@ class CommeraCart(Document):
 				)
 
 	def update_lines(self, lines: list[dict]):
-		"""Set the quantity or attributes of lines by `line_id`. A quantity of 0 removes the line."""
 		for line in lines:
 			row = self.get_line(line["line_id"])
 			if "attributes" in line:
@@ -106,7 +102,6 @@ class CommeraCart(Document):
 		return row
 
 	def set_quantities(self, quantities: dict[str, int]) -> bool:
-		"""Match the browser cart's quantity per item, keeping each line's attributes. Return True on a change."""
 		changed = False
 		for item_code in {row.item_code for row in self.lines} - set(quantities):
 			self.lines = [row for row in self.lines if row.item_code != item_code]
@@ -125,7 +120,6 @@ class CommeraCart(Document):
 		return changed
 
 	def set_selection(self, selection: dict[str, bool]) -> bool:
-		"""Tick or untick every line of each item for checkout; an item left out stays ticked."""
 		changed = False
 		for row in self.lines:
 			selected = cint(selection.get(row.item_code, 1))
@@ -157,8 +151,7 @@ class CommeraCart(Document):
 		return lines_by_item_code
 
 	def get_priced_cart(self) -> dict:
-		"""The cart priced as checkout would price it: ERPNext price lists and rules, then the codes. Lines
-		left out of checkout are priced on their own, without discounts."""
+		# Unticked lines are priced on their own, without discounts.
 		quotation = self.get_quotation_preview()
 		selected_lines = self.get_selected_lines()
 		items_by_row = dict(zip([row.name for row in selected_lines], quotation.items, strict=True))
@@ -188,8 +181,7 @@ class CommeraCart(Document):
 		)
 
 	def update_quotation(self, quotation):
-		"""Copy the attributes and codes onto a checkout Quotation. When the quantity matches the cart's ticked
-		lines, an item held on several lines stays split by attributes."""
+		# Split by attributes only while the qty still matches the ticked lines.
 		lines_by_item_code = self.get_lines_by_item_code()
 		items = []
 		for item in quotation.items:
@@ -209,7 +201,6 @@ class CommeraCart(Document):
 		quotation.update(frappe.parse_json(self.plugin_fields or "{}"))
 
 	def set_attributes(self, values: dict):
-		"""Merge cart-level attributes; a value of None removes its key."""
 		attributes = {
 			**parse_attributes(self.attributes),
 			**{cstr(key): value for key, value in values.items()},
@@ -246,7 +237,6 @@ def change_quantity_from_the_end(cart, rows: list, delta: int):
 
 
 def get_code_states(quotation) -> list[dict]:
-	"""Each code with whether it applies now and, when not, why in the shopper's words."""
 	applied = {(row["discount"], row.get("code")) for row in get_allocations(quotation)}
 	cart = get_cart_context(quotation)
 	selections = select_discounts(cart)
@@ -323,7 +313,6 @@ def parse_attributes(attributes) -> dict:
 
 
 def get_session_cart(create: bool = False) -> CommeraCart | None:
-	"""The session shopper's cart, locked for this request. With `create`, start one when they have none."""
 	filters = {"user": frappe.session.user} if not is_guest() else {"cart_key": get_guest_cart_key()}
 	if is_guest() and not filters["cart_key"]:
 		filters = None
@@ -342,8 +331,7 @@ def get_session_cart(create: bool = False) -> CommeraCart | None:
 
 
 def clear_ordered_cart(quotation, shopper: str | None):
-	"""Codes and attributes belong to the order just placed; left on the cart, the next order would get them.
-	`modified` stays, so the browser's next sync is not a version conflict."""
+	# modified is left alone so the next browser sync is not a version conflict.
 	cart = frappe.qb.DocType("Commera Cart")
 	if quotation.custom_guest_cart_key:
 		condition = cart.cart_key == quotation.custom_guest_cart_key
@@ -355,8 +343,7 @@ def clear_ordered_cart(quotation, shopper: str | None):
 
 
 def keep_guest_cart(login_manager=None):
-	"""On sign-in, the cart built as a guest becomes the account's cart, or joins it when the account has one.
-	A cart that cannot be merged is logged, never a reason to refuse the sign-in."""
+	# A failed merge is logged, never a reason to refuse sign-in.
 	cart_key = get_guest_cart_key()
 	guest_cart_name = cart_key and frappe.db.get_value("Commera Cart", {"cart_key": cart_key}, "name")
 	if not guest_cart_name or is_guest():

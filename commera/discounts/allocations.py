@@ -6,8 +6,6 @@ ALLOCATIONS_FIELD = "custom_discount_allocations"
 
 
 def get_allocations(doc) -> list[dict]:
-	"""Each discount on a document: {discount, code, title, discount_class, amount, line}. Written
-	only by pricing."""
 	return json.loads(doc.get(ALLOCATIONS_FIELD) or "[]")
 
 
@@ -16,7 +14,6 @@ def set_allocations(doc, allocations: list[dict]):
 
 
 def get_allocation(selection, discount_class: str, amount: float, line: int | None = None) -> dict:
-	"""One discount's share of a document."""
 	return {
 		"discount": selection.discount.name,
 		"code": selection.code,
@@ -28,7 +25,6 @@ def get_allocation(selection, discount_class: str, amount: float, line: int | No
 
 
 def get_discount_rows(allocations: list[dict], classes: tuple = (), line: int | None = None) -> list[dict]:
-	"""What each code or automatic discount took off, by the name the shopper saw it under."""
 	amounts = {}
 	for allocation in allocations:
 		if line is not None and allocation.get("line") != line:
@@ -48,5 +44,5 @@ def get_order_discount_rows(doc) -> list[dict]:
 
 
 def get_price_discount_rows(doc) -> list[dict]:
-	"""Every discount off the goods, line and order, so a summary that starts from list prices adds up."""
+	# Includes line and order discounts so a list-price summary adds up.
 	return get_discount_rows(get_allocations(doc), ("Product",)) + get_order_discount_rows(doc)
