@@ -1,12 +1,13 @@
 import json
 
+import frappe
 from frappe.utils.data import flt
 
 ALLOCATIONS_FIELD = "custom_discount_allocations"
 
 
 def get_allocations(doc) -> list[dict]:
-	return json.loads(doc.get(ALLOCATIONS_FIELD) or "[]")
+	return frappe.parse_json(doc.get(ALLOCATIONS_FIELD) or "[]")
 
 
 def set_allocations(doc, allocations: list[dict]):
