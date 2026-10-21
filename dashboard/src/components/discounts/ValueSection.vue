@@ -18,6 +18,8 @@ const currencySymbol = computed(
   () => props.currencies.find((option) => option.value === currency.value)?.symbol || currency.value,
 )
 
+const tierValueLabel = computed(() => (discount.value.value_type === 'Percentage' ? 'Discount (%)' : 'Discount amount'))
+
 const VALUE_TYPES = [
   { label: 'Percentage', value: 'Percentage' },
   { label: 'Fixed amount', value: 'Fixed Amount' },
@@ -34,7 +36,7 @@ function addTier() {
 
 <template>
   <DiscountSection title="Value">
-    <TabButtons v-model="discount.value_type" size="sm" :options="VALUE_TYPES" />
+    <TabButtons v-model="discount.value_type" size="sm" :options="VALUE_TYPES" aria-label="Value type" />
 
     <div v-if="!discount.tiered || isFixed" class="grid gap-4 sm:grid-cols-2">
       <FormControl
@@ -90,11 +92,17 @@ function addTier() {
           :key="index"
           class="grid grid-cols-[1fr_1fr_auto] items-end gap-2"
         >
-          <FormControl v-model="tier.minimum_subtotal" type="number" :label="index ? '' : 'Subtotal from'" />
+          <FormControl
+            v-model="tier.minimum_subtotal"
+            type="number"
+            :label="index ? undefined : 'Subtotal from'"
+            :aria-label="`Tier ${index + 1} subtotal from`"
+          />
           <FormControl
             v-model="tier.value"
             type="number"
-            :label="index ? '' : discount.value_type === 'Percentage' ? 'Discount (%)' : 'Discount amount'"
+            :label="index ? undefined : tierValueLabel"
+            :aria-label="`Tier ${index + 1} ${tierValueLabel.toLowerCase()}`"
           >
             <template v-if="isFixed" #prefix><span class="text-sm text-ink-gray-5">{{ currencySymbol }}</span></template>
           </FormControl>

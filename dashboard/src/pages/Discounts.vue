@@ -1,14 +1,16 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
-import { Badge, Button, TabButtons, TextInput } from 'frappe-ui'
+import { Button, TabButtons } from 'frappe-ui'
 import { List, ListCell, ListHeader, ListHeaderCell, ListRow, ListRows } from 'frappe-ui/list'
 import AppPageHeader from '../components/AppPageHeader.vue'
 import PageBody from '../components/PageBody.vue'
 import EmptyState from '../components/EmptyState.vue'
 import ListPagination from '../components/ListPagination.vue'
 import ListSkeleton from '../components/ListSkeleton.vue'
+import SearchInput from '../components/SearchInput.vue'
+import StatusBadge from '../components/StatusBadge.vue'
 import DiscountTypeDialog from '../components/discounts/DiscountTypeDialog.vue'
-import { STATUS_THEMES, discountTypeByValue, summaryLines } from '../data/discounts'
+import { discountHeading, discountTypeLabel, statusKey, summaryLines } from '../data/discounts'
 import { useAdminRead } from '../data/api'
 import { money } from '../data/format'
 import { ia } from '../ia/store'
@@ -44,12 +46,6 @@ const rows = computed(() => discountsRequest.data?.discounts ?? [])
 const total = computed(() => discountsRequest.data?.total ?? 0)
 const isMobile = useIsMobile()
 
-function heading(row) {
-  if (row.method === 'Automatic') return row.title
-  if (row.code) return row.code
-  return `${row.generated_codes} unique codes`
-}
-
 function usage(row) {
   return row.usage_limit ? `${row.times_used} / ${row.usage_limit}` : String(row.times_used)
 }
@@ -65,7 +61,7 @@ function usage(row) {
   <PageBody>
     <div class="flex flex-wrap items-center gap-2">
       <TabButtons v-model="tab" size="sm" :options="TABS" />
-      <TextInput v-model="query" class="w-56" placeholder="Search titles and codes" icon-left="lucide-search" :debounce="300" />
+      <SearchInput v-model="query" class="ml-auto w-56" placeholder="Search titles and codes" :debounce="300" />
     </div>
 
     <div class="mt-3 overflow-x-auto">
@@ -89,19 +85,19 @@ function usage(row) {
           <ListRow :route="{ name: 'DiscountDetail', params: { id: item.name } }" :value="item.name">
             <ListCell>
               <div class="min-w-0">
-                <p class="truncate text-base-medium text-ink-gray-8">{{ heading(item) }}</p>
+                <p class="truncate text-base-medium text-ink-gray-8">{{ discountHeading(item) }}</p>
                 <p class="truncate text-sm text-ink-gray-5">{{ summaryLines(item).slice(0, 2).join(' · ') }}</p>
               </div>
             </ListCell>
             <ListCell class="max-sm:hidden">
-              <span class="text-base text-ink-gray-7">{{ discountTypeByValue[item.discount_type].label }}</span>
+              <span class="text-base text-ink-gray-7">{{ discountTypeLabel(item) }}</span>
             </ListCell>
             <ListCell class="max-sm:hidden"><span class="text-base text-ink-gray-7">{{ item.method }}</span></ListCell>
             <ListCell class="max-sm:hidden"><span class="text-base tabular-nums text-ink-gray-7">{{ usage(item) }}</span></ListCell>
             <ListCell class="max-sm:hidden">
               <span class="text-base tabular-nums text-ink-gray-7">{{ money(item.discount_given) }}</span>
             </ListCell>
-            <ListCell><Badge :label="item.status" :theme="STATUS_THEMES[item.status]" variant="subtle" /></ListCell>
+            <ListCell><StatusBadge :status="statusKey(item.status)" /></ListCell>
           </ListRow>
         </ListRows>
       </List>

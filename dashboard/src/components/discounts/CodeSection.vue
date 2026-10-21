@@ -2,10 +2,9 @@
 import { ref } from 'vue'
 import { Button, Dialog, FormControl, TabButtons, TextInput, toast } from 'frappe-ui'
 import DiscountSection from './DiscountSection.vue'
-import { codesDownloadUrl, createCodes, discountTypeByValue } from '../../data/discounts'
+import { codesDownloadUrl, createCodes, discountTypeLabel } from '../../data/discounts'
 
 const discount = defineModel('discount', { type: Object, required: true })
-const emit = defineEmits(['codes-created'])
 
 const METHODS = [
   { label: 'Discount code', value: 'Code' },
@@ -27,9 +26,9 @@ async function generateBulk() {
   try {
     const result = await createCodes(discount.value.name, bulk.value.count, bulk.value.prefix)
     if (!result) return
+    discount.value.generated_codes = Number(discount.value.generated_codes ?? 0) + result.created
     toast.success(`${result.created} codes created`)
     generating.value = false
-    emit('codes-created')
   } finally {
     creatingCodes.value = false
   }
@@ -37,8 +36,8 @@ async function generateBulk() {
 </script>
 
 <template>
-  <DiscountSection :title="discountTypeByValue[discount.discount_type].label">
-    <TabButtons v-model="discount.method" size="sm" :options="METHODS" />
+  <DiscountSection :title="discountTypeLabel(discount)">
+    <TabButtons v-model="discount.method" size="sm" :options="METHODS" aria-label="How it applies" />
 
     <template v-if="discount.method === 'Code'">
       <div>
@@ -57,15 +56,11 @@ async function generateBulk() {
               {{ discount.generated_codes_used }} of {{ discount.generated_codes }} used ·
               <a :href="codesDownloadUrl(discount.name)" class="text-ink-gray-8 underline">Download as CSV</a>
             </template>
-            <template v-else>Single-use codes for influencers, emails or receipts, sharing these rules.</template>
+            <template v-else-if="discount.name">Single-use codes for influencers, emails or receipts, sharing these rules.</template>
+            <template v-else>Save the discount first, then generate single-use codes that share these rules.</template>
           </p>
         </div>
-        <Button
-          label="Generate codes"
-          :disabled="!discount.name"
-          :tooltip="discount.name ? null : 'Save the discount first'"
-          @click="generating = true"
-        />
+        <Button label="Generate codes" :disabled="!discount.name" @click="generating = true" />
       </div>
     </template>
     <FormControl

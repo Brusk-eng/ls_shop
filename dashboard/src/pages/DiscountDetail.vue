@@ -1,46 +1,30 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import {
-  Button,
-  Checkbox,
-  DatePicker,
-  Dropdown,
-  FormControl,
-  LoadingText,
-  MultiSelect,
-  Radio,
-  RadioGroup,
-  Switch,
-  TabList,
-  TabPanel,
-  TabTrigger,
-  Tabs,
-  dialog,
-  toast,
-} from 'frappe-ui'
+import { Button, Dropdown, LoadingText, Switch, TabList, TabPanel, TabTrigger, Tabs, dialog, toast } from 'frappe-ui'
 import AppPageHeader from '../components/AppPageHeader.vue'
 import PageBody from '../components/PageBody.vue'
 import EmptyState from '../components/EmptyState.vue'
-import DiscountSection from '../components/discounts/DiscountSection.vue'
 import CodeSection from '../components/discounts/CodeSection.vue'
 import ValueSection from '../components/discounts/ValueSection.vue'
 import AppliesToSection from '../components/discounts/AppliesToSection.vue'
 import BuyXGetYSection from '../components/discounts/BuyXGetYSection.vue'
 import ShippingSection from '../components/discounts/ShippingSection.vue'
+import ConditionsSections from '../components/discounts/ConditionsSections.vue'
+import LimitsSections from '../components/discounts/LimitsSections.vue'
+import ReportingSection from '../components/discounts/ReportingSection.vue'
 import DiscountSummary from '../components/discounts/DiscountSummary.vue'
 import DiscountTestCart from '../components/discounts/DiscountTestCart.vue'
 import {
   blankDiscount,
   deleteDiscount,
+  discountHeading,
   discountTypeBySlug,
   getDiscount,
   getEditorOptions,
   saveDiscount,
-  searchTargets,
 } from '../data/discounts'
 import { errorMessage } from '../data/errors'
-import { money } from '../data/format'
 
 const route = useRoute()
 const router = useRouter()
@@ -56,16 +40,15 @@ const discount = ref(null)
 const options = ref({ customer_groups: [], campaigns: [], discount_accounts: [], delivery_options: [] })
 const loadError = ref(null)
 const saving = ref(false)
+const triedSaving = ref(false)
 const tab = ref('setup')
 
 const isNew = computed(() => !discount.value?.name)
-const heading = computed(() => {
-  if (!discount.value || isNew.value) return 'New discount'
-  return discount.value.method === 'Code' ? discount.value.code || discount.value.title : discount.value.title
-})
+const heading = computed(() => (!discount.value || isNew.value ? 'New discount' : discountHeading(discount.value)))
 
 async function load() {
   loadError.value = null
+  triedSaving.value = false
   options.value = (await getEditorOptions()) ?? options.value
   if (route.name === 'DiscountNew') {
     const type = discountTypeBySlug[route.params.type] ?? discountTypeBySlug.products
@@ -89,6 +72,7 @@ watch(
 
 async function save() {
   saving.value = true
+  triedSaving.value = true
   try {
     const wasNew = isNew.value
     const saved = await saveDiscount(discount.value)
@@ -112,14 +96,10 @@ async function toggleEnabled(enabled) {
 function remove() {
   dialog.danger({
     title: `Delete ${heading.value}?`,
-    message: 'Shoppers can no longer use it. A discount orders already used is kept; switch it off instead.',
+    message: "Shoppers can no longer use it. Discounts already used on orders can't be deleted; switch it off instead.",
     confirmLabel: 'Delete discount',
-    onConfirm: async ({ setError }) => {
-      const { error } = await deleteDiscount(discount.value.name)
-      if (error) {
-        setError(errorMessage(error))
-        return
-      }
+    onConfirm: async () => {
+      if (!(await deleteDiscount(discount.value.name))) return
       toast.success('Discount deleted')
       router.replace('/discounts')
     },
@@ -127,72 +107,6 @@ function remove() {
 }
 
 const hasValue = computed(() => ['Amount Off Products', 'Amount Off Order'].includes(discount.value?.discount_type))
-
-const minimumSummary = computed(() => {
-  const value = discount.value
-  if (value.minimum_requirement === 'Subtotal') return `Subtotal of ${money(value.minimum_subtotal)} or more`
-  if (value.minimum_requirement === 'Quantity') return `${value.minimum_quantity} items or more`
-  return 'No minimum'
-})
-const audienceSummary = computed(() => {
-  const value = discount.value
-  const customers = { 'First Order': 'First order only', 'Customer Groups': 'Chosen customer groups', 'Specific Customers': 'Chosen customers' }[value.eligibility] ?? 'Everyone'
-  const payment = { Prepaid: 'prepaid only', 'Cash On Delivery': 'cash on delivery only' }[value.payment_condition] ?? 'any payment'
-  return `${customers} · ${payment}`
-})
-const combinationSummary = computed(() => {
-  const value = discount.value
-  const classes = [
-    value.combines_with_product && 'product',
-    value.combines_with_order && 'order',
-    value.combines_with_shipping && 'shipping',
-  ].filter(Boolean)
-  return classes.length ? `Combines with ${classes.join(', ')} discounts` : 'Combines with nothing'
-})
-const limitSummary = computed(() => {
-  const value = discount.value
-  const limits = [
-    Number(value.usage_limit) && `${value.usage_limit} uses`,
-    value.once_per_customer && 'once per customer',
-    Number(value.budget) && `budget ${money(value.budget)}`,
-  ].filter(Boolean)
-  return limits.length ? limits.join(' · ') : 'No limits'
-})
-
-const hasEndDate = computed({
-  get: () => Boolean(discount.value.ends_on),
-  set: (hasEnd) => (discount.value.ends_on = hasEnd ? discount.value.starts_on : null),
-})
-
-const customerGroups = computed({
-  get: () => discount.value.customer_groups.map((row) => row.customer_group),
-  set: (groups) => (discount.value.customer_groups = groups.map((customer_group) => ({ customer_group }))),
-})
-
-const customerQuery = ref('')
-const customerOptions = ref([])
-const customers = computed({
-  get: () => discount.value.customers.map((row) => row.customer),
-  set: (names) => {
-    const labels = Object.fromEntries(customerOptions.value.map((option) => [option.value, option.label]))
-    discount.value.customers = names.map((customer) => ({ customer, customer_name: labels[customer] }))
-  },
-})
-
-// The server searches, so the chosen customers ride along to keep their names off the current search.
-watch(
-  [customerQuery, () => discount.value?.eligibility],
-  async ([query, eligibility]) => {
-    if (eligibility !== 'Specific Customers') return
-    const found = (await searchTargets('Customer', query)) ?? []
-    const known = new Set(found.map((option) => option.value))
-    const chosen = discount.value.customers
-      .filter((row) => !known.has(row.customer))
-      .map((row) => ({ label: row.customer_name || row.customer, value: row.customer }))
-    customerOptions.value = [...found, ...chosen]
-  },
-  { immediate: true },
-)
 </script>
 
 <template>
@@ -212,8 +126,8 @@ watch(
       <Dropdown
         v-if="!isNew"
         :options="[
-          { label: discount.enabled ? 'Switch off' : 'Switch on', icon: 'power', onClick: () => toggleEnabled(!discount.enabled) },
-          { label: 'Delete discount', icon: 'trash-2', theme: 'red', onClick: remove },
+          { label: discount.enabled ? 'Switch off' : 'Switch on', icon: 'lucide-power', onClick: () => toggleEnabled(!discount.enabled) },
+          { label: 'Delete discount', icon: 'lucide-trash-2', theme: 'red', onClick: remove },
         ]"
       >
         <Button icon="lucide-ellipsis" label="More actions" />
@@ -239,7 +153,7 @@ watch(
 
         <TabPanel value="setup">
           <div class="space-y-5 pt-5">
-            <CodeSection v-model:discount="discount" @codes-created="load" />
+            <CodeSection v-model:discount="discount" />
             <ValueSection v-if="hasValue" v-model:discount="discount" :currencies="options.currencies" :company-currency="options.currency" />
             <AppliesToSection v-if="discount.discount_type === 'Amount Off Products'" v-model:discount="discount" />
             <BuyXGetYSection v-if="discount.discount_type === 'Buy X Get Y'" v-model:discount="discount" />
@@ -253,130 +167,27 @@ watch(
 
         <TabPanel value="conditions">
           <div class="space-y-5 pt-5">
-            <DiscountSection
-              v-if="discount.discount_type !== 'Buy X Get Y' && !discount.tiered"
-              title="Minimum purchase"
-              collapsible
-              :summary="minimumSummary"
-              :default-open="discount.minimum_requirement !== 'None'"
-            >
-              <RadioGroup v-model="discount.minimum_requirement">
-                <Radio value="None" label="None" />
-                <Radio value="Subtotal" label="Minimum subtotal" />
-                <Radio value="Quantity" label="Minimum number of items" />
-              </RadioGroup>
-              <FormControl
-                v-if="discount.minimum_requirement === 'Subtotal'"
-                v-model="discount.minimum_subtotal"
-                type="number"
-                class="sm:w-48"
-                label="Subtotal"
-              />
-              <FormControl
-                v-if="discount.minimum_requirement === 'Quantity'"
-                v-model="discount.minimum_quantity"
-                type="number"
-                class="sm:w-48"
-                label="Items"
-              />
-            </DiscountSection>
-
-            <DiscountSection title="Who can use it" collapsible :summary="audienceSummary">
-              <RadioGroup v-model="discount.eligibility" label="Customers">
-                <Radio value="Everyone" label="Everyone, guests included" />
-                <Radio value="First Order" label="First order only" description="Checked by customer and email, so guests count too." />
-                <Radio value="Customer Groups" label="Customer groups" />
-                <Radio value="Specific Customers" label="Specific customers" description="Signed-in customers only, up to 100." />
-              </RadioGroup>
-              <MultiSelect
-                v-if="discount.eligibility === 'Customer Groups'"
-                v-model="customerGroups"
-                :options="options.customer_groups"
-                placeholder="Choose customer groups"
-                :error="customerGroups.length ? null : 'Choose at least one group. Without one, nobody can use this discount.'"
-              />
-              <MultiSelect
-                v-if="discount.eligibility === 'Specific Customers'"
-                v-model="customers"
-                v-model:query="customerQuery"
-                :options="customerOptions"
-                :filterable="false"
-                placeholder="Search customers"
-                :error="customers.length ? null : 'Choose at least one customer. Without one, nobody can use this discount.'"
-              />
-              <FormControl
-                v-model="discount.payment_condition"
-                type="select"
-                label="Payment"
-                class="sm:w-72"
-                :options="[
-                  { label: 'Any payment method', value: 'Any' },
-                  { label: 'Prepaid only (not cash on delivery)', value: 'Prepaid' },
-                  { label: 'Cash on delivery only', value: 'Cash On Delivery' },
-                ]"
-              />
-            </DiscountSection>
-
-            <DiscountSection
-              title="Combinations"
-              collapsible
-              :summary="combinationSummary"
-              description="Two discounts stack only when each allows the other."
-            >
-              <div class="flex flex-col gap-3">
-                <Checkbox v-model="discount.combines_with_product" label="Product discounts" />
-                <Checkbox v-model="discount.combines_with_order" label="Order discounts" />
-                <Checkbox v-model="discount.combines_with_shipping" label="Shipping discounts" />
-              </div>
-            </DiscountSection>
+            <ConditionsSections
+              v-model:discount="discount"
+              :customer-group-options="options.customer_groups"
+              :show-errors="triedSaving"
+            />
           </div>
         </TabPanel>
 
         <TabPanel value="limits">
           <div class="space-y-5 pt-5">
-            <DiscountSection title="Active dates">
-              <div class="grid gap-4 sm:grid-cols-2">
-                <DatePicker v-model="discount.starts_on" label="Starts on" />
-                <DatePicker v-if="hasEndDate" v-model="discount.ends_on" label="Ends on" />
-              </div>
-              <Checkbox v-model="hasEndDate" label="Set an end date" />
-            </DiscountSection>
-
-            <DiscountSection title="Limits" collapsible :summary="limitSummary" :default-open="limitSummary !== 'No limits'">
-              <div class="grid gap-4 sm:grid-cols-2">
-                <FormControl v-model="discount.usage_limit" type="number" label="Total uses" description="0 means no limit." />
-                <FormControl
-                  v-model="discount.budget"
-                  type="number"
-                  label="Budget"
-                  description="Stops once this much discount is given."
-                />
-              </div>
-              <Checkbox v-model="discount.once_per_customer" label="Once per customer" description="Matched by customer, email or phone." />
-            </DiscountSection>
+            <LimitsSections v-model:discount="discount" />
           </div>
         </TabPanel>
 
         <TabPanel value="reporting">
           <div class="space-y-5 pt-5">
-            <DiscountSection title="Reporting and accounting" description="Optional. Kept on every order the discount touches.">
-              <div class="grid gap-4 sm:grid-cols-2">
-                <FormControl
-                  v-model="discount.campaign"
-                  type="select"
-                  label="Campaign"
-                  :options="['', ...options.campaigns]"
-                  description="The marketing campaign orders using this discount are tagged with."
-                />
-                <FormControl
-                  v-model="discount.discount_account"
-                  type="select"
-                  label="Discount account"
-                  :options="['', ...options.discount_accounts]"
-                  description="Used when Discount Accounting is on."
-                />
-              </div>
-            </DiscountSection>
+            <ReportingSection
+              v-model:discount="discount"
+              :campaigns="options.campaigns"
+              :discount-accounts="options.discount_accounts"
+            />
           </div>
         </TabPanel>
       </Tabs>

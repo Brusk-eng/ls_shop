@@ -8,7 +8,7 @@ const discount = defineModel('discount', { type: Object, required: true })
 
 <template>
   <DiscountSection title="Customer buys">
-    <RadioGroup v-model="discount.buy_requirement" orientation="horizontal">
+    <RadioGroup v-model="discount.buy_requirement" orientation="horizontal" aria-label="Customer buys">
       <Radio value="Quantity" label="Minimum quantity" />
       <Radio value="Amount" label="Minimum amount" />
     </RadioGroup>
@@ -18,20 +18,14 @@ const discount = defineModel('discount', { type: Object, required: true })
         type="number"
         :label="discount.buy_requirement === 'Quantity' ? 'Quantity' : 'Amount'"
       />
-      <div>
-        <p class="mb-1.5 text-xs text-ink-gray-5">Of any of</p>
-        <TargetPicker v-model="discount.targets" role="Buys" target-type="Item" placeholder="Search products" />
-      </div>
+      <TargetPicker v-model="discount.targets" role="Buys" target-type="Item" label="Buys any of" placeholder="Search products" />
     </div>
   </DiscountSection>
 
   <DiscountSection title="Customer gets" description="These items must be in the cart; the discount does not add them.">
     <div class="grid gap-4 sm:grid-cols-[8rem_1fr]">
       <FormControl v-model="discount.get_quantity" type="number" label="Quantity" />
-      <div>
-        <p class="mb-1.5 text-xs text-ink-gray-5">Of any of</p>
-        <TargetPicker v-model="discount.targets" role="Gets" target-type="Item" placeholder="Search products" />
-      </div>
+      <TargetPicker v-model="discount.targets" role="Gets" target-type="Item" label="Gets any of" placeholder="Search products" />
     </div>
     <RadioGroup v-model="discount.get_value_type" label="At a discounted value">
       <Radio value="Free" label="Free" />

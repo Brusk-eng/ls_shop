@@ -1,4 +1,7 @@
+import { ref, toValue, watch } from 'vue'
+import { refDebounced } from '@vueuse/core'
 import { createAdminCaller } from './adminCaller'
+import { methodUrl, useAdminRead } from './api'
 import { moneyIn } from './format'
 
 export const DISCOUNT_TYPES = [
@@ -35,7 +38,27 @@ export const DISCOUNT_TYPES = [
 export const discountTypeByValue = Object.fromEntries(DISCOUNT_TYPES.map((type) => [type.value, type]))
 export const discountTypeBySlug = Object.fromEntries(DISCOUNT_TYPES.map((type) => [type.slug, type]))
 
-export const STATUS_THEMES = { Active: 'green', Scheduled: 'blue', Expired: 'gray', 'Used Up': 'amber', Disabled: 'gray' }
+export const discountTypeLabel = (discount) =>
+  discountTypeByValue[discount.discount_type]?.label ?? discount.discount_type
+
+export const statusKey = (status) => status.toLowerCase().replaceAll(' ', '_')
+
+export function discountHeading(discount) {
+  if (discount.method === 'Automatic') return discount.title || 'Untitled discount'
+  if (discount.code) return discount.code
+  return discount.generated_codes ? `${discount.generated_codes} unique codes` : discount.title || 'No code yet'
+}
+
+export const SCOPE_TARGETS = {
+  'Specific Products': { targetType: 'Item', label: 'Products', placeholder: 'Search products' },
+  'Specific Collections': { targetType: 'Item Group', label: 'Collections', placeholder: 'Search collections' },
+  'Specific Brands': { targetType: 'Brand', label: 'Brands', placeholder: 'Search brands' },
+}
+
+export function scopedTargets(discount) {
+  const targetType = SCOPE_TARGETS[discount.applies_to]?.targetType
+  return discount.targets.filter((row) => row.role !== 'Applies To' || row.target_type === targetType)
+}
 
 export function blankDiscount(discountType, currency) {
   return {
@@ -103,43 +126,92 @@ function valueLine(discount) {
     return discount.tiers.map((tier) => `${money(tier.minimum_subtotal)}+ gets ${off(tier.value)}`).join(' · ')
   }
   const where = discount.discount_type === 'Amount Off Order' ? 'the order' : 'products'
-  const cap = discount.value_type === 'Percentage' && discount.maximum_discount ? `, up to ${money(discount.maximum_discount)}` : ''
+  const cap = discount.value_type === 'Percentage' && Number(discount.maximum_discount) ? `, up to ${money(discount.maximum_discount)}` : ''
   return `${off(discount.value)} off ${where}${cap}`
 }
 
-export function summaryLines(discount) {
-  const money = (value) => moneyIn(value, discount.currency)
-  const combines = [
+export function minimumLine(discount) {
+  if (discount.minimum_requirement === 'Subtotal') return `Minimum subtotal ${moneyIn(discount.minimum_subtotal, discount.currency)}`
+  if (discount.minimum_requirement === 'Quantity') return `Minimum ${discount.minimum_quantity} items`
+  return null
+}
+
+export function audienceLine(discount) {
+  return { 'First Order': 'First order only', 'Customer Groups': 'Chosen customer groups', 'Specific Customers': 'Chosen customers' }[
+    discount.eligibility
+  ]
+}
+
+export function paymentLine(discount) {
+  return { Prepaid: 'Prepaid orders only', 'Cash On Delivery': 'Cash on delivery only' }[discount.payment_condition]
+}
+
+export function combinationLine(discount) {
+  const kinds = [
     discount.combines_with_product && 'product',
     discount.combines_with_order && 'order',
     discount.combines_with_shipping && 'shipping',
   ].filter(Boolean)
+  return kinds.length ? `Combines with ${kinds.join(', ')} discounts` : 'Does not combine with other discounts'
+}
+
+export function limitLines(discount) {
+  return [
+    Number(discount.usage_limit) && `${discount.usage_limit} uses in total`,
+    discount.once_per_customer && 'Once per customer',
+    Number(discount.budget) && `Stops after ${moneyIn(discount.budget, discount.currency)} of discounts`,
+  ].filter(Boolean)
+}
+
+export function summaryLines(discount) {
   return [
     valueLine(discount),
-    discount.minimum_requirement === 'Subtotal' && `Minimum subtotal ${money(discount.minimum_subtotal)}`,
-    discount.minimum_requirement === 'Quantity' && `Minimum ${discount.minimum_quantity} items`,
+    minimumLine(discount),
     discount.exclude_sale_items && 'Not on items already on sale',
-    { 'First Order': 'First order only', 'Customer Groups': 'Chosen customer groups', 'Specific Customers': 'Chosen customers' }[discount.eligibility],
-    { Prepaid: 'Prepaid orders only', 'Cash On Delivery': 'Cash on delivery only' }[discount.payment_condition],
-    discount.once_per_customer && 'Once per customer',
-    discount.usage_limit && `${discount.usage_limit} uses in total`,
-    discount.budget && `Stops after ${money(discount.budget)} of discounts`,
-    combines.length ? `Combines with ${combines.join(', ')} discounts` : 'Does not combine with other discounts',
+    audienceLine(discount),
+    paymentLine(discount),
+    ...limitLines(discount),
+    combinationLine(discount),
   ].filter(Boolean)
+}
+
+const SEARCH_DEBOUNCE_MS = 300
+
+export function useTargetSearch(targetType, { sellable = false } = {}) {
+  const query = ref('')
+  const search = refDebounced(query, SEARCH_DEBOUNCE_MS)
+  const results = useAdminRead('discounts.search_targets', {
+    params: () => ({ target_type: toValue(targetType), search: search.value, sellable: sellable ? 1 : 0 }),
+    refetch: true,
+  })
+
+  const labels = ref({})
+  watch(
+    () => results.data,
+    (found) => {
+      for (const option of found ?? []) labels.value[option.value] = option.label
+    },
+  )
+
+  function optionsWith(chosen) {
+    const found = results.data ?? []
+    const shown = new Set(found.map((option) => option.value))
+    const missing = chosen.filter((value) => value && !shown.has(value))
+    return [...found, ...missing.map((value) => ({ label: labels.value[value] ?? value, value }))]
+  }
+
+  return { query, results, labels, optionsWith }
 }
 
 const { attempt, call } = createAdminCaller('discounts.')
 
 export const getDiscount = (name) => attempt('get_discount', { name })
-export const saveDiscount = (discount) => call('save_discount', { discount })
-export const deleteDiscount = (name) => attempt('delete_discount', { name })
+export const saveDiscount = (discount) =>
+  call('save_discount', { discount: discount.targets ? { ...discount, targets: scopedTargets(discount) } : discount })
+export const deleteDiscount = (name) => call('delete_discount', { name })
 export const createCodes = (name, count, prefix) => call('create_codes', { name, count, prefix })
-export const testDiscount = (discount, lines, paymentKind, firstOrder, customer) =>
-  call('test_discount', { discount, lines, payment_kind: paymentKind, first_order: firstOrder ? 1 : 0, customer })
 export const getEditorOptions = () => call('get_editor_options')
-export const searchTargets = (targetType, search, sellable = false) =>
-  call('search_targets', { target_type: targetType, search, sellable: sellable ? 1 : 0 })
 
 export function codesDownloadUrl(name) {
-  return `/api/v2/method/commera.api.admin.discounts.download_codes?name=${encodeURIComponent(name)}`
+  return `${methodUrl('discounts.download_codes')}?name=${encodeURIComponent(name)}`
 }

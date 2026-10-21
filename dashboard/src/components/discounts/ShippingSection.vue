@@ -15,7 +15,7 @@ const chosenOptions = computed({
 
 <template>
   <DiscountSection title="Delivery">
-    <MultiSelect v-model="chosenOptions" :options="deliveryOptions" placeholder="Every delivery option" />
+    <MultiSelect v-model="chosenOptions" :options="deliveryOptions" label="Delivery options" placeholder="Every delivery option" />
     <div class="grid gap-4 sm:grid-cols-2">
       <FormControl
         v-model="discount.shipping_percentage"
