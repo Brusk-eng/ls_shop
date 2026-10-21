@@ -2,10 +2,10 @@ import frappe
 from frappe import _
 from frappe.utils.data import flt
 
-from commera.commera_ecommerce.doctype.commera_discount.commera_discount import ORDER, PRODUCT, SHIPPING
 from commera.discounts.allocations import ALLOCATIONS_FIELD, get_allocation, get_allocations, set_allocations
 from commera.discounts.cart_context import get_cart_context
 from commera.discounts.codes import get_code_discount
+from commera.discounts.doctype.commera_discount.commera_discount import ORDER, PRODUCT, SHIPPING
 from commera.discounts.selection import Selection, get_discount, get_discount_codes, select_discounts
 
 

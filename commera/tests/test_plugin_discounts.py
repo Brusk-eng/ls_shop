@@ -7,7 +7,7 @@ from commera.api.payments import (
 	drop_refused_codes,
 	generate_quotation_for_cart,
 )
-from commera.commera_ecommerce.doctype.commera_discount.commera_discount import DiscountCodeError
+from commera.discounts.doctype.commera_discount.commera_discount import DiscountCodeError
 from commera.sdk import cart as cart_sdk
 from commera.tests import test_cart_checkout
 from commera.tests.test_discount_codes import CAP_RATE, DiscountCodeTestCase

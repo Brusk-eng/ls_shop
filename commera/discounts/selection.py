@@ -4,12 +4,12 @@ import frappe
 from frappe import _
 from frappe.utils.data import cstr, flt
 
-from commera.commera_ecommerce.doctype.commera_discount.commera_discount import (
+from commera.discounts.cart_context import get_cart_context
+from commera.discounts.codes import get_code_discount, normalize_code
+from commera.discounts.doctype.commera_discount.commera_discount import (
 	CommeraDiscount,
 	DiscountCodeError,
 )
-from commera.discounts.cart_context import get_cart_context
-from commera.discounts.codes import get_code_discount, normalize_code
 from commera.discounts.usage import has_used_before, is_first_order
 
 MAX_DISCOUNT_CODES = 5

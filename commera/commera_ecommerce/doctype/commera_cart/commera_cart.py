@@ -3,10 +3,10 @@ from frappe import _
 from frappe.model.document import Document
 from frappe.utils.data import cint, cstr, flt, get_datetime
 
-from commera.commera_ecommerce.doctype.commera_discount.commera_discount import SHIPPING, DiscountCodeError
 from commera.discounts.allocations import get_allocations, get_price_discount_rows
 from commera.discounts.cart_context import get_cart_context
 from commera.discounts.codes import get_code_discount, normalize_code
+from commera.discounts.doctype.commera_discount.commera_discount import SHIPPING, DiscountCodeError
 from commera.discounts.preview import get_preview_quotation
 from commera.discounts.pricing import get_saving
 from commera.discounts.selection import (

@@ -1,7 +1,7 @@
 from frappe.utils.data import flt
 
-from commera.commera_ecommerce.doctype.commera_discount.commera_discount import SHIPPING
 from commera.discounts.cart_context import get_cart_context
+from commera.discounts.doctype.commera_discount.commera_discount import SHIPPING
 from commera.discounts.selection import select_discounts
 
 

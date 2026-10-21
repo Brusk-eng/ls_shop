@@ -12,10 +12,10 @@ from commera.api.payments import (
 	make_sales_invoice,
 )
 from commera.api.shipping import apply_delivery_option, get_checkout_summary
-from commera.commera_ecommerce.doctype.commera_discount.commera_discount import DiscountCodeError
 from commera.core import new_cart_quotation
 from commera.discounts.allocations import get_allocations
 from commera.discounts.codes import add_code, generate_codes, get_code_discount
+from commera.discounts.doctype.commera_discount.commera_discount import DiscountCodeError
 from commera.discounts.pricing import refresh_code_discounts
 from commera.discounts.selection import MAX_DISCOUNT_CODES, validate_new_discount_code
 from commera.discounts.shipping import apply_shipping_discounts
