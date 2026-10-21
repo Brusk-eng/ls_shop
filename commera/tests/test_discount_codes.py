@@ -184,7 +184,7 @@ class TestDiscountCodes(DiscountCodeTestCase):
 
 		shirt = self.get_line(quotation, self.shirt)
 		self.assertEqual((shirt.rate, shirt.custom_code_discount), (81, 9))
-		self.assertEqual(shirt.custom_discount_code, get_code_discount(code))
+		self.assertEqual(shirt.custom_discount, get_code_discount(code))
 		self.assertEqual(self.get_line(quotation, self.cap).rate, CAP_RATE)
 		self.assertEqual(quotation.net_total, 2 * 81 + CAP_RATE)
 
@@ -196,7 +196,7 @@ class TestDiscountCodes(DiscountCodeTestCase):
 
 		shirt = self.get_line(quotation, self.shirt)
 		self.assertEqual(shirt.rate, 70)
-		self.assertEqual(shirt.custom_discount_code, get_code_discount(large))
+		self.assertEqual(shirt.custom_discount, get_code_discount(large))
 
 	def test_an_order_code_comes_off_the_subtotal_after_product_codes(self):
 		product = self.create_code(amount=10, item_codes=(self.shirt,), combines_with_order=1)

@@ -87,7 +87,7 @@ def preview_cart(lines: list[dict], codes: list[str] | None = None, payment_kind
 				"price": item.price_list_rate,
 				"rate": item.rate,
 				"amount": item.amount,
-				"discount": item.custom_discount_code,
+				"discount": item.custom_discount,
 			}
 			for item in quotation.items
 		],

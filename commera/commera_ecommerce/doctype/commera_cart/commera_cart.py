@@ -329,7 +329,7 @@ def get_priced_line(row, item) -> dict:
 		"price": flt(item.price_list_rate),
 		"rate": flt(item.rate),
 		"code_discount": flt(item.custom_code_discount),
-		"discount": item.custom_discount_code,
+		"discount": item.custom_discount,
 		"amount": flt(item.amount),
 	}
 

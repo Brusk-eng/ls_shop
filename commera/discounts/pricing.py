@@ -46,7 +46,7 @@ def remove_code_discounts(doc, method=None):
 			item.rate = (flt(item.rate_with_margin) or flt(item.price_list_rate)) - item.discount_amount
 		if not keep_lines:
 			item.custom_code_discount = 0
-			item.custom_discount_code = None
+			item.custom_discount = None
 
 	if flt(doc.get("custom_code_order_discount")):
 		if keep_lines:
@@ -131,7 +131,7 @@ def apply_line_discounts(doc, selections: list) -> list[dict]:
 			min(amount / flt(item.qty), flt(item.rate)), item.precision("discount_amount")
 		)
 		add_line_discount(item, unit_discount)
-		item.custom_discount_code = allocation["discount"]
+		item.custom_discount = allocation["discount"]
 		allocations.append({**allocation, "amount": flt(unit_discount * flt(item.qty), 2)})
 	return allocations
 
@@ -282,7 +282,7 @@ def apply_recorded_discounts(doc):
 			(
 				row
 				for row in recorded
-				if row["discount_class"] == PRODUCT and row.get("discount") == item.custom_discount_code
+				if row["discount_class"] == PRODUCT and row.get("discount") == item.custom_discount
 			),
 			None,
 		)
@@ -342,7 +342,7 @@ def set_discount_links(doc, allocations: list[dict]):
 	if doc.doctype != "Sales Invoice":
 		return
 	for item in doc.items:
-		if account := discounts.get(item.get("custom_discount_code"), {}).get("discount_account"):
+		if account := discounts.get(item.get("custom_discount"), {}).get("discount_account"):
 			item.discount_account = account
 	order_accounts = {
 		discounts[row["discount"]].discount_account
