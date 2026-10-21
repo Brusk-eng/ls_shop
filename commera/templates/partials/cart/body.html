@@ -1,21 +1,17 @@
+{% from "templates/macros/discount_codes.html" import discount_code_chips %}
 
 <script defer>
 	async function proceed_to_checkout(state) {
 		state.checkout_loading = true;
-		const selected_items = Alpine.store("cart").items.filter(item => item.selected);
-		const has_stock = await Alpine.store("cart").validate_stock_before_checkout(selected_items);
-
-		if (!has_stock) {
+		try {
+			const selected_items = Alpine.store("cart").items.filter(item => item.selected);
+			if (!await Alpine.store("cart").validate_stock_before_checkout(selected_items)) return;
+			if (!await Alpine.store("cart").flush_sync()) return;
+			await frappe_call("/api/v2/method/commera.api.payments.generate_quotation_for_cart", { cart: { items: selected_items } });
+			window.location.href = "/{{frappe.lang}}/cart/checkout" + window.location.search;
+		} finally {
 			state.checkout_loading = false;
-			return;
 		}
-		await Alpine.store("cart").flush_sync();
-		frappe_call("/api/v2/method/commera.api.payments.generate_quotation_for_cart", { cart: { items: selected_items } })
-			.then((d) => {
-				window.location.href = "/{{frappe.lang}}/cart/checkout" + window.location.search
-			}).finally(() => {
-				state.checkout_loading = false;
-			})
 	}
 
 	async function resume_checkout_after_sign_in(state) {
@@ -82,10 +78,11 @@
 	{{ plugin_slot("cart_banner") }}
 	<div class="flex flex-col ipad:flex-row md:gap-20">
 		<div class="flex-2">
-			<ol>
+			<ol x-data='{ include_label: {{ _("Include {0} in checkout") | tojson }} }'>
 				<template x-for="cart_item in $store.cart.items" :key="cart_item.variant.item_code">
 					<li class="flex w-full items-center">
 						<input type="checkbox" x-model="cart_item.selected"
+							:aria-label="include_label.replace('{0}', cart_item.variant.item_name)"
 							class="w-5 h-5 accent-form text-accent border-accent rounded-lg focus:ring-focus me-1 md:me-2 ">
 
 						<div class="flex gap-2 rounded-lg border border-gray-300 md:gap-7 mb-4 w-full" x-data='{
@@ -219,27 +216,8 @@
 					<p class="text-base font-medium flex">{{get_currency_symbol()}}<span x-text="$store.cart.total.toFixed(2)" class="me-2"></span>
 						</p>
 				</div>
-				<div class="mb-3 flex flex-wrap gap-2" x-show="$store.cart.discount_codes.length" x-cloak>
-					<template x-for="code_state in $store.cart.discount_codes" :key="code_state.code">
-						<span class="inline-flex flex-col gap-1">
-							<span class="w-fit inline-flex overflow-hidden rounded-lg border border-dashed border-gray-400 bg-white text-xs font-medium text-gray-600">
-								<span class="flex items-center gap-1 bg-gray-400/10 px-2 py-1">
-									<span x-text="code_state.code"></span>
-									<button type="button" class="flex items-center disabled:cursor-not-allowed"
-										:aria-label="`{{ _('Remove') }} ${code_state.code}`" :disabled="$store.cart.removing_code"
-										@click="$store.cart.remove_discount_code(code_state.code)">
-										<span x-show="$store.cart.removing_code !== code_state.code">{{ icon(name="close", classes="h-4 w-4 cursor-pointer") }}</span>
-										<span x-show="$store.cart.removing_code === code_state.code"
-											class="animate-spin size-3 border-3 border-current border-t-transparent rounded-full ms-2"
-											role="status" aria-label="loading"></span>
-									</button>
-								</span>
-							</span>
-							<span class="max-w-60 text-xs text-gray-500" x-show="code_state.reason" x-text="code_state.reason"></span>
-						</span>
-					</template>
-				</div>
-				<template x-for="discount in $store.cart.discounts" :key="discount.label">
+				{{ discount_code_chips("$store.cart.discount_codes", "$store.cart.saving_code", "$store.cart.remove_discount_code", classes="mb-3") }}
+				<template x-for="(discount, index) in $store.cart.discounts" :key="index">
 					<div class="mb-3 flex items-center justify-between">
 						<p class="text-base font-normal text-gray-400">
 							{{ _('Discount') }}<span x-show="discount.label" x-text="` (${discount.label})`"></span>
