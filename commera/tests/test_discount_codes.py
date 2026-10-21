@@ -566,6 +566,37 @@ class TestDiscountSelection(DiscountCodeTestCase):
 				self.assertEqual(summary["cash_on_delivery"]["shipping"], cod_shipping)
 
 
+class TestDiscountCodeRules(DiscountCodeTestCase):
+	def test_a_code_made_in_desk_is_kept_upper_case(self):
+		discount = self.create_discount(amount=10)
+		code = frappe.get_doc({"doctype": "Commera Discount Code", "code": " save10 ", "discount": discount})
+
+		self.assertEqual(code.insert(ignore_permissions=True).name, "SAVE10")
+
+	def test_a_code_with_a_space_or_too_long_is_refused(self):
+		discount = self.create_discount(amount=10)
+		for code in ("SAVE 10", "X" * 65, "  "):
+			with self.subTest(code), self.assertRaisesRegex(frappe.ValidationError, "1 to 64"):
+				frappe.get_doc(
+					{"doctype": "Commera Discount Code", "code": code, "discount": discount}
+				).insert(ignore_permissions=True)
+
+	def test_an_automatic_discount_takes_no_code(self):
+		discount = self.create_discount(amount=10, method="Automatic", enabled=0)
+
+		with self.assertRaisesRegex(frappe.ValidationError, "Only a code discount"):
+			add_code(discount, f"zz{frappe.generate_hash(length=8)}")
+
+	def test_a_used_code_stays_with_its_discount(self):
+		code = self.create_code(amount=10)
+		self.place_order(self.create_quotation({self.shirt: 1}, (code,)))
+		code_doc = frappe.get_doc("Commera Discount Code", code)
+		code_doc.discount = self.create_discount(amount=20)
+
+		with self.assertRaisesRegex(frappe.ValidationError, "stays with its discount"):
+			code_doc.save(ignore_permissions=True)
+
+
 class TestDiscountsOnOrders(DiscountCodeTestCase):
 	def test_the_sales_order_keeps_discounts_and_logs_their_use(self):
 		product = self.create_code(percentage=10, item_codes=(self.shirt,), combines_with_order=1)

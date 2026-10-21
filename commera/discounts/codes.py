@@ -7,6 +7,9 @@ from frappe.utils.data import cint, cstr
 from commera.plugin_events import get_handlers, handle_hook_error
 
 MAX_GENERATED_CODES = 5000
+MAX_CODES_IN_REQUEST = 200
+# Leaves room for the 8 random characters within a code's 64.
+MAX_PREFIX_LENGTH = 56
 # No 0/O or 1/I: a code read off a receipt must not be mistyped.
 CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
 
@@ -20,29 +23,57 @@ def get_code_discount(code: str) -> str | None:
 
 
 def add_code(discount: str, code: str, is_generated: bool = False) -> str:
-	code = normalize_code(code)
-	if not code or len(code) > 64 or any(character.isspace() for character in code):
-		frappe.throw(_("A code needs 1 to 64 characters and no spaces."))
-	if frappe.db.exists("Commera Discount Code", code):
-		frappe.throw(_("The code {0} is already in use.").format(code), frappe.DuplicateEntryError)
-	frappe.get_doc(
-		{"doctype": "Commera Discount Code", "code": code, "discount": discount, "is_generated": is_generated}
-	).insert(ignore_permissions=True)
-	return code
+	return (
+		frappe.get_doc(
+			{
+				"doctype": "Commera Discount Code",
+				"code": code,
+				"discount": discount,
+				"is_generated": is_generated,
+			}
+		)
+		.insert(ignore_permissions=True)
+		.name
+	)
+
+
+def validate_code_count(count: int, prefix: str = ""):
+	if not 0 < cint(count) <= MAX_GENERATED_CODES:
+		frappe.throw(_("Generate between 1 and {0} codes at a time.").format(MAX_GENERATED_CODES))
+	if len(normalize_code(prefix)) > MAX_PREFIX_LENGTH:
+		frappe.throw(_("A code prefix holds at most {0} characters.").format(MAX_PREFIX_LENGTH))
 
 
 def generate_codes(discount: str, count: int, prefix: str = "") -> list[str]:
-	count = cint(count)
-	if not 0 < count <= MAX_GENERATED_CODES:
-		frappe.throw(_("Generate between 1 and {0} codes at a time.").format(MAX_GENERATED_CODES))
-
-	prefix = normalize_code(prefix)
+	validate_code_count(count, prefix)
+	count, prefix = cint(count), normalize_code(prefix)
 	codes = []
 	while len(codes) < count:
-		code = prefix + "".join(secrets.choice(CODE_ALPHABET) for _index in range(8))
-		if not frappe.db.exists("Commera Discount Code", code):
-			codes.append(add_code(discount, code, is_generated=True))
+		batch = {
+			prefix + "".join(secrets.choice(CODE_ALPHABET) for _index in range(8))
+			for _row in range(count - len(codes))
+		}
+		taken = set(
+			frappe.get_all("Commera Discount Code", filters={"name": ["in", list(batch)]}, pluck="name")
+		)
+		codes += [add_code(discount, code, is_generated=True) for code in batch - taken]
 	return codes
+
+
+def enqueue_codes(discount: str, count: int, prefix: str = "") -> int:
+	"""Returns how many were made now; a large batch is made by a background job instead."""
+	validate_code_count(count, prefix)
+	if cint(count) <= MAX_CODES_IN_REQUEST:
+		return len(generate_codes(discount, count, prefix))
+	frappe.enqueue(
+		generate_codes,
+		queue="long",
+		enqueue_after_commit=True,
+		discount=discount,
+		count=cint(count),
+		prefix=prefix,
+	)
+	return 0
 
 
 def get_discount_code_refusal(quotation, code: str) -> str | None:

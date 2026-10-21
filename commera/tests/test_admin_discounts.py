@@ -1,7 +1,10 @@
+from unittest.mock import patch
+
 import frappe
 from frappe.utils.data import add_days, today
 
 from commera.api.admin import discounts as admin_discounts
+from commera.discounts.codes import MAX_CODES_IN_REQUEST, generate_codes
 from commera.tests.test_discount_codes import SHIRT_RATE, DiscountCodeTestCase
 
 
@@ -89,6 +92,42 @@ class TestAdminDiscounts(DiscountCodeTestCase):
 
 		with self.assertRaises(frappe.ValidationError):
 			admin_discounts.delete_discount(saved["name"])
+
+	def test_a_code_discount_needs_a_code(self):
+		with self.assertRaisesRegex(frappe.ValidationError, "needs a code"):
+			self.save(code=None)
+
+	def test_deleting_a_discount_deletes_its_codes(self):
+		saved = self.save(code="zz-gone")
+
+		admin_discounts.delete_discount(saved["name"])
+
+		self.assertFalse(frappe.db.exists("Commera Discount", saved["name"]))
+		self.assertFalse(frappe.db.exists("Commera Discount Code", "ZZ-GONE"))
+
+	def test_a_large_batch_of_codes_is_made_in_the_background(self):
+		saved = self.save()
+		jobs = []
+		with patch.object(frappe, "enqueue", side_effect=lambda method, **kwargs: jobs.append(kwargs)):
+			response = admin_discounts.create_codes(saved["name"], MAX_CODES_IN_REQUEST + 1, "zz-")
+
+		self.assertEqual(response, {"created": 0, "queued": MAX_CODES_IN_REQUEST + 1})
+		self.assertEqual(jobs[0]["count"], MAX_CODES_IN_REQUEST + 1)
+		self.assertEqual(admin_discounts.get_discount(saved["name"])["generated_codes"], 0)
+
+		generate_codes(**{key: jobs[0][key] for key in ("discount", "count", "prefix")})
+		self.assertEqual(
+			admin_discounts.get_discount(saved["name"])["generated_codes"], MAX_CODES_IN_REQUEST + 1
+		)
+
+	def test_the_list_carries_each_discounts_currency(self):
+		saved = self.save(currency=self.currency)
+
+		row = next(
+			row for row in admin_discounts.get_discounts()["discounts"] if row["name"] == saved["name"]
+		)
+
+		self.assertEqual(row["currency"], self.currency)
 
 	def test_the_test_cart_prices_an_unsaved_draft(self):
 		draft = {

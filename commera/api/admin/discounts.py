@@ -4,7 +4,7 @@ from frappe.query_builder.functions import Count
 from frappe.utils.data import cint, cstr, flt, getdate, today
 
 from commera.discounts.cart_context import get_cart_context
-from commera.discounts.codes import add_code, generate_codes, normalize_code
+from commera.discounts.codes import add_code, enqueue_codes, normalize_code
 from commera.discounts.preview import get_preview_quotation
 from commera.discounts.selection import get_unmet_reason
 
@@ -60,6 +60,7 @@ TABLES = {
 LIST_FIELDS = (
 	"name",
 	"title",
+	"currency",
 	"method",
 	"discount_type",
 	"enabled",
@@ -227,11 +228,11 @@ def save_discount(discount: dict | str) -> dict:
 	for table, fields in TABLES.items():
 		if table in values:
 			doc.set(table, [{field: row.get(field) for field in fields} for row in values[table]])
-	if doc.method == "Code" and not doc.title:
-		doc.title = normalize_code(values.get("code"))
+	is_new = doc.is_new()
+	doc.flags.code = values.get("code")
 	doc.save()
 
-	if doc.method == "Code" and values.get("code"):
+	if not is_new and doc.method == "Code" and values.get("code"):
 		set_single_code(doc.name, values["code"])
 	return get_discount(doc.name)
 
@@ -254,19 +255,14 @@ def set_single_code(discount: str, code: str):
 
 @frappe.whitelist(methods=["POST"])
 def delete_discount(name: str):
-	frappe.has_permission(DOCTYPE, ptype="delete", throw=True)
-	if frappe.db.exists("Commera Discount Use", {"discount": name}):
-		frappe.throw(_("Orders used this discount, so it is kept for their records. Switch it off instead."))
-	for code in frappe.get_all("Commera Discount Code", filters={"discount": name}, pluck="name"):
-		frappe.delete_doc("Commera Discount Code", code, ignore_permissions=True)
 	frappe.delete_doc(DOCTYPE, name)
 
 
 @frappe.whitelist(methods=["POST"])
 def create_codes(name: str, count: int, prefix: str | None = None) -> dict:
 	frappe.has_permission(DOCTYPE, ptype="write", throw=True)
-	codes = generate_codes(name, count, prefix or "")
-	return {"created": len(codes)}
+	created = enqueue_codes(name, count, prefix or "")
+	return {"created": created, "queued": cint(count) - created}
 
 
 @frappe.whitelist()

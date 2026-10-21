@@ -50,3 +50,31 @@ class TestSdkDiscounts(DiscountCodeTestCase):
 		sales_order = self.place_order(self.create_quotation({self.shirt: 1}, (code,)))
 
 		self.assertEqual([row["amount"] for row in discounts.get_order_discounts(sales_order.name)], [9])
+
+	def test_an_automatic_discount_takes_no_code(self):
+		with self.assertRaisesRegex(frappe.ValidationError, "Only a code discount"):
+			discounts.create_discount(
+				{"method": "Automatic", "discount_type": "Amount Off Order", "value": 10}, code="zz-auto"
+			)
+
+	def test_the_list_reads_tables_and_codes_like_a_single_read(self):
+		created = discounts.create_discount(
+			{
+				"discount_type": "Amount Off Order",
+				"value_type": "Percentage",
+				"tiered": 1,
+				"tiers": [{"minimum_subtotal": 100, "value": 5}, {"minimum_subtotal": 200, "value": 10}],
+			},
+			code=f"zz{frappe.generate_hash(length=6)}",
+		)
+		discounts.add_code(created["name"], f"zz{frappe.generate_hash(length=6)}")
+
+		listed = next(row for row in discounts.list_discounts() if row["name"] == created["name"])
+
+		single = discounts.get_discount(created["name"])
+		self.assertEqual(listed["codes"], single["codes"])
+		self.assertEqual(len(listed["codes"]), 2)
+		self.assertEqual(
+			[(tier["minimum_subtotal"], tier["value"]) for tier in listed["tiers"]], [(100, 5), (200, 10)]
+		)
+		self.assertEqual(listed["status"], single["status"])

@@ -5,6 +5,8 @@ from frappe.model.document import Document
 from frappe.utils.data import cint, flt, getdate, today
 from frappe.utils.nestedset import get_descendants_of
 
+from commera.discounts.codes import add_code, normalize_code
+
 PRODUCT = "Product"
 ORDER = "Order"
 SHIPPING = "Shipping"
@@ -23,7 +25,10 @@ class DiscountCodeError(frappe.ValidationError):
 
 
 class CommeraDiscount(Document):
+	"""flags.code: the code a new Code discount is made with; its title defaults to it."""
+
 	def validate(self):
+		self.validate_code()
 		self.validate_values()
 		if self.starts_on and self.ends_on and getdate(self.starts_on) > getdate(self.ends_on):
 			frappe.throw(_("Starts On must be on or before Ends On."))
@@ -35,6 +40,28 @@ class CommeraDiscount(Document):
 			frappe.throw(_("Choose at least one customer, or let everyone use this discount."))
 		if len(self.customers) > MAX_CUSTOMERS:
 			frappe.throw(_("A discount can be limited to at most {0} customers.").format(MAX_CUSTOMERS))
+
+	def validate_code(self):
+		code = normalize_code(self.flags.code)
+		if self.method != "Code":
+			if code:
+				frappe.throw(_("Only a code discount takes codes."))
+			return
+		if self.is_new() and "code" in self.flags and not code:
+			frappe.throw(_("A code discount needs a code."))
+		self.title = self.title or code or None
+
+	def after_insert(self):
+		if self.method == "Code" and normalize_code(self.flags.code):
+			add_code(self.name, self.flags.code)
+
+	def on_trash(self):
+		if frappe.db.exists("Commera Discount Use", {"discount": self.name}):
+			frappe.throw(
+				_("Orders used this discount, so it is kept for their records. Switch it off instead.")
+			)
+		for code in frappe.get_all("Commera Discount Code", filters={"discount": self.name}, pluck="name"):
+			frappe.delete_doc("Commera Discount Code", code, ignore_permissions=True)
 
 	def validate_values(self):
 		percentages = [self.shipping_percentage]
