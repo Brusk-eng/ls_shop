@@ -7,6 +7,7 @@ from frappe.model.document import Document
 from frappe.utils import get_url_to_form
 from frappe.website.utils import clear_cache as clear_website_cache
 
+from commera.commera_ecommerce.doctype.commera_settings.headless_storefront import sync_headless_oauth_client
 from commera.search.build import enqueue_full_rebuild
 from commera.search.record_builder import ALLOWED_CONTENT_DOCTYPES, is_indexable_content_field
 from commera.search.result_card import (
@@ -78,6 +79,8 @@ class CommeraSettings(Document):
 		footer_text_color: DF.Color | None
 		form_accent_color: DF.Color | None
 		heading_accent_color: DF.Color | None
+		headless_oauth_client: DF.Link | None
+		headless_storefront_url: DF.Data | None
 		homepage_meta_description: DF.SmallText | None
 		homepage_meta_title: DF.Data | None
 		homepage_og_image: DF.AttachImage | None
@@ -127,6 +130,7 @@ class CommeraSettings(Document):
 		self.validate_a_payment_method_is_available()
 		self.validate_search_content_fields()
 		self.validate_search_result_fields()
+		sync_headless_oauth_client(self)
 
 	def validate_price_list_currencies(self):
 		currency = get_store_currency(self.company)
