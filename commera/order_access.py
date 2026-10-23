@@ -70,7 +70,8 @@ def get_shopper_order_condition(user: str):
 	"""Orders the user placed, and guest-cart orders placed with their email: signing in proved they own it."""
 	sales_order = DocType("Sales Order")
 	if user == "Guest":
-		return sales_order.owner == user
+		# Match nothing: `owner == "Guest"` would hand a guest every order a guest session owns.
+		return sales_order.name.isnull()
 	order_line, cart = DocType("Sales Order Item"), DocType("Quotation")
 	guest_orders = (
 		frappe.qb.from_(order_line)

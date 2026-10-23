@@ -14,7 +14,7 @@ from frappe.utils.data import strip_html
 from pypika import Order
 
 from commera.core import get_address_docs, get_party
-from commera.order_access import get_key_access
+from commera.order_access import get_key_access, is_shoppers_order
 from commera.plugin_events import SHIPPING_ADDRESS_FIELDS, STORE_ORDER_TYPE, fire_event, get_order_snapshot
 
 # Ceiling for any IN (...) list this app sends to MariaDB/Postgres.
@@ -42,7 +42,7 @@ def validate_document_access(doctype: str, name: str | int, key: str | None = No
 	document = frappe.get_doc(doctype, name)
 	if document.owner == frappe.session.user:
 		return document
-	if doctype == "Sales Order" and get_key_access(document, key):
+	if doctype == "Sales Order" and (is_shoppers_order(document) or get_key_access(document, key)):
 		return document
 	if frappe.has_permission(doctype, "read", document):
 		return document

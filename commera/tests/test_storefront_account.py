@@ -6,10 +6,11 @@ from frappe.tests import IntegrationTestCase
 from commera.api.payments import add_customer_address
 from commera.api.storefront import account
 from commera.core import get_party
-from commera.order_access import OWNER_ACCESS, get_order_access
+from commera.order_access import OWNER_ACCESS, get_order_access, get_shopper_order_condition
 from commera.sdk.types import CustomerAddress, CustomerProfile, ShopperOrder, ShopperOrderPage
 from commera.tests.test_admin_orders import make_test_sales_order
 from commera.tests.test_order_access import make_website_user
+from commera.utils import validate_document_access
 from commera.www.account.orders.index import get_orders_list
 
 ADDRESS = {
@@ -126,6 +127,26 @@ class TestStorefrontAccount(IntegrationTestCase):
 		_, listed = get_orders_list([guest, other_email, signed_in])
 		self.assertEqual([order.name for order in listed], [guest])
 		self.assertEqual([order["name"] for order in account.list_orders()["orders"]], [guest])
+
+	def test_a_guest_order_placed_with_the_shoppers_email_opens_its_invoice_and_returns(self):
+		guest = self.make_order(contact_email=self.shopper, guest_cart=True)
+		other_email = self.make_order(contact_email=self.other, guest_cart=True)
+		frappe.set_user(self.shopper)
+
+		self.assertEqual(validate_document_access("Sales Order", guest).name, guest)
+		with self.assertRaises(frappe.PermissionError):
+			validate_document_access("Sales Order", other_email)
+
+	def test_a_guest_session_matches_no_order(self):
+		self.make_order(owner="Guest", contact_email=self.shopper, guest_cart=True)
+		sales_order = frappe.qb.DocType("Sales Order")
+		matched = (
+			frappe.qb.from_(sales_order)
+			.select(sales_order.name)
+			.where(get_shopper_order_condition("Guest"))
+			.run()
+		)
+		self.assertEqual(matched, ())
 
 	def test_orders_hold_the_shoppers_own_and_their_guest_orders_only(self):
 		own = self.make_order(owner=self.shopper)
