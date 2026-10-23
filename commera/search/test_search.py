@@ -463,6 +463,14 @@ class TestStorefrontSearch(SearchCatalogue, IntegrationTestCase):
 		frappe.clear_document_cache("Commera Settings")
 		self.addCleanup(frappe.clear_document_cache, "Commera Settings")
 		settings = frappe.get_single("Commera Settings")
+		original = [(row.search_doctype, row.field) for row in settings.search_content_fields]
+		# tearDownClass commits, which would keep these rows on the site, so put the old ones back.
+		self.addCleanup(self.save_content_fields, original)
+		self.save_content_fields(pairs)
+
+	def save_content_fields(self, pairs):
+		frappe.clear_document_cache("Commera Settings")
+		settings = frappe.get_single("Commera Settings")
 		settings.search_content_fields = []
 		for search_doctype, field in pairs:
 			settings.append("search_content_fields", {"search_doctype": search_doctype, "field": field})
