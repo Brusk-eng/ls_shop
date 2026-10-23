@@ -20,7 +20,7 @@ from commera.guest import (
 )
 from commera.sdk import cart as cart_sdk
 from commera.sdk.types import PricedCart
-from commera.www.cart.permalink import get_next_url
+from commera.utils import get_next_url
 
 CHECKOUT_CODE_PREFIX = "commera:storefront_checkout:"
 CHECKOUT_CODE_SECONDS = 5 * 60
@@ -109,7 +109,10 @@ def get_checkout_url() -> dict:
 		frappe.throw(_("Add something to your cart first."), frappe.DoesNotExistError)
 
 	code = frappe.generate_hash(length=32)
-	handoff["expires_at"] = time.time() + CHECKOUT_CODE_SECONDS
+	# An account code outlives a guest one: the browser may have to sign in before it can use it.
+	handoff["expires_at"] = (
+		time.time() + CHECKOUT_CODE_SECONDS + (CHECKOUT_SIGN_IN_SECONDS if "user" in handoff else 0)
+	)
 	frappe.cache.set_value(
 		f"{CHECKOUT_CODE_PREFIX}{code}",
 		handoff,
@@ -130,22 +133,30 @@ def get_checkout_handoff() -> dict:
 @frappe.whitelist(allow_guest=True, methods=["GET"])  # nosemgrep: guest-whitelisted-method
 @rate_limit(limit=60, seconds=60)
 def open_checkout(code: str):
-	"""Move the storefront cart to this browser, then go on to checkout. A used or old code opens the cart."""
+	"""Send the browser on with a checkout code. It writes nothing, so a link preview cannot use the code up."""
+	handoff = get_checkout_code(f"{CHECKOUT_CODE_PREFIX}{cstr(code)}")
+	if not handoff:
+		return redirect(f"/{frappe.local.lang}/cart")
+	if "user" in handoff:
+		return open_account_checkout(handoff)
+	redirect(get_handoff_page_url(code))
+
+
+@frappe.whitelist(allow_guest=True, methods=["POST"])  # nosemgrep: guest-whitelisted-method
+@rate_limit(limit=60, seconds=60)
+def claim_checkout_cart(code: str):
+	"""Move a guest checkout code's cart to this guest browser, then go on to checkout."""
+	if not is_guest():
+		return redirect(get_handoff_page_url(code))
 	key = f"{CHECKOUT_CODE_PREFIX}{cstr(code)}"
 	handoff = get_checkout_code(key)
-	if handoff and "user" in handoff:
-		return open_account_checkout(key, handoff)
-	if handoff and not is_guest():
-		return redirect(f"/storefront-cart?{urlencode({'code': code})}")
+	if not handoff or "token" not in handoff:
+		return redirect(f"/{frappe.local.lang}/cart")
 
 	frappe.cache.delete_value(key)
-	if handoff:
-		# A new token, so the storefront's copy of the old one no longer reaches the cart.
-		set_guest_cart_key(
-			sha256_hash(handoff["token"]), set_guest_cart_cookie(frappe.generate_hash(length=32))
-		)
-		frappe.local.flags.commit = True
-	redirect(get_next_url() if handoff else f"/{frappe.local.lang}/cart")
+	# A new token, so the storefront's copy of the old one no longer reaches the cart.
+	set_guest_cart_key(sha256_hash(handoff["token"]), set_guest_cart_cookie(frappe.generate_hash(length=32)))
+	redirect(get_next_url())
 
 
 @frappe.whitelist(methods=["POST"])
@@ -162,6 +173,11 @@ def adopt_checkout_cart(code: str):
 	redirect(get_next_url())
 
 
+def get_handoff_page_url(code: str) -> str:
+	params = {key: value for key, value in frappe.form_dict.items() if key not in ("cmd", "csrf_token")}
+	return f"/storefront-cart?{urlencode({**params, 'code': code})}"
+
+
 def get_checkout_code(key: str) -> dict | None:
 	handoff = frappe.cache.get_value(key)
 	if handoff and handoff["expires_at"] > time.time():
@@ -169,16 +185,10 @@ def get_checkout_code(key: str) -> dict | None:
 	return None
 
 
-def open_account_checkout(key: str, handoff: dict):
-	"""Only a browser signed in as the code's user uses the code. Any other browser signs in first, then
-	comes back; the first such visit gives the sign-in ten more minutes, once."""
+def open_account_checkout(handoff: dict):
+	"""Only a browser signed in as the code's user goes on to checkout. Any other browser signs in first."""
 	if frappe.session.user == handoff["user"]:
-		frappe.cache.delete_value(key)
 		return redirect(get_next_url())
-
-	if not handoff.get("extended"):
-		handoff.update(expires_at=handoff["expires_at"] + CHECKOUT_SIGN_IN_SECONDS, extended=True)
-		frappe.cache.set_value(key, handoff, expires_in_sec=cint(handoff["expires_at"] - time.time()) + 1)
 	redirect(f"/storefront-login?{urlencode({'prompt': 'login', 'redirect-to': frappe.request.full_path})}")
 
 

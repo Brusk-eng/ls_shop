@@ -1,6 +1,6 @@
 import re
 from functools import lru_cache
-from urllib.parse import quote
+from urllib.parse import quote, urlencode
 
 import frappe
 from erpnext.selling.doctype.customer.customer import (
@@ -14,6 +14,7 @@ from frappe.utils.data import strip_html
 from pypika import Order
 
 from commera.core import get_address_docs, get_party
+from commera.guest import is_guest, is_guest_checkout_enabled
 from commera.order_access import get_key_access, is_shoppers_order
 from commera.plugin_events import SHIPPING_ADDRESS_FIELDS, STORE_ORDER_TYPE, fire_event, get_order_snapshot
 
@@ -572,6 +573,35 @@ def get_same_site_path(path: str | None) -> str | None:
 	if path.startswith("/") and not path.startswith(("//", "/\\")) and "://" not in path:
 		return path
 	return None
+
+
+FORWARDED_PARAM_PREFIXES = ("utm_", "checkout[")
+
+
+def get_next_url(return_to: str | None = None) -> str:
+	forwarded_params = [
+		(key, value)
+		for key, value in frappe.form_dict.items()
+		if key == "discount" or key.startswith(FORWARDED_PARAM_PREFIXES)
+	]
+	cart_url = f"/{frappe.local.lang}/cart"
+	destination = get_return_to_url(return_to, cart_url)
+	if destination:
+		query_string = urlencode(forwarded_params, doseq=True)
+		separator = "&" if "?" in destination else "?"
+		return f"{destination}{separator}{query_string}" if query_string else destination
+	if not is_guest():
+		forwarded_params = [("checkout", "1"), *forwarded_params]
+	elif is_guest_checkout_enabled():
+		cart_url = f"{cart_url}/checkout"
+	query_string = urlencode(forwarded_params, doseq=True)
+	return f"{cart_url}?{query_string}" if query_string else cart_url
+
+
+def get_return_to_url(return_to: str | None, cart_url: str) -> str | None:
+	if cstr(return_to).strip() == "cart":
+		return cart_url
+	return get_same_site_path(return_to)
 
 
 def get_login_url_for_current_page() -> str:

@@ -42,6 +42,8 @@ sequenceDiagram
   N->>C: cart.get_checkout_url
   C-->>N: single-use path, valid 5 minutes
   B->>C: GET cart.open_checkout?code=...
+  C-->>B: redirect to /storefront-cart, which POSTs the code
+  B->>C: POST cart.claim_checkout_cart
   C-->>B: commera_guest_cart cookie, redirect to the checkout
 ```
 
@@ -80,12 +82,12 @@ Guest methods are rate-limited by IP address. Frappe reads the first address in 
 
 ## Checkout hand-off
 
-`get_checkout_url` stores a random code in Redis for five minutes. For a guest cart the code holds the cart token. For a signed-in shopper the code holds the user. `open_checkout` reads the code:
+`get_checkout_url` stores a random code in Redis. A guest code holds the cart token and lives five minutes. An account code holds the user and lives fifteen minutes, so the browser has time to sign in. `open_checkout` is a GET and changes nothing, so a link preview or a prefetch cannot use the code up:
 
-- Guest cart, guest browser: it moves the cart to a new random token, sets the `commera_guest_cart` cookie to that token and redirects to the checkout. The storefront's token no longer reaches the cart.
-- Guest cart, signed-in browser: it redirects to `/storefront-cart`, where the shopper confirms. The confirm POSTs to `cart.adopt_checkout_cart`, which merges the storefront cart into the account cart, as sign-in does.
+- Guest cart, guest browser: it redirects to `/storefront-cart`, whose form POSTs the code to `cart.claim_checkout_cart` by itself (a button when JavaScript is off). That POST moves the cart to a new random token, sets the `commera_guest_cart` cookie to that token and redirects to the checkout. The storefront's token no longer reaches the cart.
+- Guest cart, signed-in browser: `/storefront-cart` asks the shopper to confirm. The confirm POSTs to `cart.adopt_checkout_cart`, which merges the storefront cart into the account cart, as sign-in does.
 - Signed-in shopper, browser signed in as the same user: it redirects to the checkout of the account cart.
-- Signed-in shopper, any other browser: on the first such visit the code gets ten more minutes, once, and it redirects to `/storefront-login?prompt=login&redirect-to=<the open_checkout link>`. After sign-in, the browser opens the same link again. The checkout code never signs a browser in.
+- Signed-in shopper, any other browser: it redirects to `/storefront-login?prompt=login&redirect-to=<the open_checkout link>`. After sign-in, the browser opens the same link again. The checkout code never signs a browser in.
 - A used or expired code redirects to the cart.
 
 The code is used once, by the first browser that can use it.
