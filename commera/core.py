@@ -229,6 +229,23 @@ def new_cart_quotation(party, email: str, contact_person: str | None = None):
 	return quotation_doc
 
 
+def is_shoppers_address(address_name: str) -> bool:
+	"""Linked to the session shopper's Customer, which also covers addresses their guest checkouts filed."""
+	party = get_party(create=False)
+	return bool(
+		party
+		and frappe.db.exists(
+			"Dynamic Link",
+			{
+				"parenttype": "Address",
+				"parent": address_name,
+				"link_doctype": party.doctype,
+				"link_name": party.name,
+			},
+		)
+	)
+
+
 def get_address_docs(party=None):
 	# A guest may be booked to an existing customer, whose saved addresses are not theirs to see.
 	if is_guest():
