@@ -4,9 +4,9 @@ from frappe.utils.data import cint, cstr
 
 from commera.branding import get_brand_assets
 from commera.commera_ecommerce.doctype.shop_web_page.shop_web_page import get_page_by_route
-from commera.sdk.catalog import get_store_currency
 from commera.sdk.types import ContentPage, FooterSection, MenuItem, Shop, Sitemap, SitemapEntry
 from commera.shop_data import get_storefront_menu
+from commera.utils import get_store_currency
 from commera.www.sitemap_segment import SEGMENT_CONFIG, get_segment_filters, get_urls_per_page
 
 __all__ = ["get_page", "get_shop", "get_sitemap"]

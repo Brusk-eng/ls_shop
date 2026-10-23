@@ -10,7 +10,6 @@ from commera.api.admin.catalog import (
 	get_default_rates,
 	get_selling_rates,
 )
-from commera.api.admin.orders import get_reporting_currency
 from commera.plugin_events import get_ecommerce_warehouse, get_listed_items
 from commera.product_detail import get_product_detail
 from commera.sdk.types import (
@@ -31,6 +30,7 @@ from commera.utils import (
 	IN_CLAUSE_CHUNK_SIZE,
 	get_available_stocks,
 	get_product_list,
+	get_store_currency,
 	get_total_product_count,
 )
 
@@ -239,13 +239,6 @@ def get_collection_shape(row) -> Collection:
 		"image": row.image,
 		"updated_at": str(row.modified),
 	}
-
-
-def get_store_currency() -> str:
-	"""The currency of the sale price list, which every shopper price is read from."""
-	return frappe.get_cached_value(
-		"Price List", frappe.get_cached_doc("Commera Settings").get_sale_price_list(), "currency"
-	)
 
 
 def get_product_cards(cards: list[dict]) -> list[ProductCard]:
