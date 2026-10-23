@@ -15,6 +15,7 @@ from commera.api.storefront.cart import (
 )
 from commera.commera_ecommerce.doctype.commera_cart.commera_cart import get_session_cart
 from commera.guest import CART_TOKEN_HEADER, GUEST_CART_COOKIE
+from commera.sdk import cart as cart_sdk
 from commera.sdk.types import CartLineProduct, PricedCart, PricedCartLine
 from commera.tests.test_order_access import make_website_user
 from commera.tests.test_product_details import ProductDetailPriceTestCase
@@ -63,6 +64,15 @@ class TestStorefrontCart(ProductDetailPriceTestCase):
 
 		with self.assertRaisesRegex(frappe.ValidationError, "is not for sale"):
 			add_lines([{"item_code": unlisted, "qty": 1}])
+
+	def test_a_template_item_is_refused(self):
+		frappe.set_user("Administrator")
+		template = self.make_item("TEMPLATE")
+		frappe.db.set_value("Style Attribute Variant", {"route": self.route}, "item_style", template)
+		self.send_token(self.token)
+
+		with self.assertRaisesRegex(frappe.ValidationError, "is not for sale"):
+			cart_sdk.add_lines([{"item_code": template, "qty": 1}])
 
 	def test_a_zero_quantity_removes_the_line(self):
 		line_id = add_lines([{"item_code": self.item_code, "qty": 1}])["lines"][0]["line_id"]

@@ -13,7 +13,6 @@ from commera.guest import (
 	set_guest_cart_cookie,
 	validate_cart_token,
 )
-from commera.plugin_events import get_listed_items
 from commera.sdk import cart as cart_sdk
 from commera.sdk.types import PricedCart
 from commera.www.cart.permalink import get_next_url
@@ -41,10 +40,6 @@ def add_lines(lines: list | str) -> PricedCart:
 		}
 		for line in frappe.parse_json(lines) or []
 	]
-	if unlisted := {line["item_code"] for line in lines} - get_listed_items(
-		[line["item_code"] for line in lines]
-	):
-		frappe.throw(_("{0} is not for sale.").format(", ".join(sorted(unlisted))))
 	return cart_sdk.add_lines(lines)
 
 

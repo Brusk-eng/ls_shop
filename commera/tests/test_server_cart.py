@@ -39,6 +39,8 @@ class TestServerCart(DiscountCodeTestCase):
 		sale_price_list = frappe.db.get_single_value("Commera Settings", "sale_price_list")
 		self.addCleanup(self.set_sale_price_list, sale_price_list)
 		self.set_sale_price_list(self.price_list)
+		# The cart SDK sells only items of a published product.
+		list_items(self.shirt, self.cap)
 		self.shopper = self.create_shopper()
 		frappe.set_user(self.shopper)
 
@@ -649,3 +651,33 @@ class TestServerCart(DiscountCodeTestCase):
 		)
 		self.assertEqual(applied["total"], 81)
 		self.assertEqual((removed["discount_codes"], removed["total"]), ([], SHIRT_RATE))
+
+
+def list_items(*item_codes: str):
+	for item_code in item_codes:
+		list_item(item_code)
+
+
+def list_item(item_code: str):
+	variant = frappe.get_doc(
+		{
+			"doctype": "Style Attribute Variant",
+			"name": f"ZZ-CART-{frappe.generate_hash(length=8)}",
+			"item_style": item_code,
+			"attribute_value": "Red",
+			"display_name": "ZZ Cart Variant",
+			"is_published": 1,
+		}
+	)
+	variant.db_insert()
+	frappe.get_doc(
+		{
+			"doctype": "Color Size Item",
+			"name": frappe.generate_hash(length=10),
+			"parent": variant.name,
+			"parenttype": "Style Attribute Variant",
+			"parentfield": "sizes",
+			"size": "S",
+			"item_code": item_code,
+		}
+	).db_insert()
