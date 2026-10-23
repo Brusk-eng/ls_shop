@@ -3,10 +3,9 @@ from frappe.utils import create_batch
 from frappe.utils.data import cstr, flt
 
 from commera.api.admin.catalog import get_default_rates, get_selling_rates
-from commera.api.admin.orders import get_reporting_currency
 from commera.plugin_events import get_ecommerce_warehouse, get_listed_items
 from commera.sdk.types import CatalogItem
-from commera.utils import IN_CLAUSE_CHUNK_SIZE, get_available_stocks
+from commera.utils import IN_CLAUSE_CHUNK_SIZE, get_available_stocks, get_store_currency
 
 __all__ = ["get_items"]
 
@@ -36,7 +35,7 @@ def read_items(item_codes: list[str]) -> dict[str, CatalogItem]:
 	warehouse = get_ecommerce_warehouse()
 	# get_available_stocks reads a missing warehouse as one literally named "website_warehouse".
 	stocks = get_available_stocks(found_codes, warehouse) if warehouse else {}
-	currency = get_reporting_currency()
+	currency = get_store_currency()
 
 	return {
 		row.name: {

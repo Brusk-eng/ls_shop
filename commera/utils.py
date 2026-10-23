@@ -393,8 +393,20 @@ def format_theme_css():
 	return frappe.get_cached_doc("Commera Settings", "Commera Settings").generate_theme_css()
 
 
+def get_store_company() -> str | None:
+	return frappe.get_cached_value("Commera Settings", "Commera Settings", "company") or (
+		frappe.defaults.get_global_default("company")
+	)
+
+
+def get_store_currency(company: str | None = None) -> str:
+	company = company or get_store_company()
+	currency = frappe.get_cached_value("Company", company, "default_currency") if company else None
+	return currency or frappe.defaults.get_global_default("currency")
+
+
 def get_currency_symbol():
-	currency = frappe.get_cached_value("Global Defaults", "Global Defaults", "default_currency")
+	currency = get_store_currency()
 	# Riyal has no glyph in the fonts the themes ship, so SAR alone borrows the icon font.
 	if currency == "SAR":
 		return '<span class="saudi-currency-symbol pe-0.5"></span>'
