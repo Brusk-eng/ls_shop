@@ -38,6 +38,25 @@ def system_user_session(user: str = "Administrator"):
 		frappe.local.user_perms = None
 
 
+@contextmanager
+def latest_committed_reads():
+	# MariaDB 11.6+ turns innodb_snapshot_isolation on: a locking read or update of a row another request
+	# committed after this transaction began fails with 1020 instead of returning the latest version.
+	setting = (
+		frappe.db.sql("SHOW SESSION VARIABLES LIKE 'innodb_snapshot_isolation'")
+		if frappe.db.db_type == "mariadb"
+		else ()
+	)
+	if not setting or setting[0][1] != "ON":
+		yield
+		return
+	frappe.db.sql("SET SESSION innodb_snapshot_isolation = OFF")
+	try:
+		yield
+	finally:
+		frappe.db.sql("SET SESSION innodb_snapshot_isolation = ON")
+
+
 def generate_otp():
 	"""Generates a cryptographically secure random OTP"""
 
