@@ -2,7 +2,6 @@ import frappe
 from frappe.tests import IntegrationTestCase
 
 from commera import seo
-from commera.api.admin.orders import get_reporting_currency
 from commera.utils import get_currency_symbol, get_store_currency
 
 
@@ -34,6 +33,14 @@ class TestStoreCurrency(IntegrationTestCase):
 		with self.assertRaisesRegex(frappe.ValidationError, f"the store sells in {self.store_currency}"):
 			self.settings.save()
 
+	def test_an_unrelated_setting_still_saves_on_a_site_whose_price_list_moved(self):
+		frappe.db.set_value("Price List", self.settings.sale_price_list, "currency", self.other_currency)
+		frappe.clear_document_cache("Price List", self.settings.sale_price_list)
+		settings = frappe.get_doc("Commera Settings")
+		settings.return_period = (settings.return_period or 0) + 1
+
+		settings.save()
+
 	def test_a_store_price_list_keeps_the_store_currency(self):
 		price_list = frappe.get_doc("Price List", self.settings.sale_price_list)
 		price_list.currency = self.other_currency
@@ -53,6 +60,5 @@ class TestStoreCurrency(IntegrationTestCase):
 
 		symbol = frappe.get_cached_value("Currency", self.store_currency, "symbol")
 		self.assertEqual(seo.get_site_currency(), self.store_currency)
-		self.assertEqual(get_reporting_currency(), self.store_currency)
 		if self.store_currency != "SAR" and symbol:
 			self.assertEqual(get_currency_symbol(), symbol)

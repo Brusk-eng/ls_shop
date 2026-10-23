@@ -400,7 +400,6 @@ def get_store_company() -> str | None:
 
 
 def get_store_currency(company: str | None = None) -> str:
-	"""The one currency the store prices and charges in: its company's, which ERPNext gives the cart."""
 	company = company or get_store_company()
 	currency = frappe.get_cached_value("Company", company, "default_currency") if company else None
 	return currency or frappe.defaults.get_global_default("currency")

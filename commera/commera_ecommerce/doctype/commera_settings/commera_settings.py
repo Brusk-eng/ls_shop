@@ -129,10 +129,9 @@ class CommeraSettings(Document):
 		self.validate_search_result_fields()
 
 	def validate_price_list_currencies(self):
-		"""Sale and list prices are compared as plain numbers, so both lists must be in the store's currency."""
 		currency = get_store_currency(self.company)
 		for fieldname in ("default_price_list", "sale_price_list"):
-			if price_list := self.get(fieldname):
+			if self.has_value_changed(fieldname) and (price_list := self.get(fieldname)):
 				validate_price_list_currency(price_list, currency, self.meta.get_label(fieldname))
 
 	def validate_a_payment_method_is_available(self):
@@ -392,7 +391,6 @@ def validate_price_list_currency(price_list: str, currency: str, label: str):
 
 
 def validate_store_price_list(doc, method=None):
-	"""A store price list may not move to another currency after Commera Settings picked it."""
 	settings = frappe.get_cached_doc("Commera Settings")
 	for fieldname in ("default_price_list", "sale_price_list"):
 		if settings.get(fieldname) == doc.name and doc.currency != get_store_currency(settings.company):

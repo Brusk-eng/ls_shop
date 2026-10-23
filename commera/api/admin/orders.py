@@ -932,7 +932,7 @@ def get_overview(order_status: str | None = None):
 	unpublishable = get_unpublishable_options(limit=0)
 
 	return {
-		"currency": get_reporting_currency(),
+		"currency": get_store_currency(),
 		"window_days": OVERVIEW_WINDOW_DAYS,
 		"stats": [
 			{
@@ -1005,10 +1005,6 @@ def percent_change(current, previous):
 	if not previous:
 		return None
 	return flt((flt(current) - previous) / previous * 100, 1)
-
-
-def get_reporting_currency():
-	return get_store_currency()
 
 
 def get_reporting_currency_symbol(currency):
