@@ -297,6 +297,12 @@ class TestStorefrontSearch(IntegrationTestCase):
 		self.assertIn(BRAND, sidebar["brands"])
 		self.assertEqual(set(sidebar["colors"]), {"Zzred", "Zzblue"})
 
+	def test_listing_facet_counts_come_from_the_engine(self):
+		counts = search_query.listing_facet_counts({"search": SEARCH_TOKEN, "sizes": ["8"]})
+
+		self.assertEqual(counts["colors"], {"Zzred": 1})
+		self.assertEqual(counts["sizes"], {"8": 1, "10": 1, "38": 1, "40": 1})
+
 	def test_size_facet_is_ordered_numerically(self):
 		# By count the order is arbitrary; as text 10 sorts before 8. Both are wrong for a numeric size scale.
 		facets = SqliteProductSearch().search(SEARCH_TOKEN)["facets"]
@@ -419,9 +425,9 @@ class TestStorefrontSearch(IntegrationTestCase):
 
 	def test_sidebar_brand_round_trips_through_both_grids(self):
 		# SQLite compares the sidebar value with a BINARY-collated IN; title-casing it returned zero rows.
-		from commera.www.products import list as product_list_page
+		from commera.search.facets import get_filter_brands
 
-		brands = product_list_page.get_filter_brands({"search": SEARCH_TOKEN})
+		brands = get_filter_brands({"search": SEARCH_TOKEN})
 		self.assertIn(BRAND, brands)
 		self.assertNotIn(BRAND.title(), brands)
 		for brand in brands:

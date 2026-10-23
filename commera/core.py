@@ -142,7 +142,8 @@ def get_customer_contact(email: str) -> tuple[str, str] | None:
 	return (links[0].link_name, links[0].parent) if links else None
 
 
-def get_party(user=None):
+def get_party(user=None, create: bool = True):
+	"""The shopper's Customer. Without `create`, None when they have none yet."""
 	if not user:
 		user = frappe.session.user
 
@@ -170,7 +171,7 @@ def get_party(user=None):
 		if frappe.db.exists("Customer", portal_party):
 			return frappe.get_cached_doc("Customer", portal_party)
 
-	return _create_party_for_user(user)
+	return _create_party_for_user(user) if create else None
 
 
 def _get_cart_quotation(party=None):
@@ -228,6 +229,23 @@ def new_cart_quotation(party, email: str, contact_person: str | None = None):
 	return quotation_doc
 
 
+def is_shoppers_address(address_name: str) -> bool:
+	"""Linked to the session shopper's Customer, which also covers addresses their guest checkouts filed."""
+	party = get_party(create=False)
+	return bool(
+		party
+		and frappe.db.exists(
+			"Dynamic Link",
+			{
+				"parenttype": "Address",
+				"parent": address_name,
+				"link_doctype": party.doctype,
+				"link_name": party.name,
+			},
+		)
+	)
+
+
 def get_address_docs(party=None):
 	# A guest may be booked to an existing customer, whose saved addresses are not theirs to see.
 	if is_guest():
@@ -265,6 +283,8 @@ def get_address_docs(party=None):
 			"pincode",
 			"phone",
 			"email_id",
+			"is_primary_address",
+			"is_shipping_address",
 		],
 	)
 
