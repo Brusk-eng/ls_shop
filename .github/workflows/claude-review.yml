@@ -83,8 +83,9 @@ jobs:
             PR NUMBER: ${{ env.PR_NUMBER }}
             HEAD SHA: ${{ steps.pr.outputs.head }}
 
-            Use the frappe-reviewer agent to review this pull request. Then run the confirmation pass of
-            .github/review/method.md yourself, and write review.json.
+            Review this pull request yourself, following ~/.claude/agents/frappe-reviewer.md and
+            .github/review/method.md, then write review.json. Do not start subagents: in this runner a
+            subagent runs in the background and the session ends before it reports.
             - The PR's files are in ./pr. Get the diff with `gh pr diff`.
             - ./context holds the PR details, the linked issues, the check results, your earlier reviews
               and threads on this PR, and request.txt: the maintainer's comment that asked for this review.
@@ -96,7 +97,7 @@ jobs:
           claude_args: |
             --max-turns 80
             --add-dir pr
-            --allowedTools "Agent,Task,Read,Grep,Glob,Write,Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh issue view:*)"
+            --allowedTools "Read,Grep,Glob,Write,Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh issue view:*)"
 
       - name: Keep the session log
         if: always() && steps.claude.outputs.execution_file != ''

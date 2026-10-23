@@ -14,7 +14,7 @@ Also read `context/checks.txt`. Say for each failing check whether this PR or th
 
 ## Confirm before you report
 
-The session that writes `review.json` runs this pass, not the agent that found the issues. For each must-fix finding, start a new Task subagent with only the PR title, the finding and the file. It opens the code and answers "confirmed" or "not confirmed", with the deciding lines. Drop every finding that is not confirmed. A wrong finding costs the author more time than a missed one.
+When the list of findings is complete, check each must-fix finding again as if someone else wrote it. Open the cited lines and the code around them, and look for the guard, caller or test that would make the finding wrong. Keep the finding only if the deciding lines still show the defect. Drop every finding that is not confirmed. A wrong finding costs the author more time than a missed one.
 
 ## Re-review
 
