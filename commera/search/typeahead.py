@@ -30,7 +30,7 @@ class Typeahead(TypedDict):
 
 def get_typeahead(query: str, limit: int = DEFAULT_LIMIT) -> Typeahead:
 	query = cstr(query).strip()
-	limit = min(cint(limit) or DEFAULT_LIMIT, MAX_LIMIT)
+	limit = max(1, min(cint(limit) or DEFAULT_LIMIT, MAX_LIMIT))
 	result: Typeahead = {"query": query, "products": [], "categories": [], "corrected_query": None}
 	if not query:
 		return result

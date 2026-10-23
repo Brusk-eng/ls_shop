@@ -138,6 +138,11 @@ class TestStorefrontSearch(SearchCatalogue, IntegrationTestCase):
 		self.assertEqual({card["name"] for card in result["products"]}, {self.red, self.blue, self.green})
 		self.assertEqual(result["categories"], [])
 
+	def test_typeahead_api_clamps_a_negative_limit(self):
+		from commera.api.search import typeahead
+
+		self.assertEqual(len(typeahead("zzw", limit=-1)["products"]), 1)
+
 	def test_typeahead_finds_arabic_item_names(self):
 		if not frappe.db.has_column("Item", "custom_item_name_ar"):
 			self.skipTest("Item has no custom_item_name_ar field on this site")
