@@ -82,10 +82,10 @@ Guest methods are rate-limited by IP address. Frappe reads the first address in 
 
 `get_checkout_url` stores a random code in Redis for five minutes. For a guest cart the code holds the cart token. For a signed-in shopper the code holds the user. `open_checkout` reads the code:
 
-- Guest cart, guest browser: it sets the `commera_guest_cart` cookie to the token and redirects to the checkout.
-- Guest cart, signed-in browser: it merges the storefront cart into the account cart, as sign-in does.
+- Guest cart, guest browser: it moves the cart to a new random token, sets the `commera_guest_cart` cookie to that token and redirects to the checkout. The storefront's token no longer reaches the cart.
+- Guest cart, signed-in browser: it redirects to `/storefront-cart`, where the shopper confirms. The confirm POSTs to `cart.adopt_checkout_cart`, which merges the storefront cart into the account cart, as sign-in does.
 - Signed-in shopper, browser signed in as the same user: it redirects to the checkout of the account cart.
-- Signed-in shopper, any other browser: it keeps the code for five more minutes and redirects to `/storefront-login?prompt=login&redirect-to=<the open_checkout link>`. After sign-in, the browser opens the same link again. The checkout code never signs a browser in.
+- Signed-in shopper, any other browser: on the first such visit the code gets ten more minutes, once, and it redirects to `/storefront-login?prompt=login&redirect-to=<the open_checkout link>`. After sign-in, the browser opens the same link again. The checkout code never signs a browser in.
 - A used or expired code redirects to the cart.
 
 The code is used once, by the first browser that can use it.
@@ -109,6 +109,8 @@ In **Commera Settings > Storefront Apps > Headless Storefront**, set **Headless 
 | Skip Authorization | Yes |
 | Allowed Roles | `Customer` |
 | Token Endpoint Auth Method | `Client Secret Post` |
+
+Frappe's OAuth2 provider has no scope for a set of methods, so the access token can call any method the shopper can.
 
 Give the Client ID and Client Secret of that OAuth Client to the storefront server. Keep the secret on the server. When you clear the URL, Commera keeps the OAuth Client.
 

@@ -6,11 +6,14 @@ from werkzeug.test import EnvironBuilder
 from werkzeug.wrappers import Request
 
 from commera.api.storefront.cart import (
+	CHECKOUT_CODE_PREFIX,
 	add_lines,
 	adopt_cart,
+	adopt_checkout_cart,
 	get_cart,
 	get_checkout_url,
 	open_checkout,
+	remove_lines,
 	update_lines,
 )
 from commera.commera_ecommerce.doctype.commera_cart.commera_cart import get_session_cart
@@ -34,10 +37,17 @@ class TestStorefrontCart(ProductDetailPriceTestCase):
 		frappe.get_doc(
 			{"doctype": "Bin", "item_code": self.item_code, "warehouse": self.warehouse, "actual_qty": 10}
 		).insert(ignore_permissions=True)
+		# Every direct call shares one rate-limit counter for this IP, and it outlives the test.
+		frappe.cache.delete_keys("rl:*127.0.0.1*")
 		self.token = frappe.generate_hash(length=32)
 		self.send_token(self.token)
 
-	def send_token(self, token: str | None, user: str = "Guest", path: str = "/"):
+	def send_token(
+		self,
+		token: str | None,
+		user: str = "Guest",
+		path: str = "/api/method/commera.api.storefront.cart.get_cart",
+	):
 		if not hasattr(frappe.local, "request"):
 			self.addCleanup(delattr, frappe.local, "request")
 		headers = {CART_TOKEN_HEADER: token} if token else {}
@@ -82,28 +92,79 @@ class TestStorefrontCart(ProductDetailPriceTestCase):
 		self.assertEqual(cart["lines"], [])
 		self.assertEqual(get_cart()["total_quantity"], 0)
 
-	def test_a_checkout_code_binds_the_cart_to_the_browser_once(self):
+	def get_checkout_code(self) -> str:
+		return get_checkout_url()["path"].split("code=")[1]
+
+	def test_a_checkout_code_moves_the_cart_to_a_new_browser_token_once(self):
 		add_lines([{"item_code": self.item_code, "qty": 1}])
-		code = get_checkout_url()["path"].split("code=")[1]
+		code = self.get_checkout_code()
 		self.send_token("unused-browser-token-0000000000000000")
 
 		open_checkout(code)
 
-		self.assertEqual(frappe.local.cookie_manager.cookies[GUEST_CART_COOKIE]["value"], self.token)
+		browser_token = frappe.local.cookie_manager.cookies[GUEST_CART_COOKIE]["value"]
+		self.assertNotIn(browser_token, (self.token, "unused-browser-token-0000000000000000"))
 		self.assertEqual(frappe.local.response["location"], "/en/cart/checkout")
+		self.assertTrue(
+			frappe.db.exists("Commera Cart", {"cart_key": frappe.utils.sha256_hash(browser_token)})
+		)
 		open_checkout(code)
 		self.assertEqual(frappe.local.response["location"], "/en/cart")
 
-	def test_a_signed_in_shopper_gets_the_storefront_cart_in_their_account(self):
+		self.send_token(self.token)
+		self.assertIsNone(get_cart())
+
+	def test_a_signed_in_browser_merges_the_storefront_cart_only_once_confirmed(self):
 		add_lines([{"item_code": self.item_code, "qty": 3}])
-		code = get_checkout_url()["path"].split("code=")[1]
-		self.send_token("signed-in-browser-token-000000000000", user="Administrator")
+		code = self.get_checkout_code()
+		self.send_token(None, user=make_website_user())
 
 		open_checkout(code)
 
+		self.assertEqual(frappe.local.response["location"], f"/storefront-cart?code={code}")
+		self.assertIsNone(get_session_cart())
+		adopt_checkout_cart(code)
 		self.assertEqual(
 			[(row.item_code, row.qty) for row in get_session_cart().lines], [(self.item_code, 3)]
 		)
+		self.assertFalse(frappe.cache.get_value(f"{CHECKOUT_CODE_PREFIX}{code}"))
+
+	def test_an_expired_checkout_code_opens_the_cart(self):
+		add_lines([{"item_code": self.item_code, "qty": 1}])
+		code = self.get_checkout_code()
+		key = f"{CHECKOUT_CODE_PREFIX}{code}"
+		frappe.cache.set_value(key, {**frappe.cache.get_value(key), "expires_at": 0}, expires_in_sec=60)
+		self.send_token(None)
+
+		open_checkout(code)
+
+		self.assertEqual(frappe.local.response["location"], "/en/cart")
+		self.assertNotIn(GUEST_CART_COOKIE, frappe.local.cookie_manager.cookies)
+
+	def test_a_signed_in_checkout_code_waits_for_a_sign_in_only_once(self):
+		self.send_token(None, user=make_website_user())
+		add_lines([{"item_code": self.item_code, "qty": 1}])
+		code = self.get_checkout_code()
+		key = f"{CHECKOUT_CODE_PREFIX}{code}"
+		expires_at = frappe.cache.get_value(key)["expires_at"]
+
+		for _visit in range(2):
+			self.send_token(None)
+			open_checkout(code)
+
+		self.assertAlmostEqual(frappe.cache.get_value(key)["expires_at"], expires_at + 10 * 60)
+
+	def test_lines_that_are_not_a_list_of_objects_are_refused(self):
+		for lines in (None, "", "not json", '{"item_code": "x"}', "[1, 2]", ["x"]):
+			with self.subTest(lines=lines):
+				with self.assertRaisesRegex(frappe.ValidationError, "list of objects"):
+					add_lines(lines)
+				with self.assertRaisesRegex(frappe.ValidationError, "list of objects"):
+					update_lines(lines)
+		for line_ids in (None, "x", "[1]", [{"line_id": "x"}]):
+			with self.subTest(line_ids=line_ids):
+				with self.assertRaisesRegex(frappe.ValidationError, "list of strings"):
+					remove_lines(line_ids)
 
 	def test_checkout_needs_a_cart(self):
 		with self.assertRaises(frappe.DoesNotExistError):

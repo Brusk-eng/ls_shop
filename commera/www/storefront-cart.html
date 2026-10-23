@@ -1,0 +1,16 @@
+{% extends "templates/layout.html" %}
+
+{% block body %}
+<div class="max-w-md mx-auto py-16 text-center">
+    <h1 class="text-2xl font-medium text-gray-900">{{ _("Add to Your Cart") }}</h1>
+    <p class="mt-3 text-sm text-gray-600">
+        {{ _("You are signed in as {0}. The items of the storefront cart go into the cart of this account.").format(signed_in_user|e) }}
+    </p>
+    <form method="post" action="/api/method/commera.api.storefront.cart.adopt_checkout_cart" class="mt-6 flex justify-center gap-3">
+        <input type="hidden" name="code" value="{{ code|e }}">
+        <input type="hidden" name="csrf_token" value="{{ frappe.session.csrf_token }}">
+        <a href="{{ cart_url }}" class="inline-block border border-gray-300 text-gray-900 rounded-lg px-8 py-2">{{ _("Cancel") }}</a>
+        <button type="submit" class="inline-block bg-primary text-white rounded-lg px-8 py-2">{{ _("Add and check out") }}</button>
+    </form>
+</div>
+{% endblock %}

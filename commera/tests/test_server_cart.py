@@ -243,12 +243,17 @@ class TestServerCart(DiscountCodeTestCase):
 		self.assertEqual(cart.discount_codes, code)
 		self.assertFalse(frappe.db.exists("Commera Cart", guest_cart))
 
-	def use_guest_cart(self, token: str | None = None, header: bool = False):
+	def use_guest_cart(
+		self,
+		token: str | None = None,
+		header: bool = False,
+		path: str = "/api/method/commera.api.storefront.cart.get_cart",
+	):
 		token = token or frappe.generate_hash(length=32)
 		headers = {CART_TOKEN_HEADER: token} if header else {"Cookie": f"{GUEST_CART_COOKIE}={token}"}
 		if not hasattr(frappe.local, "request"):
 			self.addCleanup(delattr, frappe.local, "request")
-		frappe.local.request = Request(EnvironBuilder(path="/", headers=headers).get_environ())
+		frappe.local.request = Request(EnvironBuilder(path=path, headers=headers).get_environ())
 		frappe.local.cookie_manager = CookieManager()
 		frappe.set_user("Guest")
 
@@ -261,6 +266,16 @@ class TestServerCart(DiscountCodeTestCase):
 		self.use_guest_cart(token, header=True)
 
 		self.assertEqual(get_session_cart().name, cookie_cart)
+
+	def test_the_cart_token_header_reaches_only_the_storefront_api(self):
+		token = frappe.generate_hash(length=32)
+		self.use_guest_cart(token)
+		cart_sdk.add_lines([{"item_code": self.shirt, "qty": 1}])
+
+		for path in ("/en/cart/checkout", "/api/method/commera.api.payments.save_cart_quotation"):
+			with self.subTest(path):
+				self.use_guest_cart(token, header=True, path=path)
+				self.assertIsNone(get_session_cart())
 
 	def test_a_short_cart_token_header_is_refused(self):
 		self.use_guest_cart("too-short", header=True)
