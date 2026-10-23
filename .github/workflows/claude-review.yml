@@ -74,6 +74,7 @@ jobs:
         run: .github/scripts/review-context.sh "$PR_NUMBER" "${{ steps.app-token.outputs.app-slug || 'github-actions' }}" context
 
       - uses: anthropics/claude-code-action@v1
+        id: claude
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           github_token: ${{ github.token }}
@@ -95,7 +96,15 @@ jobs:
           claude_args: |
             --max-turns 80
             --add-dir pr
-            --allowedTools "Task,Read,Grep,Glob,Write,Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh issue view:*)"
+            --allowedTools "Agent,Task,Read,Grep,Glob,Write,Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh issue view:*)"
+
+      - name: Keep the session log
+        if: always() && steps.claude.outputs.execution_file != ''
+        uses: actions/upload-artifact@v7
+        with:
+          name: claude-review-session
+          path: ${{ steps.claude.outputs.execution_file }}
+          retention-days: 7
 
       - name: Post the review
         env:
