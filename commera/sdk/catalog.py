@@ -2,7 +2,6 @@ import frappe
 from frappe import _
 from frappe.utils import create_batch
 from frappe.utils.data import cint, cstr, flt
-from frappe.website.utils import cleanup_page_name
 
 from commera.api.admin.catalog import (
 	DEFAULT_OPTION_ATTRIBUTE,
@@ -25,6 +24,7 @@ from commera.sdk.types import (
 )
 from commera.search.facets import get_listing_facet_counts, get_price_range
 from commera.search.record_builder import images_for_variants, rates_by_item_code, sizes_for_variants
+from commera.shop_data import get_storefront_menu
 from commera.swatches import get_swatch_map
 from commera.utils import (
 	IN_CLAUSE_CHUNK_SIZE,
@@ -44,6 +44,9 @@ __all__ = [
 
 SORT_KEYS = ("default", "price_low", "price_high", "name", "new_arrival", "discount")
 MAX_PAGE_SIZE = 48
+# Only a top-level menu entry owns a route_slug, so these are the menu tabs.
+COLLECTION_FILTERS = {"enabled": 1, "route_slug": ("is", "set")}
+COLLECTION_FIELDS = ["route_slug", "display_name", "category_name", "image", "modified"]
 
 
 def get_items(item_codes: list[str]) -> dict[str, CatalogItem]:
@@ -120,13 +123,14 @@ def list_products(
 		frappe.throw(_("Sort must be one of {0}.").format(", ".join(SORT_KEYS)))
 	page, page_size = max(cint(page), 1), min(max(cint(page_size), 1), MAX_PAGE_SIZE)
 	filters = {
-		"subcategory": [get_item_group(collection)] if collection else [],
+		"subcategory": [],
 		"search": cstr(query).strip(),
 		"brands": list(brands or []),
 		"colors": list(colors or []),
 		"sizes": list(sizes or []),
 		"has_discount": bool(on_sale),
 		"category": "",
+		**(get_collection_filters(collection) if collection else {}),
 		**({"min_price": flt(min_price)} if min_price is not None else {}),
 		**({"max_price": flt(max_price)} if max_price is not None else {}),
 	}
@@ -186,54 +190,38 @@ def get_product(handle: str) -> Product | None:
 
 
 def list_collections() -> list[Collection]:
-	"""Every Item Group that holds a published product."""
+	"""Every enabled menu tab, the Ecommerce Categories `/products?category=` lists."""
 	rows = frappe.get_all(
-		"Item Group",
-		filters={"name": ("in", get_listed_item_groups() or [""])},
-		fields=["name", "custom_displayname", "image", "modified"],
-		order_by="custom_displayname asc",
+		"Ecommerce Category",
+		filters=COLLECTION_FILTERS,
+		fields=COLLECTION_FIELDS,
+		order_by="display_order asc, category_name asc",
 	)
 	return [get_collection_shape(row) for row in rows]
 
 
 def get_collection(handle: str) -> Collection | None:
-	item_group = find_item_group(handle)
-	if not item_group:
-		return None
-	return get_collection_shape(
-		frappe.db.get_value(
-			"Item Group", item_group, ["name", "custom_displayname", "image", "modified"], as_dict=True
-		)
+	rows = frappe.get_all(
+		"Ecommerce Category",
+		filters={**COLLECTION_FILTERS, "route_slug": cstr(handle)},
+		fields=COLLECTION_FIELDS,
+		limit=1,
 	)
+	return get_collection_shape(rows[0]) if rows else None
 
 
-def get_collection_handle(item_group: str) -> str:
-	return cleanup_page_name(item_group).replace("_", "-")
-
-
-def get_item_group(handle: str) -> str:
-	if item_group := find_item_group(handle):
-		return item_group
-	raise frappe.DoesNotExistError(_("Collection {0} not found").format(handle))
-
-
-def find_item_group(handle: str) -> str | None:
-	return next((group for group in get_listed_item_groups() if get_collection_handle(group) == handle), None)
-
-
-def get_listed_item_groups() -> list[str]:
-	return frappe.get_all(
-		"Style Attribute Variant",
-		filters={"is_published": 1, "item_group": ("is", "set")},
-		pluck="item_group",
-		distinct=True,
-	)
+def get_collection_filters(handle: str) -> dict:
+	"""The listing filters of the menu tab's own link, as its `/products?category=` href carries them."""
+	root = next((node for node in get_storefront_menu() if node["route_slug"] == handle), None)
+	if not root:
+		raise frappe.DoesNotExistError(_("Collection {0} not found").format(handle))
+	return {"category": root["route_slug"], "subcategory": root["item_groups"]}
 
 
 def get_collection_shape(row) -> Collection:
 	return {
-		"handle": get_collection_handle(row.name),
-		"title": row.custom_displayname or row.name,
+		"handle": row.route_slug,
+		"title": row.display_name or row.category_name,
 		"image": row.image,
 		"updated_at": str(row.modified),
 	}
@@ -335,10 +323,20 @@ def get_sibling_values(product_variant) -> list[dict]:
 
 
 def get_product_collection(item_group: str | None) -> dict | None:
+	"""The menu tab whose entries link the product's item group."""
 	if not item_group:
 		return None
-	title = frappe.get_cached_value("Item Group", item_group, "custom_displayname")
-	return {"handle": get_collection_handle(item_group), "title": title or item_group}
+	root = next(
+		(root for root in get_storefront_menu() if root["route_slug"] and links_item_group(root, item_group)),
+		None,
+	)
+	return {"handle": root["route_slug"], "title": root["label"]} if root else None
+
+
+def links_item_group(node: dict, item_group: str) -> bool:
+	return item_group in node["item_groups"] or any(
+		links_item_group(child, item_group) for child in node["children"]
+	)
 
 
 def get_line_products(item_codes: list[str]) -> dict[str, CartLineProduct]:

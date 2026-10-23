@@ -53,10 +53,10 @@ The catalogue and cart methods allow guests. The [account methods](#account-meth
 | --- | --- |
 | `products.get_products` | One page of product cards with the facets of the whole result. Each brand, colour and size facet value has its product count, as `{"value": "K&N", "count": 3}`. The other selected filters narrow each count, but the facet's own filter does not. `price` is the `min` and `max` sale price. Filters: `collection`, `query`, `brands`, `colors`, `sizes`, `min_price`, `max_price`, `on_sale`. `sort` is `default`, `price_low`, `price_high`, `name`, `new_arrival` or `discount`. |
 | `products.get_product` | One product: images, the colour option with sibling handles and stock, the size option, and one variant for each size with its price, list price and stock. |
-| `collections.get_collections`, `collections.get_collection` | Item Groups that hold a published product. |
+| `collections.get_collections`, `collections.get_collection` | Enabled menu tabs (top-level Ecommerce Categories), by route slug. |
 | `shop.get_shop` | Store name, currency, logo, the menu from Ecommerce Category, and the footer. |
 | `shop.get_page` | A published Shop Web Page. |
-| `shop.get_sitemap` | Handles and change dates of indexable products, collections and pages, 5000 for each kind on a page. Without arguments, it returns page 1 of each kind. Set `kind` to `products`, `collections` or `pages`, and `page` to get one kind and one page. `total` gives the number of handles of each returned kind, and `page_size` gives the page size. |
+| `shop.get_sitemap` | Handles and change dates of indexable products, collections and pages. A page holds as many handles of each kind as the "Sitemap URLs Per Page" setting in Commera Settings. Without arguments, it returns page 1 of each kind. Set `kind` to `products`, `collections` or `pages`, and `page` to get one kind and one page. `total` gives the number of handles of each returned kind, and `page_size` gives the page size. |
 | `cart.get_cart`, `cart.add_lines`, `cart.update_lines`, `cart.remove_lines` | The priced server cart. Each line has the product handle, size and image. |
 | `cart.add_discount_code`, `cart.remove_discount_code` | The priced cart, with a reason for each code that takes nothing off. |
 | `cart.adopt_cart` | Signed in only. Moves the guest cart of the `X-Commera-Cart-Token` header into the account cart and returns the priced cart. |
