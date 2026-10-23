@@ -75,6 +75,22 @@ class TestStorefrontApi(ProductDetailPriceTestCase):
 		with self.assertRaises(frappe.DoesNotExistError):
 			get_product(route)
 
+	def test_an_unknown_product_is_not_found_without_naming_the_doctype(self):
+		frappe.local.message_log = []
+
+		with self.assertRaisesRegex(frappe.DoesNotExistError, "^Product no-such-product not found$"):
+			get_product("no-such-product")
+
+		self.assertEqual(frappe.local.message_log, [])
+
+	def test_facets_are_cached_for_each_filter_set(self):
+		with patch("commera.sdk.catalog.get_listing_facet_counts", return_value={}) as count_facets:
+			get_products(collection=self.collection, brands="No Brand")
+			get_products(collection=self.collection, brands="No Brand", page=2)
+			get_products(collection=self.collection, brands="Other Brand")
+
+		self.assertEqual(count_facets.call_count, 2)
+
 	def test_a_collection_lists_only_its_own_products(self):
 		route = self.make_priced_variant("LISTED", default_rate=30, sale_rate=20)
 

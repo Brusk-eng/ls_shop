@@ -1,7 +1,8 @@
 import frappe
 from frappe import _
 from frappe.utils import create_batch
-from frappe.utils.data import cint, cstr, flt
+from frappe.utils.caching import redis_cache
+from frappe.utils.data import cint, cstr, flt, sha256_hash
 
 from commera.api.admin.catalog import (
 	DEFAULT_OPTION_ATTRIBUTE,
@@ -44,6 +45,8 @@ __all__ = [
 
 SORT_KEYS = ("default", "price_low", "price_high", "name", "new_arrival", "discount")
 MAX_PAGE_SIZE = 48
+FACETS_CACHE_PREFIX = "commera:storefront_facets:"
+FACETS_CACHE_SECONDS = 5 * 60
 # Only a top-level menu entry owns a route_slug, so these are the menu tabs.
 COLLECTION_FILTERS = {"enabled": 1, "route_slug": ("is", "set")}
 COLLECTION_FIELDS = ["route_slug", "display_name", "category_name", "image", "modified"]
@@ -136,17 +139,28 @@ def list_products(
 	}
 
 	cards = get_product_list(filters=filters, page=page, page_length=page_size, sort_by=sort)
-	price_range = get_price_range()
 	return {
 		"products": get_product_cards(cards),
 		"total": get_total_product_count(filters=filters),
 		"page": page,
 		"page_size": page_size,
-		"facets": {
-			**{key: get_facet_values(counts) for key, counts in get_listing_facet_counts(filters).items()},
-			"price": {"min": flt(price_range.get("min_price")), "max": flt(price_range.get("max_price"))},
-		},
+		"facets": {**get_facets(filters), "price": get_price_facet()},
 	}
+
+
+def get_facets(filters: dict) -> dict[str, list[FacetValue]]:
+	cache_key = f"{FACETS_CACHE_PREFIX}{sha256_hash(frappe.as_json(filters))}"
+	facets = frappe.cache.get_value(cache_key)
+	if facets is None:
+		facets = {key: get_facet_values(counts) for key, counts in get_listing_facet_counts(filters).items()}
+		frappe.cache.set_value(cache_key, facets, expires_in_sec=FACETS_CACHE_SECONDS)
+	return facets
+
+
+@redis_cache(ttl=FACETS_CACHE_SECONDS)
+def get_price_facet() -> dict:
+	price_range = get_price_range()
+	return {"min": flt(price_range.get("min_price")), "max": flt(price_range.get("max_price"))}
 
 
 def get_facet_values(counts: dict[str, int]) -> list[FacetValue]:
