@@ -356,6 +356,9 @@ class TestStorefrontSearch(SearchCatalogue, IntegrationTestCase):
 		self.assertEqual(qb_card["item_group"], ITEM_GROUP)
 		self.assertEqual([size["size"] for size in qb_card["sizes"]], ["8", "10"])
 		self.assertEqual(qb_card["effective_price"], index_card["effective_price"])
+		self.assertEqual(qb_card["image"], index_card["image"])
+		self.assertEqual(qb_card["hover_image"], "/files/zz-b.png")
+		self.assertEqual(qb_card["hover_image"], index_card["hover_image"])
 
 	def test_search_endpoint_shape_survives_the_grid_switch(self):
 		from commera.api.utils import get_search_results
