@@ -309,6 +309,7 @@ class ProductCard(TypedDict):
 	handle: str
 	title: str
 	vendor: str | None
+	product_type: str | None
 	color: str | None
 	image: str | None
 	hover_image: str | None

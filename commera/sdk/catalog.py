@@ -39,7 +39,7 @@ __all__ = [
 	"get_collection",
 	"get_items",
 	"get_product",
-	"get_theme_cards",
+	"get_product_cards_for",
 	"list_brands",
 	"list_collections",
 	"list_products",
@@ -150,11 +150,14 @@ def list_products(
 	}
 
 
-def get_theme_cards(item_codes: list[str] | None = None, limit: int = 8) -> list[dict]:
+def get_product_cards_for(item_codes: list[str] | None = None, limit: int = 8) -> list[ProductCard]:
 	item_codes = [cstr(code) for code in item_codes or [] if code]
-	if item_codes:
-		return get_product_list(product_list=item_codes, page_length=len(item_codes))
-	return get_product_list(page_length=min(max(cint(limit), 1), MAX_PAGE_SIZE))
+	if not item_codes:
+		return get_product_cards(get_product_list(page_length=min(max(cint(limit), 1), MAX_PAGE_SIZE)))
+	cards_by_name = {
+		card["name"]: card for card in get_product_list(product_list=item_codes, page_length=len(item_codes))
+	}
+	return get_product_cards([cards_by_name[code] for code in item_codes if code in cards_by_name])
 
 
 def list_brands() -> list[dict]:
@@ -276,8 +279,9 @@ def get_product_card(card: dict, stock: dict, currency: str) -> ProductCard:
 	return {
 		"id": card["name"],
 		"handle": card["route"],
-		"title": card["display_name"] or card["item_name"],
+		"title": get_card_title(card),
 		"vendor": card["brand"],
+		"product_type": card["item_group"],
 		"color": card["attribute_value"],
 		"image": card["image"],
 		"hover_image": card["hover_image"],
@@ -288,6 +292,12 @@ def get_product_card(card: dict, stock: dict, currency: str) -> ProductCard:
 		"rating": {"average": flt(card["average_rating"]), "count": cint(card["review_count"])},
 		"updated_at": card["modified"],
 	}
+
+
+def get_card_title(card: dict) -> str:
+	if frappe.local.lang == "ar" and card["custom_item_name_ar"]:
+		return card["custom_item_name_ar"]
+	return card["display_name"] or card["item_name"]
 
 
 def get_variants(sizes: list[dict]) -> list[dict]:

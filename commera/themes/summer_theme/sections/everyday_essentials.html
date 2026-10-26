@@ -1,6 +1,6 @@
 {# style.css masks the promo photo with images/bg-media.svg, which upstream never shipped, and an unloadable mask hides the element entirely - home-promo.css supplies it. #}
 {% from "components/macros/product_card.html" import variant_card %}
-{% set products = commera.catalog.get_theme_cards(section.settings.products) %}
+{% set products = commera.catalog.get_product_cards_for(section.settings.products) %}
 {% if products %}
 <section class="content-inner overflow-hidden p-b0">
 	<div class="container">

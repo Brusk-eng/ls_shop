@@ -133,6 +133,30 @@ class TestStorefrontApi(ProductDetailPriceTestCase):
 		self.assertEqual(narrowed["colors"], [{"value": colors[0], "count": 1}])
 		self.assertEqual(narrowed["sizes"], [{"value": "M", "count": 1}])
 
+	def test_picked_product_cards_keep_the_picked_order(self):
+		routes = [self.make_priced_variant(label, default_rate=30) for label in ("FIRST", "SECOND")]
+		names = [frappe.db.get_value("Style Attribute Variant", {"route": route}) for route in routes]
+
+		cards = catalog.get_product_cards_for([names[1], names[0]])
+
+		self.assertEqual([card["handle"] for card in cards], [routes[1], routes[0]])
+		self.assertEqual(cards[0]["product_type"], self.item_group)
+
+	def test_a_product_card_is_titled_in_the_shoppers_language(self):
+		if not frappe.db.has_column("Item", "custom_item_name_ar"):
+			self.skipTest("Item has no custom_item_name_ar field on this site")
+		route = self.make_priced_variant("ARABIC", default_rate=30)
+		name, item_style = frappe.db.get_value(
+			"Style Attribute Variant", {"route": route}, ["name", "item_style"]
+		)
+		frappe.db.set_value("Item", item_style, "custom_item_name_ar", "قميص تجريبي")
+		self.addCleanup(setattr, frappe.local, "lang", frappe.local.lang)
+
+		frappe.local.lang = "ar"
+		self.assertEqual(catalog.get_product_cards_for([name])[0]["title"], "قميص تجريبي")
+		frappe.local.lang = "en"
+		self.assertNotEqual(catalog.get_product_cards_for([name])[0]["title"], "قميص تجريبي")
+
 	def test_an_unknown_sort_is_refused(self):
 		with self.assertRaisesRegex(frappe.ValidationError, "Sort must be one of"):
 			get_products(sort="random")

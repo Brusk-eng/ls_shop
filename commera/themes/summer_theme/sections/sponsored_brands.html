@@ -1,5 +1,6 @@
+{% from "components/macros/product_card.html" import card_discount %}
 {% set sponsored_brands = commera.catalog.list_brands() %}
-{% set picks = commera.catalog.get_theme_cards(section.settings.products) %}
+{% set picks = commera.catalog.get_product_cards_for(section.settings.products) %}
 {% if sponsored_brands %}
 <section class="content-inner-2 overflow-hidden">
 	<div class="container">
@@ -14,7 +15,7 @@
 		<div class="swiper swiper-company" data-summer-carousel="sponsored">
 			<div class="swiper-wrapper">
 				{% for brand in sponsored_brands %}
-				{% set brand_picks = picks | selectattr("brand", "equalto", brand.name) | list %}
+				{% set brand_picks = picks | selectattr("vendor", "equalto", brand.name) | list %}
 				{% set brand_url = "/" ~ (frappe.lang or "en") ~ "/products?brands=" ~ (brand.name | urlencode) %}
 				<div class="swiper-slide">
 					<div class="company-box style-1 wow fadeInUp" data-wow-delay="{{ "%.1fs" | format(0.2 + 0.2 * loop.index) }}">
@@ -25,14 +26,13 @@
 							{% else %}
 							<a href="{{ brand_url }}" class="logo brand-name">{{ brand.name }}</a>
 							{% endif %}
-							{% if brand_picks | selectattr("is_stock_item") | list %}
-							<span class="sale-badge">{{ _("In Store") }}</span>
-							{% endif %}
 						</div>
 						<div class="dz-content">
 							<h6 class="title"><a href="{{ brand_url }}">{{ brand.name }}</a></h6>
 							{% if brand_picks %}
-							<span class="sale-title">{{ _("Up to {0}% Off").format(brand_picks | map(attribute="discount_percent") | max | round | int) }}</span>
+							{% set brand_discount = namespace(percent=0) %}
+							{% for pick in brand_picks %}{% set brand_discount.percent = [brand_discount.percent, card_discount(pick) | int] | max %}{% endfor %}
+							<span class="sale-title">{{ _("Up to {0}% Off").format(brand_discount.percent) }}</span>
 							{% endif %}
 						</div>
 					</div>

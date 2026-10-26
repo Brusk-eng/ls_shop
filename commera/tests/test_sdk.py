@@ -75,7 +75,7 @@ PUBLIC_NAMES = {
 		"get_collection",
 		"get_items",
 		"get_product",
-		"get_theme_cards",
+		"get_product_cards_for",
 		"list_brands",
 		"list_collections",
 		"list_products",
