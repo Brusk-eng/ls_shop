@@ -266,8 +266,8 @@ def create_theme_settings_doctype(doctype_name, module=None):
 	return doctype
 
 
-def scaffold_theme(theme_name, module=None, theme_type="Classic"):
-	app_path = Path(frappe.get_app_path(get_app_for_module(module)))
+def scaffold_theme(theme_name, module=None, theme_type="Classic", app=None):
+	app_path = Path(frappe.get_app_path(app or get_app_for_module(module)))
 	slug = frappe.scrub(theme_name)
 	theme_dir = Path(get_contained_path(app_path / "themes", slug))
 	if theme_dir.exists():

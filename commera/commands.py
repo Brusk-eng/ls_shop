@@ -62,27 +62,35 @@ def theme():
 	show_default=True,
 	help="Shop Theme to inherit from: Shop Base Theme or one of the same type",
 )
+@click.option("--app", help="App to add the theme to, instead of the app you are in")
 @pass_context
-def new_theme(context, name: str, theme_type: str, parent: str):
-	"""Add a storefront theme to the app you are in and create its Shop Theme record."""
+def new_theme(context, name: str, theme_type: str, parent: str, app: str | None):
+	"""Add a storefront theme to an app and create its Shop Theme record."""
 	import frappe
 
 	from commera.scaffold.theme import ThemeScaffold
 
-	scaffold = get_current_app_scaffold(ThemeScaffold)
-	frappe.init(get_site(context))
+	scaffold = get_current_app_scaffold(ThemeScaffold, app)
+	site = get_site(context)
+	frappe.init(site)
 	frappe.connect()
 	try:
+		installed = scaffold.is_installed()
 		for change, path in scaffold.add_theme(name, theme_type.title(), parent):
 			click.echo(f"{change:<8} {path}")
 		frappe.db.commit()  # nosemgrep
 	finally:
 		frappe.destroy()
 
-	click.secho(f"Next: set Active Theme to {name} in Shop Theme Settings, then open /en", fg="green")
+	if installed:
+		click.secho(f"Next: set Active Theme to {name} in Shop Theme Settings, then open /en", fg="green")
+	else:
+		click.secho(
+			f"Next: bench --site {site} install-app {scaffold.app} creates the Shop Theme record", fg="green"
+		)
 
 
-def get_current_app_scaffold(scaffold_class=None):
+def get_current_app_scaffold(scaffold_class=None, app=None):
 	from frappe.utils import get_bench_path
 
 	from commera.scaffold import AppScaffold, get_app_from_folder
@@ -90,7 +98,7 @@ def get_current_app_scaffold(scaffold_class=None):
 	apps_path = Path(get_bench_path()) / "apps"
 	# bench runs every command from sites/, so only $PWD still says which app folder the user is in.
 	return (scaffold_class or AppScaffold)(
-		get_app_from_folder(Path(os.environ.get("PWD") or os.getcwd()), apps_path), apps_path
+		app or get_app_from_folder(Path(os.environ.get("PWD") or os.getcwd()), apps_path), apps_path
 	)
 
 
