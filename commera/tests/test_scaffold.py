@@ -1,14 +1,17 @@
 import importlib.util
 import json
+import sys
 import tempfile
 from pathlib import Path
 from unittest.mock import patch
 
 import click
 import frappe
-from frappe.tests import UnitTestCase
+from frappe.modules.import_file import import_file_by_path
+from frappe.tests import IntegrationTestCase, UnitTestCase
 from frappe.utils.boilerplate import _create_app_boilerplate
 
+from commera.commands import get_current_app_scaffold
 from commera.plugins.places import ICONS, PLACES
 from commera.scaffold import (
 	LOGO_COLOURS,
@@ -17,6 +20,7 @@ from commera.scaffold import (
 	get_app_from_folder,
 	get_dashboard_versions,
 )
+from commera.scaffold.theme import ThemeScaffold
 from commera.sdk import API_VERSION
 
 APP = "commera_test_plugin"
@@ -276,3 +280,60 @@ class TestAddPlace(UnitTestCase):
 		module = importlib.util.module_from_spec(spec)
 		spec.loader.exec_module(module)
 		return module
+
+
+class IntegrationTestThemeScaffold(IntegrationTestCase):
+	def setUp(self):
+		directory = tempfile.TemporaryDirectory()
+		self.addCleanup(directory.cleanup)
+		self.apps_path = Path(directory.name)
+		app_root = make_app(self.apps_path)
+		sys.path.insert(0, str(app_root))
+		self.addCleanup(sys.path.remove, str(app_root))
+		sys.modules.pop(APP, None)
+		self.addCleanup(sys.modules.pop, APP, None)
+		self.module = frappe.get_module_list(APP)[0]
+		frappe.local.module_app[frappe.scrub(self.module)] = APP
+		self.addCleanup(frappe.local.module_app.pop, frappe.scrub(self.module))
+		self.addCleanup(frappe.db.rollback)
+		self.theme_dir = app_root / APP / "themes" / "scaffold_check"
+		self.export_path = (
+			app_root
+			/ APP
+			/ frappe.scrub(self.module)
+			/ "shop_theme"
+			/ "scaffold_check"
+			/ "scaffold_check.json"
+		)
+
+	def test_a_theme_can_be_added_to_commera_by_name(self):
+		scaffold = get_current_app_scaffold(ThemeScaffold, "commera")
+		self.assertEqual(scaffold.app, "commera")
+		self.assertEqual(scaffold.get_theme_module(), "Shop Themes")
+
+	def test_an_uninstalled_app_gets_the_files_and_the_record_on_install(self):
+		changes = ThemeScaffold(APP, self.apps_path).add_theme(
+			"Scaffold Check", "Sections", "Shop Base Theme"
+		)
+
+		self.assertTrue((self.theme_dir / "README.md").is_file())
+		self.assertTrue((self.theme_dir / "layouts" / "index.json").is_file())
+		self.assertIn(("created", str(self.export_path.relative_to(self.apps_path / APP))), changes)
+		self.assertFalse(frappe.db.exists("Shop Theme", "Scaffold Check"))
+
+		frappe.get_doc({"doctype": "Module Def", "module_name": self.module, "app_name": APP}).insert()
+		import_file_by_path(str(self.export_path))
+		self.assertEqual(
+			frappe.db.get_value(
+				"Shop Theme", "Scaffold Check", ["theme_type", "parent_theme", "module", "is_standard"]
+			),
+			("Sections", "Shop Base Theme", self.module, 1),
+		)
+
+	def test_an_uninstalled_app_still_checks_the_parent(self):
+		scaffold = ThemeScaffold(APP, self.apps_path)
+		with self.assertRaisesRegex(click.ClickException, "does not exist"):
+			scaffold.add_theme("Scaffold Check", "Sections", "No Such Theme")
+		with self.assertRaisesRegex(click.ClickException, "can only inherit"):
+			scaffold.add_theme("Scaffold Check", "Classic", "Summer Theme")
+		self.assertFalse(self.theme_dir.exists())

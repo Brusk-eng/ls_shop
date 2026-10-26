@@ -23,6 +23,7 @@ SECTIONS_ONLY_FOLDERS = ("sections", "layouts")
 THEME_STARTER_DIR = Path(__file__).parents[3] / "scaffold" / "starter" / "theme"
 
 THEME_CONTEXT_CACHE_KEY = "shop_theme_context"
+STYLE_TAB = "style_tab"
 PREVIEW_THEME_PARAM = "preview_theme"
 
 
@@ -89,9 +90,13 @@ class ShopTheme(Document):
 		if frappe.db.exists("DocType", settings_doctype):
 			frappe.throw(frappe._("DocType {0} already exists").format(settings_doctype))
 
-		create_theme_settings_doctype(settings_doctype, self.module)
-		self.db_set("theme_settings", settings_doctype)
+		frappe.enqueue_doc(self.doctype, self.name, "create_theme_settings", enqueue_after_commit=True)
 		return settings_doctype
+
+	def create_theme_settings(self):
+		settings_doctype = f"{self.theme_name} Settings"
+		create_theme_settings_doctype(settings_doctype, self.module)
+		self.db_set("theme_settings", settings_doctype, notify=True)
 
 	def after_rename(self, old_name, new_name, merge=False):
 		validate_theme_name(old_name)
@@ -246,6 +251,8 @@ def create_theme_settings_doctype(doctype_name, module=None):
 			"share": 1,
 			"print": 1,
 			"email": 1,
+			"report": 0,
+			"export": 0,
 		}
 		for role in ("System Manager", "Website Manager")
 	]
@@ -257,7 +264,8 @@ def create_theme_settings_doctype(doctype_name, module=None):
 			"custom": 0 if frappe.conf.developer_mode else 1,
 			"issingle": 1,
 			"fields": [
-				{"fieldname": "info_section", "fieldtype": "Section Break", "label": "Theme Settings"}
+				{"fieldname": "info_section", "fieldtype": "Section Break", "label": "Theme Settings"},
+				{"fieldname": STYLE_TAB, "fieldtype": "Tab Break", "label": "Style"},
 			],
 			"permissions": permissions,
 		}
@@ -266,8 +274,8 @@ def create_theme_settings_doctype(doctype_name, module=None):
 	return doctype
 
 
-def scaffold_theme(theme_name, module=None, theme_type="Classic"):
-	app_path = Path(frappe.get_app_path(get_app_for_module(module)))
+def scaffold_theme(theme_name, module=None, theme_type="Classic", app=None):
+	app_path = Path(frappe.get_app_path(app or get_app_for_module(module)))
 	slug = frappe.scrub(theme_name)
 	theme_dir = Path(get_contained_path(app_path / "themes", slug))
 	if theme_dir.exists():
@@ -325,17 +333,35 @@ def build_theme_context(theme_name):
 		if os.path.isdir(theme_dir):
 			dirs.append(theme_dir)
 
-	settings_doctype, theme_type = frappe.db.get_value(
-		"Shop Theme", theme_name, ["theme_settings", "theme_type"]
-	) or (None, None)
 	return {
 		"theme_name": theme_name,
-		"theme_type": theme_type,
+		"theme_type": frappe.db.get_value("Shop Theme", theme_name, "theme_type"),
 		"names": names,
 		"dirs": dirs,
 		"apps": apps,
-		"settings_doctype": settings_doctype,
+		"settings_doctype": find_theme_settings_doctype(names),
 	}
+
+
+def find_theme_settings_doctype(theme_names):
+	settings_by_theme = dict(
+		frappe.get_all(
+			"Shop Theme",
+			filters={"name": ("in", theme_names), "theme_settings": ("is", "set")},
+			fields=["name", "theme_settings"],
+			as_list=True,
+		)
+	)
+	if not settings_by_theme:
+		return None
+
+	installed = set(
+		frappe.get_all("DocType", filters={"name": ("in", list(settings_by_theme.values()))}, pluck="name")
+	)
+	for name in theme_names:
+		if settings_by_theme.get(name) in installed:
+			return settings_by_theme[name]
+	return None
 
 
 def get_theme_context(theme_name):

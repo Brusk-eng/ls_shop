@@ -1,26 +1,36 @@
 # Copyright (c) 2026, ivend and Contributors
 # Theme engine tests: name validation, path containment, inheritance, asset resolution, routing.
 
+import json
 import os
 import re
+import shutil
 import tempfile
+from unittest.mock import patch
 
 import frappe
 from frappe.tests import IntegrationTestCase, UnitTestCase
 from frappe.utils.jinja import get_jenv
 
+from commera.api.admin.theme import get_theme_settings_doctype
 from commera.shop_themes.doctype.shop_theme.shop_theme import (
 	build_theme_context,
+	clear_theme_cache,
 	get_contained_path,
 	get_theme_names,
 	is_within_directory,
+	render_theme_context,
 	validate_theme_name,
 )
 from commera.shop_themes.doctype.shop_theme_settings.shop_theme_settings import (
 	build_compiled_routes,
 	seed_default_routes,
 )
-from commera.shop_themes.jinja_helpers import shop_theme_asset_url, shop_theme_config
+from commera.shop_themes.jinja_helpers import (
+	format_shop_theme_css,
+	shop_theme_asset_url,
+	shop_theme_config,
+)
 from commera.shop_themes.theme_resolver import (
 	ThemePageRenderer,
 	build_base_context,
@@ -380,3 +390,158 @@ class IntegrationTestThemedRendering(IntegrationTestCase):
 		self.activate("Shop Default Theme")
 		html = render_themed_template("<html><body>{{ label }}</body></html>", {"label": "card"})
 		self.assertIn("card", html)
+
+
+class IntegrationTestThemeSettingsContext(IntegrationTestCase):
+	settings_doctype = "Test Theme Settings Context"
+
+	def setUp(self):
+		frappe.get_doc(
+			{
+				"doctype": "DocType",
+				"name": self.settings_doctype,
+				"module": "Shop Themes",
+				"custom": 1,
+				"issingle": 1,
+				"fields": [
+					{"fieldname": "tagline", "fieldtype": "Data", "label": "Tagline"},
+					{"fieldname": "style_tab", "fieldtype": "Tab Break", "label": "Style"},
+					{"fieldname": "accent_color", "fieldtype": "Color", "label": "Accent"},
+					{"fieldname": "body_font", "fieldtype": "Data", "label": "Body Font"},
+					{"fieldname": "font_weight", "fieldtype": "Int", "label": "Font Weight"},
+					{"fieldname": "card_radius", "fieldtype": "Data", "label": "Card Radius"},
+					{
+						"fieldname": "card_shadows",
+						"fieldtype": "Table",
+						"label": "Card Shadows",
+						"options": "Has Role",
+					},
+					{"fieldname": "other_tab", "fieldtype": "Tab Break", "label": "Other"},
+					{"fieldname": "footer_note", "fieldtype": "Data", "label": "Footer Note"},
+				],
+				"permissions": [{"role": "System Manager", "read": 1, "write": 1}],
+			}
+		).insert()
+		self.save_settings(
+			accent_color="#0f766e",
+			body_font='"Inter Tight", sans-serif',
+			font_weight=600,
+			card_radius="1.5rem",
+			tagline="Hi",
+			footer_note="Bye",
+		)
+		self.original_active_theme = frappe.db.get_single_value("Shop Theme Settings", "active_theme")
+		frappe.db.set_value("Shop Theme", "Shop Base Theme", "theme_settings", self.settings_doctype)
+		frappe.db.set_value("Shop Theme", "Shop Default Theme", "theme_settings", None)
+		frappe.db.set_single_value("Shop Theme Settings", "active_theme", "Shop Default Theme")
+		frappe.clear_cache()
+		self.addCleanup(self.restore)
+
+	def restore(self):
+		frappe.db.rollback()
+		frappe.db.set_single_value("Shop Theme Settings", "active_theme", self.original_active_theme)
+		frappe.clear_cache()
+
+	def save_settings(self, **values):
+		settings = frappe.get_doc(self.settings_doctype)
+		settings.update(values)
+		settings.save()
+
+	def test_a_child_without_settings_falls_back_to_its_parents(self):
+		self.assertEqual(build_theme_context("Shop Default Theme")["settings_doctype"], self.settings_doctype)
+		self.assertEqual(get_theme_settings_doctype("Shop Default Theme"), self.settings_doctype)
+
+	def test_a_child_with_settings_uses_its_own(self):
+		frappe.db.set_value(
+			"Shop Theme", "Shop Default Theme", "theme_settings", "Shop Default Theme Settings"
+		)
+		clear_theme_cache()
+		self.assertEqual(
+			build_theme_context("Shop Default Theme")["settings_doctype"], "Shop Default Theme Settings"
+		)
+
+	def test_a_settings_doctype_that_is_not_installed_falls_through_to_the_parent(self):
+		frappe.db.set_value("Shop Theme", "Shop Default Theme", "theme_settings", "No Such Theme Settings")
+		self.assertEqual(build_theme_context("Shop Default Theme")["settings_doctype"], self.settings_doctype)
+
+	def test_a_classic_page_gets_the_settings_as_theme(self):
+		context = build_base_context(None)
+		self.assertEqual(context.theme.tagline, "Hi")
+		self.assertEqual(context.theme.font_weight, 600)
+
+	def test_every_style_tab_field_becomes_a_css_variable_as_typed(self):
+		self.assertEqual(
+			format_shop_theme_css(),
+			'<style id="shop-theme-settings">:root{--theme-accent-color: #0f766e; '
+			'--theme-body-font: "Inter Tight", sans-serif; --theme-font-weight: 600; '
+			"--theme-card-radius: 1.5rem;}</style>",
+		)
+
+	def test_values_that_could_break_out_of_the_style_tag_are_dropped(self):
+		self.save_settings(
+			accent_color="</style><script>alert(1)</script>",
+			body_font="Inter; } body { display: none",
+			card_radius="1rem /* x",
+		)
+		self.assertEqual(
+			format_shop_theme_css(),
+			'<style id="shop-theme-settings">:root{--theme-font-weight: 600;}</style>',
+		)
+
+	def test_a_theme_without_settings_emits_no_style(self):
+		frappe.db.set_value("Shop Theme", "Shop Base Theme", "theme_settings", None)
+		clear_theme_cache()
+		self.assertEqual(format_shop_theme_css(), "")
+		self.assertEqual(build_base_context(None).theme, frappe._dict())
+
+	def test_pages_sections_and_blocks_of_a_previewed_sections_theme_see_theme(self):
+		theme_dir = tempfile.mkdtemp(prefix="shop_theme_settings_")
+		self.addCleanup(shutil.rmtree, theme_dir)
+		theme_files = {
+			"pages/probe.html": "page={{ theme.tagline }} {{ render_layout('probe') }}",
+			"sections/probe.html": (
+				"section={{ theme.tagline }}{% for block in section.blocks %} block={{ theme.tagline }}{% endfor %}"
+			),
+			"sections/probe.json": json.dumps({"blocks": {"item": {}}}),
+			"layouts/probe.json": json.dumps(
+				{"sections": [{"id": "one", "type": "probe", "blocks": [{"id": "two", "type": "item"}]}]}
+			),
+		}
+		for relative_path, source in theme_files.items():
+			os.makedirs(os.path.join(theme_dir, os.path.dirname(relative_path)), exist_ok=True)
+			with open(os.path.join(theme_dir, relative_path), "w") as theme_file:
+				theme_file.write(source)
+
+		previewed_theme = {
+			"theme_name": "Test Theme Settings Probe",
+			"theme_type": "Sections",
+			"names": ["Test Theme Settings Probe"],
+			"dirs": [theme_dir],
+			"apps": {"Test Theme Settings Probe": "commera"},
+			"settings_doctype": self.settings_doctype,
+		}
+		frappe.db.set_value("Shop Theme", "Shop Base Theme", "theme_settings", None)
+		clear_theme_cache()
+		with render_theme_context(previewed_theme):
+			renderer = ThemePageRenderer("probe")
+			renderer.theme_dirs = [theme_dir]
+			renderer.template_path = "pages/probe.html"
+			html = renderer.render_with_theme_loader(build_base_context(None))
+
+		self.assertEqual(html, "page=Hi section=Hi block=Hi")
+
+
+class IntegrationTestCreateThemeSettings(IntegrationTestCase):
+	def test_the_settings_single_is_created_linked_and_raises_no_messages(self):
+		self.addCleanup(frappe.clear_cache)
+		self.addCleanup(frappe.db.rollback)
+		frappe.local.message_log = []
+		with patch.dict(frappe.conf, {"developer_mode": 0}):
+			frappe.get_doc("Shop Theme", "Shop Base Theme").create_theme_settings()
+
+		self.assertEqual(
+			frappe.db.get_value("Shop Theme", "Shop Base Theme", "theme_settings"), "Shop Base Theme Settings"
+		)
+		self.assertTrue(frappe.db.get_value("DocType", "Shop Base Theme Settings", "issingle"))
+		self.assertTrue(frappe.get_meta("Shop Base Theme Settings").get_field("style_tab"))
+		self.assertEqual(frappe.local.message_log, [])

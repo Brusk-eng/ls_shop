@@ -1,11 +1,17 @@
 import os
+import re
 
 import frappe
+from frappe.model import no_value_fields
+from markupsafe import Markup
 
 from commera.shop_themes.doctype.shop_theme.shop_theme import (
+	STYLE_TAB,
 	get_render_theme_context,
 	is_within_directory,
 )
+
+UNSAFE_CSS_VALUE = re.compile(r"[;{}<>\\]|/\*")
 
 
 def shop_theme_asset_url(path):
@@ -48,3 +54,40 @@ def shop_theme_config():
 		return frappe._dict()
 
 	return frappe.get_cached_doc(settings_doctype)
+
+
+def get_shop_theme_settings():
+	settings_doctype = get_render_theme_context().get("settings_doctype")
+	if not settings_doctype:
+		return frappe._dict()
+
+	return frappe._dict(frappe.get_cached_doc(settings_doctype).as_dict(no_default_fields=True))
+
+
+def format_shop_theme_css():
+	settings_doctype = get_render_theme_context().get("settings_doctype")
+	if not settings_doctype:
+		return ""
+
+	settings = get_shop_theme_settings()
+	declarations = []
+	for fieldname in get_style_fieldnames(settings_doctype):
+		value = settings.get(fieldname)
+		if value in (None, "") or UNSAFE_CSS_VALUE.search(str(value)):
+			continue
+		declarations.append(f"--theme-{fieldname.replace('_', '-')}: {str(value).strip()};")
+
+	if not declarations:
+		return ""
+	return Markup(f'<style id="shop-theme-settings">:root{{{" ".join(declarations)}}}</style>')
+
+
+def get_style_fieldnames(settings_doctype):
+	fieldnames = []
+	in_style_tab = False
+	for docfield in frappe.get_meta(settings_doctype).fields:
+		if docfield.fieldtype == "Tab Break":
+			in_style_tab = docfield.fieldname == STYLE_TAB
+		elif in_style_tab and docfield.fieldtype not in no_value_fields:
+			fieldnames.append(docfield.fieldname)
+	return fieldnames
