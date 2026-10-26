@@ -19,6 +19,7 @@ __all__ = [
 	"DiscountInput",
 	"FacetValue",
 	"FooterSection",
+	"Menu",
 	"MenuItem",
 	"NewCartLine",
 	"Order",
@@ -33,12 +34,15 @@ __all__ = [
 	"ProductPage",
 	"ProductVariant",
 	"Rating",
+	"SearchResults",
 	"Shop",
 	"ShopperOrder",
 	"ShopperOrderPage",
 	"Sitemap",
 	"SitemapEntry",
 	"Stage",
+	"Typeahead",
+	"TypeaheadLink",
 ]
 
 
@@ -342,6 +346,22 @@ class ProductPage(TypedDict):
 	facets: ProductFacets
 
 
+class SearchResults(ProductPage):
+	query: str
+
+
+class TypeaheadLink(TypedDict):
+	title: str
+	url: str
+
+
+class Typeahead(TypedDict):
+	query: str
+	corrected_query: str | None
+	products: list[ProductCard]
+	categories: list[TypeaheadLink]
+
+
 class ProductOptionValue(TypedDict, total=False):
 	name: str
 	# Colour values only: the sibling product's handle, whether it is this one, and its stock and swatch.
@@ -406,7 +426,14 @@ class MenuItem(TypedDict):
 	title: str
 	type: str | None
 	target: str | None
+	url: str | None
 	items: list["MenuItem"]
+
+
+class Menu(TypedDict):
+	handle: str
+	title: str
+	items: list[MenuItem]
 
 
 class FooterSection(TypedDict):

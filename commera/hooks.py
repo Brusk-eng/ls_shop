@@ -213,6 +213,7 @@ jinja = {
 		"commera.utils.get_currency_symbol",
 		"commera.search.result_card.get_search_result_fields",
 		"commera.search.typeahead.get_typeahead",
+		"commera.sdk.format.product_url",
 		"commera.seo_jinja",
 		"commera.shop_data.get_header_data",
 		"commera.shop_data.get_storefront_menu",
