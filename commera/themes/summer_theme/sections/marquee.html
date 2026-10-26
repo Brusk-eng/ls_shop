@@ -1,4 +1,5 @@
 {% set category_labels = header_data.navigation_menu | map(attribute="label") | list %}
+{% if header_data.navigation_menu %}
 
 {% set pass_count = (6 / (category_labels | length)) | round(0, "ceil") | int %}
 
@@ -21,3 +22,4 @@
 		{% endfor %}
 	</div>
 </section>
+{% endif %}

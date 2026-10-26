@@ -20,7 +20,9 @@
 </div>
 {% endmacro %}
 
+{% set products = commera.catalog.get_theme_cards(section.settings.products) %}
 {% set badge_text = _("all products - ") * 2 %}
+{% if products %}
 <section class="content-inner-2 overflow-hidden">
 	<div class="container">
 		<div class="row align-items-xl-center align-items-start">
@@ -53,7 +55,7 @@
 				</div>
 				<div class="swiper swiper-similar swiper-visible card-container" data-summer-carousel="similar" data-carousel-loop="true">
 					<div class="swiper-wrapper">
-						{% for product in best_picks %}
+						{% for product in products %}
 						<div class="swiper-slide m-b30">
 							{{ similar_card(product, "%.1fs" | format(0.6 + 0.2 * loop.index)) }}
 						</div>
@@ -64,3 +66,4 @@
 		</div>
 	</div>
 </section>
+{% endif %}

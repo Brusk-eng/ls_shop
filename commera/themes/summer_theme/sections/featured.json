@@ -1,0 +1,19 @@
+{
+	"name": "Featured products",
+	"settings": [
+		{
+			"id": "title",
+			"type": "text",
+			"label": "Title",
+			"default": "Featured now"
+		},
+		{
+			"id": "products",
+			"type": "products",
+			"label": "Products",
+			"default": []
+		}
+	],
+	"blocks": {},
+	"max_blocks": 0
+}

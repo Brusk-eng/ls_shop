@@ -1,0 +1,19 @@
+{
+	"name": "Product grid",
+	"settings": [
+		{
+			"id": "title",
+			"type": "text",
+			"label": "Title",
+			"default": "Most popular products"
+		},
+		{
+			"id": "products",
+			"type": "products",
+			"label": "Products",
+			"default": []
+		}
+	],
+	"blocks": {},
+	"max_blocks": 0
+}

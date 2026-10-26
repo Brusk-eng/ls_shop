@@ -39,6 +39,8 @@ __all__ = [
 	"get_collection",
 	"get_items",
 	"get_product",
+	"get_theme_cards",
+	"list_brands",
 	"list_collections",
 	"list_products",
 ]
@@ -146,6 +148,28 @@ def list_products(
 		"page_size": page_size,
 		"facets": {**get_facets(filters), "price": get_price_facet()},
 	}
+
+
+def get_theme_cards(item_codes: list[str] | None = None, limit: int = 8) -> list[dict]:
+	item_codes = [cstr(code) for code in item_codes or [] if code]
+	if item_codes:
+		return get_product_list(product_list=item_codes, page_length=len(item_codes))
+	return get_product_list(page_length=min(max(cint(limit), 1), MAX_PAGE_SIZE))
+
+
+def list_brands() -> list[dict]:
+	brand = frappe.qb.DocType("Brand")
+	item = frappe.qb.DocType("Item")
+	return (
+		frappe.qb.from_(brand)
+		.join(item)
+		.on(item.brand == brand.name)
+		.select(brand.name, brand.image)
+		.where(item.disabled == 0)
+		.distinct()
+		.orderby(brand.name)
+		.run(as_dict=True)
+	)
 
 
 def get_facets(filters: dict) -> dict[str, list[FacetValue]]:

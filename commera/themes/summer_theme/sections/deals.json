@@ -1,0 +1,31 @@
+{
+	"name": "Deals",
+	"settings": [
+		{
+			"id": "title",
+			"type": "text",
+			"label": "Title",
+			"default": "Blockbuster deals"
+		},
+		{
+			"id": "link_label",
+			"type": "text",
+			"label": "Link label",
+			"default": ""
+		},
+		{
+			"id": "link_url",
+			"type": "url",
+			"label": "Link",
+			"default": ""
+		},
+		{
+			"id": "products",
+			"type": "products",
+			"label": "Products",
+			"default": []
+		}
+	],
+	"blocks": {},
+	"max_blocks": 0
+}

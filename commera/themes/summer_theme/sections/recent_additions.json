@@ -1,0 +1,13 @@
+{
+	"name": "Recent additions",
+	"settings": [
+		{
+			"id": "products",
+			"type": "products",
+			"label": "Products",
+			"default": []
+		}
+	],
+	"blocks": {},
+	"max_blocks": 0
+}

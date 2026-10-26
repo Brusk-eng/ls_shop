@@ -1,0 +1,13 @@
+{
+	"name": "Sponsored brands",
+	"settings": [
+		{
+			"id": "products",
+			"type": "products",
+			"label": "Products that set each brand's badges",
+			"default": []
+		}
+	],
+	"blocks": {},
+	"max_blocks": 0
+}
