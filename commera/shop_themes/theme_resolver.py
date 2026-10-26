@@ -14,6 +14,7 @@ from commera.shop_themes.doctype.shop_theme.shop_theme import (
 	is_within_directory,
 )
 from commera.shop_themes.doctype.shop_theme_settings.shop_theme_settings import get_compiled_routes
+from commera.shop_themes.jinja_helpers import get_shop_theme_settings
 
 # page_renderer runs before every built-in renderer: a segment missing here is a route hijack, not a 404.
 RESERVED_PATH_SEGMENTS = frozenset(
@@ -263,6 +264,7 @@ def build_base_context(match):
 		apply_route_groups(match, context)
 
 	apply_website_settings(context)
+	context.theme = get_shop_theme_settings()
 	apply_website_context_hooks(context)
 
 	return context

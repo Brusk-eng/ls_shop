@@ -1,11 +1,17 @@
 import os
+import re
 
 import frappe
+from markupsafe import Markup
 
 from commera.shop_themes.doctype.shop_theme.shop_theme import (
 	get_render_theme_context,
 	is_within_directory,
 )
+
+COLOR_PATTERN = re.compile(r"^#(?:[0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$")
+FONT_PATTERN = re.compile(r"^[A-Za-z0-9 _-]+$")
+LENGTH_PATTERN = re.compile(r"^\d+(?:\.\d+)?(?:px|rem|em|%)$")
 
 
 def shop_theme_asset_url(path):
@@ -48,3 +54,44 @@ def shop_theme_config():
 		return frappe._dict()
 
 	return frappe.get_cached_doc(settings_doctype)
+
+
+def get_shop_theme_settings():
+	settings_doctype = get_render_theme_context().get("settings_doctype")
+	if not settings_doctype:
+		return frappe._dict()
+
+	return frappe._dict(frappe.get_cached_doc(settings_doctype).as_dict(no_default_fields=True))
+
+
+def format_shop_theme_css():
+	settings_doctype = get_render_theme_context().get("settings_doctype")
+	if not settings_doctype:
+		return ""
+
+	settings = get_shop_theme_settings()
+	declarations = []
+	for docfield in frappe.get_meta(settings_doctype).fields:
+		value = format_css_value(docfield, settings.get(docfield.fieldname))
+		if value:
+			declarations.append(f"--theme-{docfield.fieldname.replace('_', '-')}: {value};")
+
+	if not declarations:
+		return ""
+	return Markup(f'<style id="shop-theme-settings">:root{{{" ".join(declarations)}}}</style>')
+
+
+def format_css_value(docfield, value):
+	if value in (None, ""):
+		return None
+
+	fieldname = docfield.fieldname
+	if docfield.fieldtype == "Color":
+		return value if COLOR_PATTERN.match(str(value)) else None
+	if fieldname.endswith("_font") and docfield.fieldtype in ("Data", "Select", "Autocomplete"):
+		return f'"{value}"' if FONT_PATTERN.match(str(value)) else None
+	if fieldname == "radius" or fieldname.endswith("_radius"):
+		if docfield.fieldtype in ("Int", "Float"):
+			return f"{value:g}px" if value >= 0 else None
+		return value if LENGTH_PATTERN.match(str(value)) else None
+	return None

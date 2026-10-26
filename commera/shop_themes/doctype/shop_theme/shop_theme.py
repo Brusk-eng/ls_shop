@@ -325,17 +325,35 @@ def build_theme_context(theme_name):
 		if os.path.isdir(theme_dir):
 			dirs.append(theme_dir)
 
-	settings_doctype, theme_type = frappe.db.get_value(
-		"Shop Theme", theme_name, ["theme_settings", "theme_type"]
-	) or (None, None)
 	return {
 		"theme_name": theme_name,
-		"theme_type": theme_type,
+		"theme_type": frappe.db.get_value("Shop Theme", theme_name, "theme_type"),
 		"names": names,
 		"dirs": dirs,
 		"apps": apps,
-		"settings_doctype": settings_doctype,
+		"settings_doctype": find_theme_settings_doctype(names),
 	}
+
+
+def find_theme_settings_doctype(theme_names):
+	settings_by_theme = dict(
+		frappe.get_all(
+			"Shop Theme",
+			filters={"name": ("in", theme_names), "theme_settings": ("is", "set")},
+			fields=["name", "theme_settings"],
+			as_list=True,
+		)
+	)
+	if not settings_by_theme:
+		return None
+
+	installed = set(
+		frappe.get_all("DocType", filters={"name": ("in", list(settings_by_theme.values()))}, pluck="name")
+	)
+	for name in theme_names:
+		if settings_by_theme.get(name) in installed:
+			return settings_by_theme[name]
+	return None
 
 
 def get_theme_context(theme_name):
