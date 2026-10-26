@@ -412,8 +412,9 @@ def save_default_homepage():
 
 
 def save_home_layout():
-	with open(frappe.get_app_path("commera", "install_summer_home_layout.json")) as layout_file:
-		layout = frappe.as_json(frappe.parse_json(layout_file.read()))
+	layout = frappe.as_json(
+		frappe.get_file_json(frappe.get_app_path("commera", "install_summer_home_layout.json"))
+	)
 
 	filters = {"theme": "Summer Theme", "page": "index"}
 	theme_layout_name = frappe.db.exists("Theme Layout", filters)

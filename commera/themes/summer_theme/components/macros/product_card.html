@@ -2,7 +2,7 @@
 {% from "templates/macros/reviews.html" import star_svg %}
 
 {% macro variant_display_name(product) -%}
-{%- set colour = product.color if product.color and product.color not in product.title else "" -%}
+{%- set colour = product.color if product.color and product.color not in (product.title or "") else "" -%}
 {{- product.title ~ (" - " ~ colour if colour else "") -}}
 {%- endmacro %}
 
