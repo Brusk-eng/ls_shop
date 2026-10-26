@@ -89,9 +89,13 @@ class ShopTheme(Document):
 		if frappe.db.exists("DocType", settings_doctype):
 			frappe.throw(frappe._("DocType {0} already exists").format(settings_doctype))
 
-		create_theme_settings_doctype(settings_doctype, self.module)
-		self.db_set("theme_settings", settings_doctype)
+		frappe.enqueue_doc(self.doctype, self.name, "create_theme_settings", enqueue_after_commit=True)
 		return settings_doctype
+
+	def create_theme_settings(self):
+		settings_doctype = f"{self.theme_name} Settings"
+		create_theme_settings_doctype(settings_doctype, self.module)
+		self.db_set("theme_settings", settings_doctype, notify=True)
 
 	def after_rename(self, old_name, new_name, merge=False):
 		validate_theme_name(old_name)
@@ -246,6 +250,7 @@ def create_theme_settings_doctype(doctype_name, module=None):
 			"share": 1,
 			"print": 1,
 			"email": 1,
+			"report": 0,
 		}
 		for role in ("System Manager", "Website Manager")
 	]

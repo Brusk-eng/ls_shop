@@ -6,6 +6,7 @@ import os
 import re
 import shutil
 import tempfile
+from unittest.mock import patch
 
 import frappe
 from frappe.tests import IntegrationTestCase, UnitTestCase
@@ -516,3 +517,18 @@ class IntegrationTestThemeSettingsContext(IntegrationTestCase):
 			html = renderer.render_with_theme_loader(build_base_context(None))
 
 		self.assertEqual(html, "page=Hi section=Hi block=Hi")
+
+
+class IntegrationTestCreateThemeSettings(IntegrationTestCase):
+	def test_the_settings_single_is_created_linked_and_raises_no_messages(self):
+		self.addCleanup(frappe.clear_cache)
+		self.addCleanup(frappe.db.rollback)
+		frappe.local.message_log = []
+		with patch.dict(frappe.conf, {"developer_mode": 0}):
+			frappe.get_doc("Shop Theme", "Shop Base Theme").create_theme_settings()
+
+		self.assertEqual(
+			frappe.db.get_value("Shop Theme", "Shop Base Theme", "theme_settings"), "Shop Base Theme Settings"
+		)
+		self.assertTrue(frappe.db.get_value("DocType", "Shop Base Theme Settings", "issingle"))
+		self.assertEqual(frappe.local.message_log, [])
