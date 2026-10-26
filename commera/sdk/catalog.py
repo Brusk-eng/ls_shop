@@ -21,9 +21,12 @@ from commera.sdk.types import (
 	ProductCard,
 	ProductOption,
 	ProductPage,
+	SearchResults,
+	Typeahead,
 )
 from commera.search.facets import get_listing_facet_counts, get_price_range
 from commera.search.record_builder import images_for_variants, rates_by_item_code, sizes_for_variants
+from commera.search.typeahead import get_typeahead as get_search_typeahead
 from commera.shop_data import get_storefront_menu
 from commera.swatches import get_swatch_map
 from commera.utils import (
@@ -33,6 +36,7 @@ from commera.utils import (
 	get_store_currency,
 	get_total_product_count,
 )
+from commera.www.products.details import get_recommended_products
 
 __all__ = [
 	"SORT_KEYS",
@@ -40,9 +44,12 @@ __all__ = [
 	"get_items",
 	"get_product",
 	"get_product_cards_for",
+	"get_recommendations",
+	"get_typeahead",
 	"list_brands",
 	"list_collections",
 	"list_products",
+	"search",
 ]
 
 SORT_KEYS = ("default", "price_low", "price_high", "name", "new_arrival", "discount")
@@ -148,6 +155,48 @@ def list_products(
 		"page_size": page_size,
 		"facets": {**get_facets(filters), "price": get_price_facet()},
 	}
+
+
+def search(query: str, page: int = 1, page_size: int = 24, sort: str = "default", **filters) -> SearchResults:
+	query = cstr(query).strip()
+	if not query:
+		page, page_size = max(cint(page), 1), min(max(cint(page_size), 1), MAX_PAGE_SIZE)
+		return {
+			"query": query,
+			"products": [],
+			"total": 0,
+			"page": page,
+			"page_size": page_size,
+			"facets": {"brands": [], "colors": [], "sizes": [], "price": get_price_facet()},
+		}
+	return {
+		"query": query,
+		**list_products(query=query, page=page, page_size=page_size, sort=sort, **filters),
+	}
+
+
+def get_typeahead(query: str, limit: int = 6) -> Typeahead:
+	typeahead = get_search_typeahead(query, limit)
+	return {
+		"query": typeahead["query"],
+		"corrected_query": typeahead["corrected_query"],
+		"products": get_product_cards(typeahead["products"]),
+		"categories": [{"title": link["label"], "url": link["url"]} for link in typeahead["categories"]],
+	}
+
+
+def get_recommendations(handle: str, limit: int = 8) -> list[ProductCard]:
+	product_variant = frappe.db.get_value(
+		"Style Attribute Variant",
+		{"route": cstr(handle), "is_published": 1},
+		["item_group", "configurator"],
+		as_dict=True,
+	)
+	if not product_variant:
+		return []
+	return get_product_cards(
+		get_recommended_products(product_variant, limit=min(max(cint(limit), 1), MAX_PAGE_SIZE))
+	)
 
 
 def get_product_cards_for(item_codes: list[str] | None = None, limit: int = 8) -> list[ProductCard]:
