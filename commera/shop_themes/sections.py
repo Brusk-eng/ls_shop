@@ -21,6 +21,7 @@ SORT_BY_SOURCE = {"newest": "new_arrival", "on_sale": "discount", "collection": 
 
 theme_json_files = {}
 image_urls = {}
+classic_layout_calls = set()
 
 
 def get_theme_json(theme_dirs, relative_path):
@@ -146,6 +147,9 @@ def render_layout(context, page):
 	theme_dirs = theme_context["dirs"]
 	if not theme_dirs:
 		return ""
+	if theme_context.get("theme_type") == "Classic":
+		log_classic_layout_call(theme_context["theme_name"], page)
+		return ""
 
 	layout = get_page_layout(theme_context["theme_name"], theme_dirs, page)
 	section_context = {**context.get_all(), "commera": commera.sdk}
@@ -155,6 +159,20 @@ def render_layout(context, page):
 		if isinstance(saved_section, dict) and not saved_section.get("hidden")
 	]
 	return Markup("\n".join(html))
+
+
+def log_classic_layout_call(theme_name, page):
+	call = (frappe.local.site, theme_name, page)
+	if call in classic_layout_calls:
+		return
+	classic_layout_calls.add(call)
+	frappe.log_error(
+		title=_("render_layout called on a Classic theme"),
+		message=_(
+			'{0} is a Classic theme, so render_layout("{1}") renders nothing. '
+			"Set its Theme Type to Sections, or hardcode the page."
+		).format(theme_name, page),
+	)
 
 
 def render_section(environment, theme_context, saved_section, section_context):
