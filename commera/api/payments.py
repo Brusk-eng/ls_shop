@@ -739,6 +739,10 @@ def confirm_payment(reference_id: str, payment_mode: str | None = None):
 
 	`reference_id` is a Gateway Payment Request (name or gateway session id), or the Quotation for COD.
 	"""
+	return resolve_checkout_payment(reference_id, payment_mode)
+
+
+def resolve_checkout_payment(reference_id: str, payment_mode: str | None = None):
 	payment_request = get_gateway_payment_request(reference_id)
 	if payment_request:
 		validate_reference_owner(payment_request.ref_doctype, payment_request.ref_docname)

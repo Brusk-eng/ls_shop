@@ -40,7 +40,10 @@ def get_shipping_options() -> dict:
 
 	Never raises: checkout has to render even when the carrier is down.
 	"""
-	quotation = _get_cart_quotation()
+	return get_cart_shipping_options(_get_cart_quotation())
+
+
+def get_cart_shipping_options(quotation) -> dict:
 	if not quotation or not quotation.items:
 		return {"options": []}
 	if quotation.custom_is_store_pickup:
@@ -197,9 +200,11 @@ def set_delivery_option(delivery_option: str | None = None) -> dict:
 
 	The price comes from a fresh server-side quote, never the request: a client could ship for nothing.
 	"""
-	from commera.api.payments import cart_write_lock, save_cart_quotation, validate_cart_is_not_in_checkout
+	return save_delivery_option(_get_cart_quotation(), delivery_option)
 
-	quotation = _get_cart_quotation()
+
+def save_delivery_option(quotation, delivery_option: str | None) -> dict:
+	from commera.api.payments import cart_write_lock, save_cart_quotation, validate_cart_is_not_in_checkout
 
 	with cart_write_lock(quotation):
 		validate_cart_is_not_in_checkout(quotation.name)

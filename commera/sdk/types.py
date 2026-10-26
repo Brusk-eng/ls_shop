@@ -9,6 +9,8 @@ __all__ = [
 	"CatalogItem",
 	"Charge",
 	"ChargeSummary",
+	"CheckoutResult",
+	"CheckoutState",
 	"CheckoutSummary",
 	"Collection",
 	"ContentPage",
@@ -24,6 +26,9 @@ __all__ = [
 	"NewCartLine",
 	"Order",
 	"OrderLine",
+	"PaymentMethod",
+	"PaymentSession",
+	"PlacedOrder",
 	"PricedCart",
 	"PricedCartLine",
 	"Product",
@@ -35,6 +40,8 @@ __all__ = [
 	"ProductVariant",
 	"Rating",
 	"SearchResults",
+	"ShippingOption",
+	"ShippingOptions",
 	"Shop",
 	"ShopperOrder",
 	"ShopperOrderPage",
@@ -43,6 +50,7 @@ __all__ = [
 	"Stage",
 	"Typeahead",
 	"TypeaheadLink",
+	"Wishlist",
 ]
 
 
@@ -477,3 +485,58 @@ class Sitemap(SitemapPage, total=False):
 	products: list[SitemapEntry]
 	collections: list[SitemapEntry]
 	pages: list[SitemapEntry]
+
+
+class Wishlist(TypedDict):
+	products: list[ProductCard]
+	count: int
+
+
+class CheckoutState(TypedDict):
+	cart: str
+	email: str | None
+	billing_address: Address | None
+	shipping_address: Address | None
+	is_store_pickup: bool
+	store: str | None
+	shipping_option: str | None
+	summary: CheckoutSummary
+
+
+class ShippingOption(TypedDict):
+	id: str
+	title: str
+	description: str | None
+	provider: str | None
+	amount: float
+	original_amount: float | None
+	is_free: bool
+
+
+class ShippingOptions(TypedDict):
+	options: list[ShippingOption]
+	selected: str | None
+	reason: str | None
+
+
+class PaymentMethod(TypedDict):
+	id: str
+	title: str
+	is_cash_on_delivery: bool
+
+
+class PaymentSession(TypedDict):
+	redirect_url: str
+	reference_id: str
+
+
+class PlacedOrder(TypedDict):
+	name: str
+	link: str
+	grand_total: float
+	currency: str
+
+
+class CheckoutResult(TypedDict):
+	status: str
+	order: PlacedOrder | None
