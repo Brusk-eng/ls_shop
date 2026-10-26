@@ -111,6 +111,7 @@ def get_product_list_qb(filters=None, product_list=None, page=1, page_length=30,
 	query = get_product_base_query(filters, product_list)
 	style_attribute_variant = DocType("Style Attribute Variant")
 	website_slideshow_item = DocType("Website Slideshow Item")
+	hover_slideshow_item = DocType("Website Slideshow Item").as_("hover_slideshow_item")
 	color_size_item = DocType("Color Size Item")
 	item_price_default = DocType("Item Price").as_("ip_default")
 	item_price_sale = DocType("Item Price").as_("ip_sale")
@@ -130,7 +131,9 @@ def get_product_list_qb(filters=None, product_list=None, page=1, page_length=30,
 		.else_(0)
 	)
 	query = (
-		query.select(
+		query.left_join(hover_slideshow_item)
+		.on((hover_slideshow_item.parent == style_attribute_variant.name) & (hover_slideshow_item.idx == 2))
+		.select(
 			style_attribute_variant.name,
 			style_attribute_variant.route,
 			style_attribute_variant.item_style,
@@ -148,6 +151,7 @@ def get_product_list_qb(filters=None, product_list=None, page=1, page_length=30,
 			Min(item_price_default.price_list_rate).as_("default_price"),
 			Min(item_price_sale.price_list_rate).as_("sale_price"),
 			website_slideshow_item.image.as_("image"),
+			hover_slideshow_item.image.as_("hover_image"),
 			discount_expr.as_("discount_percent").as_("discount_percent"),
 		)
 		.groupby(style_attribute_variant.name)
