@@ -2,6 +2,7 @@ import os
 from pathlib import Path
 
 import click
+from frappe.commands import get_site, pass_context
 
 
 @click.group("commera")
@@ -41,14 +42,56 @@ def add(kind: str, name: str | None, detail: bool):
 	)
 
 
-def get_current_app_scaffold():
+@commera_commands.group("theme")
+def theme():
+	"""Storefront themes in the app you are in."""
+
+
+@theme.command("new")
+@click.argument("name")
+@click.option(
+	"--type",
+	"theme_type",
+	type=click.Choice(["sections", "classic"]),
+	required=True,
+	help="sections: pages built from sections/ and layouts/; classic: hardcoded pages/ and components/",
+)
+@click.option(
+	"--parent",
+	default="Shop Base Theme",
+	show_default=True,
+	help="Shop Theme to inherit from: Shop Base Theme or one of the same type",
+)
+@pass_context
+def new_theme(context, name: str, theme_type: str, parent: str):
+	"""Add a storefront theme to the app you are in and create its Shop Theme record."""
+	import frappe
+
+	from commera.scaffold.theme import ThemeScaffold
+
+	scaffold = get_current_app_scaffold(ThemeScaffold)
+	frappe.init(get_site(context))
+	frappe.connect()
+	try:
+		for change, path in scaffold.add_theme(name, theme_type.title(), parent):
+			click.echo(f"{change:<8} {path}")
+		frappe.db.commit()  # nosemgrep
+	finally:
+		frappe.destroy()
+
+	click.secho(f"Next: set Active Theme to {name} in Shop Theme Settings, then open /en", fg="green")
+
+
+def get_current_app_scaffold(scaffold_class=None):
 	from frappe.utils import get_bench_path
 
 	from commera.scaffold import AppScaffold, get_app_from_folder
 
 	apps_path = Path(get_bench_path()) / "apps"
 	# bench runs every command from sites/, so only $PWD still says which app folder the user is in.
-	return AppScaffold(get_app_from_folder(Path(os.environ.get("PWD") or os.getcwd()), apps_path), apps_path)
+	return (scaffold_class or AppScaffold)(
+		get_app_from_folder(Path(os.environ.get("PWD") or os.getcwd()), apps_path), apps_path
+	)
 
 
 commands = [commera_commands]
