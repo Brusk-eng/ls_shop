@@ -252,6 +252,7 @@ def create_theme_settings_doctype(doctype_name, module=None):
 			"print": 1,
 			"email": 1,
 			"report": 0,
+			"export": 0,
 		}
 		for role in ("System Manager", "Website Manager")
 	]
