@@ -40,6 +40,8 @@ PUBLIC_NAMES = {
 		"format",
 		"orders",
 		"shop",
+		"checkout",
+		"wishlist",
 	],
 	"commera.sdk.account": [
 		"delete_address",
@@ -129,7 +131,25 @@ PUBLIC_NAMES = {
 		"Stage",
 		"Typeahead",
 		"TypeaheadLink",
+		"CheckoutResult",
+		"CheckoutState",
+		"PaymentMethod",
+		"PaymentSession",
+		"PlacedOrder",
+		"ShippingOption",
+		"ShippingOptions",
+		"Wishlist",
 	],
+	"commera.sdk.checkout": [
+		"complete",
+		"list_payment_methods",
+		"list_shipping_options",
+		"set_addresses",
+		"set_shipping_option",
+		"set_store_pickup",
+		"start_payment",
+	],
+	"commera.sdk.wishlist": ["add_to_wishlist", "get_wishlist", "remove_from_wishlist"],
 }
 APP = "bwh_payments"
 APP_FIELD = f"{APP}_zz_sdk_note"
