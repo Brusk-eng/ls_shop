@@ -1,26 +1,29 @@
 {# .text__char reads its angle from --char-rotate, which the vendor's unloaded word-rotate script used to write, so the angles are computed here. #}
-{% from "components/macros/product_card.html" import variant_display_name, card_price %}
+{% from "components/macros/product_card.html" import variant_display_name, card_price, card_discount %}
 
-{% macro similar_card(variant, wow_delay) %}
-{% set product_url = "/" ~ (frappe.lang or "en") ~ "/products/" ~ variant.route %}
-{% set product_name = variant_display_name(variant) %}
+{% macro similar_card(product, wow_delay) %}
+{% set product_url = "/" ~ (frappe.lang or "en") ~ "/products/" ~ product.handle %}
+{% set product_name = variant_display_name(product) %}
+{% set discount = card_discount(product) | int %}
 <div class="shop-card style-5 wow fadeInUp" data-wow-delay="{{ wow_delay }}">
 	<div class="dz-media">
 		<a href="{{ product_url }}" tabindex="-1" aria-hidden="true">
-			<img src="{{ variant.image or '/assets/commera/images/1.jpg' }}" alt="{{ product_name }}" loading="lazy">
+			<img src="{{ product.image or '/assets/commera/images/1.jpg' }}" alt="{{ product_name }}" loading="lazy">
 		</a>
 	</div>
 	<div class="dz-content">
 		<div>
-			{% if variant.discount_percent %}<span class="sale-title">{{ _("up to {0}% off").format(variant.discount_percent | round | int) }}</span>{% endif %}
+			{% if discount %}<span class="sale-title">{{ _("up to {0}% off").format(discount) }}</span>{% endif %}
 			<h6 class="title"><a href="{{ product_url }}">{{ product_name }}</a></h6>
 		</div>
-		<h6 class="price">{{ card_price(variant.sale_price, variant.default_price, variant.discount_percent) }}</h6>
+		<h6 class="price">{{ card_price(product.price, product.compare_at_price, discount) }}</h6>
 	</div>
 </div>
 {% endmacro %}
 
+{% set products = section.products %}
 {% set badge_text = _("all products - ") * 2 %}
+{% if products %}
 <section class="content-inner-2 overflow-hidden">
 	<div class="container">
 		<div class="row align-items-xl-center align-items-start">
@@ -53,7 +56,7 @@
 				</div>
 				<div class="swiper swiper-similar swiper-visible card-container" data-summer-carousel="similar" data-carousel-loop="true">
 					<div class="swiper-wrapper">
-						{% for product in best_picks %}
+						{% for product in products %}
 						<div class="swiper-slide m-b30">
 							{{ similar_card(product, "%.1fs" | format(0.6 + 0.2 * loop.index)) }}
 						</div>
@@ -64,3 +67,4 @@
 		</div>
 	</div>
 </section>
+{% endif %}

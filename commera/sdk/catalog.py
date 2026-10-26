@@ -39,6 +39,8 @@ __all__ = [
 	"get_collection",
 	"get_items",
 	"get_product",
+	"get_product_cards_for",
+	"list_brands",
 	"list_collections",
 	"list_products",
 ]
@@ -148,6 +150,37 @@ def list_products(
 	}
 
 
+def get_product_cards_for(item_codes: list[str] | None = None, limit: int = 8) -> list[ProductCard]:
+	item_codes = [cstr(code) for code in item_codes or [] if code]
+	if not item_codes:
+		return get_product_cards(get_product_list(page_length=min(max(cint(limit), 1), MAX_PAGE_SIZE)))
+	published_codes = frappe.get_all(
+		"Style Attribute Variant", filters={"name": ("in", item_codes), "is_published": 1}, pluck="name"
+	)
+	if not published_codes:
+		return []
+	cards_by_name = {
+		card["name"]: card
+		for card in get_product_list(product_list=published_codes, page_length=len(published_codes))
+	}
+	return get_product_cards([cards_by_name[code] for code in item_codes if code in cards_by_name])
+
+
+def list_brands() -> list[dict]:
+	brand = frappe.qb.DocType("Brand")
+	item = frappe.qb.DocType("Item")
+	return (
+		frappe.qb.from_(brand)
+		.join(item)
+		.on(item.brand == brand.name)
+		.select(brand.name, brand.image)
+		.where(item.disabled == 0)
+		.distinct()
+		.orderby(brand.name)
+		.run(as_dict=True)
+	)
+
+
 def get_facets(filters: dict) -> dict[str, list[FacetValue]]:
 	cache_key = f"{FACETS_CACHE_PREFIX}{sha256_hash(frappe.as_json(filters))}"
 	facets = frappe.cache.get_value(cache_key)
@@ -252,8 +285,9 @@ def get_product_card(card: dict, stock: dict, currency: str) -> ProductCard:
 	return {
 		"id": card["name"],
 		"handle": card["route"],
-		"title": card["display_name"] or card["item_name"],
+		"title": get_card_title(card),
 		"vendor": card["brand"],
+		"product_type": card["item_group"],
 		"color": card["attribute_value"],
 		"image": card["image"],
 		"hover_image": card["hover_image"],
@@ -264,6 +298,12 @@ def get_product_card(card: dict, stock: dict, currency: str) -> ProductCard:
 		"rating": {"average": flt(card["average_rating"]), "count": cint(card["review_count"])},
 		"updated_at": card["modified"],
 	}
+
+
+def get_card_title(card: dict) -> str:
+	if frappe.local.lang == "ar" and card["custom_item_name_ar"]:
+		return card["custom_item_name_ar"]
+	return card["display_name"] or card["item_name"]
 
 
 def get_variants(sizes: list[dict]) -> list[dict]:

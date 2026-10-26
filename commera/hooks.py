@@ -218,6 +218,7 @@ jinja = {
 		"commera.shop_data.get_storefront_menu",
 		"commera.shop_themes.jinja_helpers.shop_theme_asset_url",
 		"commera.shop_themes.jinja_helpers.shop_theme_config",
+		"commera.shop_themes.sections.render_layout",
 		"commera.storefront_plugins.format_plugin_includes",
 		"commera.storefront_plugins.plugin_slot",
 	],
