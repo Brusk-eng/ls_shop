@@ -404,21 +404,31 @@ class IntegrationTestThemeSettingsContext(IntegrationTestCase):
 				"custom": 1,
 				"issingle": 1,
 				"fields": [
+					{"fieldname": "tagline", "fieldtype": "Data", "label": "Tagline"},
+					{"fieldname": "style_tab", "fieldtype": "Tab Break", "label": "Style"},
 					{"fieldname": "accent_color", "fieldtype": "Color", "label": "Accent"},
 					{"fieldname": "body_font", "fieldtype": "Data", "label": "Body Font"},
-					{"fieldname": "button_radius", "fieldtype": "Int", "label": "Button Radius"},
+					{"fieldname": "font_weight", "fieldtype": "Int", "label": "Font Weight"},
 					{"fieldname": "card_radius", "fieldtype": "Data", "label": "Card Radius"},
-					{"fieldname": "tagline", "fieldtype": "Data", "label": "Tagline"},
+					{
+						"fieldname": "card_shadows",
+						"fieldtype": "Table",
+						"label": "Card Shadows",
+						"options": "Has Role",
+					},
+					{"fieldname": "other_tab", "fieldtype": "Tab Break", "label": "Other"},
+					{"fieldname": "footer_note", "fieldtype": "Data", "label": "Footer Note"},
 				],
 				"permissions": [{"role": "System Manager", "read": 1, "write": 1}],
 			}
 		).insert()
 		self.save_settings(
 			accent_color="#0f766e",
-			body_font="Inter Tight",
-			button_radius=8,
+			body_font='"Inter Tight", sans-serif',
+			font_weight=600,
 			card_radius="1.5rem",
 			tagline="Hi",
+			footer_note="Bye",
 		)
 		self.original_active_theme = frappe.db.get_single_value("Shop Theme Settings", "active_theme")
 		frappe.db.set_value("Shop Theme", "Shop Base Theme", "theme_settings", self.settings_doctype)
@@ -457,13 +467,13 @@ class IntegrationTestThemeSettingsContext(IntegrationTestCase):
 	def test_a_classic_page_gets_the_settings_as_theme(self):
 		context = build_base_context(None)
 		self.assertEqual(context.theme.tagline, "Hi")
-		self.assertEqual(context.theme.button_radius, 8)
+		self.assertEqual(context.theme.font_weight, 600)
 
-	def test_css_variables_come_from_colour_font_and_radius_fields(self):
+	def test_every_style_tab_field_becomes_a_css_variable_as_typed(self):
 		self.assertEqual(
 			format_shop_theme_css(),
 			'<style id="shop-theme-settings">:root{--theme-accent-color: #0f766e; '
-			'--theme-body-font: "Inter Tight"; --theme-button-radius: 8px; '
+			'--theme-body-font: "Inter Tight", sans-serif; --theme-font-weight: 600; '
 			"--theme-card-radius: 1.5rem;}</style>",
 		)
 
@@ -471,10 +481,12 @@ class IntegrationTestThemeSettingsContext(IntegrationTestCase):
 		self.save_settings(
 			accent_color="</style><script>alert(1)</script>",
 			body_font="Inter; } body { display: none",
-			button_radius=-4,
-			card_radius="8",
+			card_radius="1rem /* x",
 		)
-		self.assertEqual(format_shop_theme_css(), "")
+		self.assertEqual(
+			format_shop_theme_css(),
+			'<style id="shop-theme-settings">:root{--theme-font-weight: 600;}</style>',
+		)
 
 	def test_a_theme_without_settings_emits_no_style(self):
 		frappe.db.set_value("Shop Theme", "Shop Base Theme", "theme_settings", None)
@@ -531,4 +543,5 @@ class IntegrationTestCreateThemeSettings(IntegrationTestCase):
 			frappe.db.get_value("Shop Theme", "Shop Base Theme", "theme_settings"), "Shop Base Theme Settings"
 		)
 		self.assertTrue(frappe.db.get_value("DocType", "Shop Base Theme Settings", "issingle"))
+		self.assertTrue(frappe.get_meta("Shop Base Theme Settings").get_field("style_tab"))
 		self.assertEqual(frappe.local.message_log, [])

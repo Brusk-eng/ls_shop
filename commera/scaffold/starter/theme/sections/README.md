@@ -22,24 +22,29 @@ Every page, section and block gets the settings as `theme`:
 
 A field that has no value is `None`.
 
-### Colours, fonts and radius become CSS variables
+### Style tab fields become CSS variables
 
-`{{ format_shop_theme_css() }}` in `<head>` writes these fields as variables on `:root`.
-The name is `--theme-` plus the fieldname, with `_` changed to `-`.
+Every Settings doctype has a **Style** tab. Each field in that tab becomes a CSS variable on `:root`:
+the name is `--theme-` plus the fieldname, with `_` changed to `-`. The value is written as typed.
 
-| Field | Example | Variable |
+| Field in the Style tab | Value | Variable |
 | --- | --- | --- |
-| Any field of type Color | `primary_color` = `#0f766e` | `--theme-primary-color: #0f766e` |
-| Data, Select or Autocomplete field whose name ends in `_font` | `body_font` = `Inter` | `--theme-body-font: "Inter"` |
-| Int or Float field named `radius` or ending in `_radius` | `button_radius` = `8` | `--theme-button-radius: 8px` |
-| Data field named `radius` or ending in `_radius` | `card_radius` = `1.5rem` | `--theme-card-radius: 1.5rem` |
+| `font` | `Poppins` | `--theme-font: Poppins;` |
+| `font_size` | `2rem` | `--theme-font-size: 2rem;` |
+| `font_weight` | `600` | `--theme-font-weight: 600;` |
+| `primary_color` | `#0f766e` | `--theme-primary-color: #0f766e;` |
 
-A Data field named `accent_color` is not a colour: only the Color field type counts.
-An empty or invalid value writes no variable. A colour must be a hex value, a font
-name may only contain letters, digits, spaces, `-` and `_`, and a radius must be zero or more, in `px`, `rem`, `em` or `%`.
-Give each variable a fallback in your CSS:
+Use Data fields unless another type helps the merchant, such as Color for a colour picker.
+No unit is added: type `2rem` or `2px`, or add the unit in your CSS with `calc(var(--theme-font-size) * 1rem)`.
+An empty value writes no variable. A value with `;`, `{`, `}`, `<`, `>`, `\` or `/*` is left out.
+Fields in other tabs are not variables; read them in templates as `theme.<field>`.
+
+`{{ format_shop_theme_css() }}` in `<head>` writes the variables. Give each one a fallback in your CSS:
 
 ```css
-.button { background: var(--theme-primary-color, #111827); border-radius: var(--theme-button-radius, 6px); }
-body { font-family: var(--theme-body-font), system-ui, sans-serif; }
+@theme {
+	--font-sans: var(--theme-font, system-ui), sans-serif;
+	--text-base: var(--theme-font-size, 1rem);
+	--color-primary: var(--theme-primary-color, #111827);
+}
 ```

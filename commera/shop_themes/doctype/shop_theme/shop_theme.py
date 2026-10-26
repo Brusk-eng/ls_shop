@@ -23,6 +23,7 @@ SECTIONS_ONLY_FOLDERS = ("sections", "layouts")
 THEME_STARTER_DIR = Path(__file__).parents[3] / "scaffold" / "starter" / "theme"
 
 THEME_CONTEXT_CACHE_KEY = "shop_theme_context"
+STYLE_TAB = "style_tab"
 PREVIEW_THEME_PARAM = "preview_theme"
 
 
@@ -262,7 +263,8 @@ def create_theme_settings_doctype(doctype_name, module=None):
 			"custom": 0 if frappe.conf.developer_mode else 1,
 			"issingle": 1,
 			"fields": [
-				{"fieldname": "info_section", "fieldtype": "Section Break", "label": "Theme Settings"}
+				{"fieldname": "info_section", "fieldtype": "Section Break", "label": "Theme Settings"},
+				{"fieldname": STYLE_TAB, "fieldtype": "Tab Break", "label": "Style"},
 			],
 			"permissions": permissions,
 		}
