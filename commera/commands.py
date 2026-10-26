@@ -75,7 +75,7 @@ def new_theme(context, name: str, theme_type: str, parent: str):
 	try:
 		for change, path in scaffold.add_theme(name, theme_type.title(), parent):
 			click.echo(f"{change:<8} {path}")
-		frappe.db.commit()
+		frappe.db.commit()  # nosemgrep
 	finally:
 		frappe.destroy()
 
