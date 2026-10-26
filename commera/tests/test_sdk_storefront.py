@@ -97,16 +97,54 @@ class TestSdkStorefront(ProductDetailPriceTestCase):
 		self.assertEqual(format.money(1234.5, "INR"), f"{symbol}1,234.50")
 		self.assertEqual(format.money(10, "SAR"), '<span class="saudi-currency-symbol pe-0.5"></span>10.00')
 
-	def test_url_for_builds_localized_storefront_paths(self):
+	def edit_route(self, served_template: str, **values):
+		settings = frappe.get_single("Shop Theme Settings")
+		row = next(row for row in settings.routes if row.template_path == served_template)
+		original = {fieldname: row.get(fieldname) for fieldname in values}
+		row.update(values)
+		settings.save(ignore_permissions=True)
+		self.addCleanup(self.restore_route, row.name, original)
+
+	def restore_route(self, row_name: str, original: dict):
+		settings = frappe.get_single("Shop Theme Settings")
+		next(row for row in settings.routes if row.name == row_name).update(original)
+		settings.save(ignore_permissions=True)
+
+	def test_url_for_reverses_the_default_routes(self):
+		self.assertEqual(format.url_for("home"), "/en")
 		self.assertEqual(format.url_for("product", "blue shirt"), "/en/products/blue%20shirt")
 		self.assertEqual(format.url_for("collection", "men", page=2), "/en/products?category=men&page=2")
 		self.assertEqual(format.url_for("search", "red & blue"), "/en/products?search=red+%26+blue")
+		self.assertEqual(format.url_for("cart"), "/en/cart")
+		self.assertEqual(format.url_for("checkout"), "/en/cart/checkout")
+		self.assertEqual(format.url_for("account"), "/en/account/dashboard")
+		self.assertEqual(format.url_for("profile"), "/en/account/profile")
+		self.assertEqual(format.url_for("orders"), "/en/account/orders")
 		self.assertEqual(format.url_for("order", "SO-1"), "/en/account/orders/detail?order_id=SO-1")
+		self.assertEqual(format.url_for("addresses"), "/en/account/address")
+		self.assertEqual(format.url_for("wishlist"), "/en/account/wishlist")
+		self.assertEqual(format.url_for("track_order"), "/en/track-order")
+		self.assertEqual(format.url_for("page", "about-us"), "/en/page/about-us")
 		self.assertEqual(format.url_for("login"), "/login")
 		frappe.local.lang = "ar"
 		self.assertEqual(format.url_for("cart"), "/ar/cart")
+		self.assertEqual(format.url_for("product", "shirt"), "/ar/products/shirt")
+
+	def test_url_for_follows_an_edited_route(self):
+		self.edit_route(
+			"pages/products/details.html", url_pattern=r"^(?P<lang>en|ar)/shop/item\-(?P<route>.+)$"
+		)
+		self.assertEqual(format.url_for("product", "shirt"), "/en/shop/item-shirt")
+
+	def test_url_for_refuses_what_it_cannot_reverse(self):
 		self.assertRaises(frappe.ValidationError, format.url_for, "product")
+		self.assertRaises(frappe.ValidationError, format.url_for, "cart", "shirt")
 		self.assertRaises(frappe.ValidationError, format.url_for, "nowhere")
+
+		self.edit_route("pages/track_order.html", url_pattern=r"^(?P<lang>en|ar)/track-(?=o)order$")
+		self.assertRaises(frappe.ValidationError, format.url_for, "track_order")
+		self.edit_route("pages/account/wishlist.html", template_path="pages/account/saved.html")
+		self.assertRaises(frappe.ValidationError, format.url_for, "wishlist")
 
 
 class TestImageUrl(ProductDetailPriceTestCase):
