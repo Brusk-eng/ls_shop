@@ -154,8 +154,14 @@ def get_product_cards_for(item_codes: list[str] | None = None, limit: int = 8) -
 	item_codes = [cstr(code) for code in item_codes or [] if code]
 	if not item_codes:
 		return get_product_cards(get_product_list(page_length=min(max(cint(limit), 1), MAX_PAGE_SIZE)))
+	published_codes = frappe.get_all(
+		"Style Attribute Variant", filters={"name": ("in", item_codes), "is_published": 1}, pluck="name"
+	)
+	if not published_codes:
+		return []
 	cards_by_name = {
-		card["name"]: card for card in get_product_list(product_list=item_codes, page_length=len(item_codes))
+		card["name"]: card
+		for card in get_product_list(product_list=published_codes, page_length=len(published_codes))
 	}
 	return get_product_cards([cards_by_name[code] for code in item_codes if code in cards_by_name])
 

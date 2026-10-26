@@ -143,6 +143,7 @@ def install_summer_demo():
 	apply_hero_prices(profile)
 
 	save_default_homepage()
+	save_home_layout()
 	save_footer_sections()
 	save_mode_of_payment_accounts()
 	allow_shoppers_to_select_accounts()
@@ -408,6 +409,22 @@ def save_default_homepage():
 		settings.append("best_picks", {"item_variant": name})
 
 	settings.save(ignore_permissions=True)
+
+
+def save_home_layout():
+	with open(frappe.get_app_path("commera", "install_summer_home_layout.json")) as layout_file:
+		layout = frappe.as_json(frappe.parse_json(layout_file.read()))
+
+	filters = {"theme": "Summer Theme", "page": "index"}
+	theme_layout_name = frappe.db.exists("Theme Layout", filters)
+	theme_layout = (
+		frappe.get_doc("Theme Layout", theme_layout_name)
+		if theme_layout_name
+		else frappe.new_doc("Theme Layout").update(filters)
+	)
+	theme_layout.draft_layout = layout
+	theme_layout.published_layout = layout
+	theme_layout.save(ignore_permissions=True)
 
 
 def save_footer_sections():

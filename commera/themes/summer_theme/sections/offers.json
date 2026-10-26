@@ -1,5 +1,6 @@
 {
 	"name": "Offers",
+	"category": "Banners",
 	"settings": [
 		{
 			"id": "title",

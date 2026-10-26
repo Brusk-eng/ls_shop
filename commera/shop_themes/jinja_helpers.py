@@ -17,20 +17,25 @@ def shop_theme_asset_url(path):
 		return ""
 
 	relative_path = path.lstrip("/")
-	apps = theme_context["apps"]
+	asset_url = find_theme_asset_url(theme_context, relative_path)
+	if asset_url:
+		return asset_url
 
+	# Nothing in the chain ships it: fall back to the ACTIVE theme's URL so the 404 names this theme.
+	active_name = theme_context["names"][0]
+	active_app = theme_context["apps"][active_name]
+	return f"/assets/{active_app}/themes/{frappe.scrub(active_name)}/{relative_path}"
+
+
+def find_theme_asset_url(theme_context, relative_path):
 	for name in theme_context["names"]:
-		app = apps[name]
+		app = theme_context["apps"][name]
 		slug = frappe.scrub(name)
 		theme_public_dir = os.path.join(frappe.get_app_path(app), "public", "themes", slug)
 		asset_path = os.path.join(theme_public_dir, relative_path)
 		if is_within_directory(theme_public_dir, asset_path) and os.path.isfile(asset_path):
 			return f"/assets/{app}/themes/{slug}/{relative_path}"
-
-	# Nothing in the chain ships it: fall back to the ACTIVE theme's URL so the 404 names this theme.
-	active_name = theme_context["names"][0]
-	active_app = apps[active_name]
-	return f"/assets/{active_app}/themes/{frappe.scrub(active_name)}/{relative_path}"
+	return None
 
 
 def shop_theme_config():

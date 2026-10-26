@@ -5,7 +5,7 @@
 			{% for banner in section.blocks %}
 			<div class="col-lg-6 col-md-12 wow fadeInUp" data-wow-delay="{{ "%.1f" | format(0.1 * loop.index) }}s">
 				<div class="product-box style-4">
-					<div class="product-media" style="background-image: url('{{ banner.settings.image }}');"></div>
+					<div class="product-media"{% if banner.settings.image %} style="background-image: url('{{ banner.settings.image }}');"{% endif %}></div>
 					{% if loop.first %}
 					<div class="sale-box">
 						{% if banner.settings.badge_label %}<div class="badge style-1 mb-1">{{ banner.settings.badge_label }}</div>{% endif %}

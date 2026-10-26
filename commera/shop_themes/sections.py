@@ -8,14 +8,19 @@ from jinja2 import pass_context
 from markupsafe import Markup, escape
 
 import commera.sdk
-from commera.shop_themes.doctype.shop_theme.shop_theme import get_render_theme_context
+from commera.shop_themes.doctype.shop_theme.shop_theme import get_render_theme_context, is_within_directory
+from commera.shop_themes.jinja_helpers import find_theme_asset_url
 from commera.shop_themes.theme_resolver import find_theme_file
 
 LAYOUT_CACHE_PREFIX = "commera:theme_layout:"
 TEXT_TYPES = frozenset({"text", "textarea", "url", "image"})
 DEFAULT_MAX_BLOCKS = 50
+DEFAULT_MAX_PRODUCTS = 8
+PASS_THROUGH_IMAGE_PREFIXES = ("http://", "https://", "/assets/")
+SORT_BY_SOURCE = {"newest": "new_arrival", "on_sale": "discount", "collection": "default"}
 
 theme_json_files = {}
+image_urls = {}
 
 
 def get_theme_json(theme_dirs, relative_path):
@@ -64,8 +69,33 @@ def get_text(value):
 	return value.get(frappe.local.lang) or value.get("en") or next(iter(value.values()), "")
 
 
-def get_setting_value(setting, value):
+def get_image_url(theme_context, path):
+	if not path or path.startswith(PASS_THROUGH_IMAGE_PREFIXES):
+		return path or None
+
+	cache_key = (frappe.local.site, theme_context["theme_name"], path)
+	if cache_key not in image_urls:
+		image_urls[cache_key] = find_image_url(theme_context, path)
+	return image_urls[cache_key]
+
+
+def find_image_url(theme_context, path):
+	if path.startswith("/files/"):
+		files_dir = frappe.get_site_path("public", "files")
+		file_path = frappe.get_site_path("public", path.lstrip("/"))
+		return path if is_within_directory(files_dir, file_path) and os.path.isfile(file_path) else None
+	if path.startswith("/"):
+		return path
+	return find_theme_asset_url(theme_context, path)
+
+
+def get_setting_value(setting, value, theme_context):
 	setting_type = setting.get("type")
+	if setting_type == "image":
+		image_url = get_image_url(theme_context, get_text(value)) or get_image_url(
+			theme_context, get_text(setting.get("default"))
+		)
+		return escape(image_url or "")
 	if setting_type in TEXT_TYPES:
 		return escape(get_text(value) or "")
 	if setting_type == "number":
@@ -77,25 +107,27 @@ def get_setting_value(setting, value):
 	return value
 
 
-def get_settings(schema_settings, saved_settings):
+def get_settings(schema_settings, saved_settings, theme_context):
 	saved_settings = saved_settings if isinstance(saved_settings, dict) else {}
 	return frappe._dict(
 		{
 			setting["id"]: get_setting_value(
-				setting, saved_settings.get(setting["id"], setting.get("default"))
+				setting, saved_settings.get(setting["id"], setting.get("default")), theme_context
 			)
 			for setting in schema_settings or []
 		}
 	)
 
 
-def get_section(schema, saved_section):
+def get_section(schema, saved_section, theme_context):
 	block_schemas = schema.get("blocks") or {}
 	blocks = [
 		frappe._dict(
 			id=block.get("id"),
 			type=block.get("type"),
-			settings=get_settings(block_schemas[block.get("type")].get("settings"), block.get("settings")),
+			settings=get_settings(
+				block_schemas[block.get("type")].get("settings"), block.get("settings"), theme_context
+			),
 		)
 		for block in saved_section.get("blocks") or []
 		if isinstance(block, dict) and block.get("type") in block_schemas
@@ -103,7 +135,7 @@ def get_section(schema, saved_section):
 	return frappe._dict(
 		id=saved_section.get("id"),
 		type=saved_section.get("type"),
-		settings=get_settings(schema.get("settings"), saved_section.get("settings")),
+		settings=get_settings(schema.get("settings"), saved_section.get("settings"), theme_context),
 		blocks=blocks[: cint(schema.get("max_blocks")) or DEFAULT_MAX_BLOCKS],
 	)
 
@@ -118,20 +150,26 @@ def render_layout(context, page):
 	layout = get_page_layout(theme_context["theme_name"], theme_dirs, page)
 	section_context = {**context.get_all(), "commera": commera.sdk}
 	html = [
-		render_section(context.environment, theme_dirs, saved_section, section_context)
+		render_section(context.environment, theme_context, saved_section, section_context)
 		for saved_section in layout.get("sections") or []
 		if isinstance(saved_section, dict) and not saved_section.get("hidden")
 	]
 	return Markup("\n".join(html))
 
 
-def render_section(environment, theme_dirs, saved_section, section_context):
-	schema = get_section_schema(theme_dirs, saved_section.get("type"))
+def render_section(environment, theme_context, saved_section, section_context):
+	schema = get_section_schema(theme_context["dirs"], saved_section.get("type"))
 	if not schema:
 		return ""
 
 	try:
-		section = get_section(schema, saved_section)
+		section = get_section(schema, saved_section, theme_context)
+		if section.settings.get("source"):
+			section.products = get_section_products(
+				section.settings, cint(schema.get("max_products")) or DEFAULT_MAX_PRODUCTS
+			)
+			if not section.products:
+				return ""
 		template = environment.get_template(f"theme://sections/{section.type}.html")
 		return template.render({**section_context, "section": section})
 	except Exception:
@@ -139,23 +177,47 @@ def render_section(environment, theme_dirs, saved_section, section_context):
 		return ""
 
 
-def validate_layout(theme_dirs, layout):
+def get_section_products(settings, limit):
+	source = settings.source
+	if source == "hand_picked":
+		return (
+			commera.sdk.catalog.get_product_cards_for(settings.products)[:limit] if settings.products else []
+		)
+	if source not in SORT_BY_SOURCE or (source == "collection" and not settings.collection):
+		return []
+
+	try:
+		page = commera.sdk.catalog.list_products(
+			collection=settings.collection if source == "collection" else None,
+			on_sale=source == "on_sale",
+			sort=SORT_BY_SOURCE[source],
+			page_size=limit,
+		)
+	except frappe.DoesNotExistError:
+		return []
+	return page["products"]
+
+
+def validate_layout(theme_context, layout):
 	if not isinstance(layout, dict) or not isinstance(layout.get("sections"), list):
 		frappe.throw(_('A layout must be an object with a "sections" list.'))
 
+	references = frappe._dict(images=[], products=[], collections=[])
 	section_ids = set()
 	for section in layout["sections"]:
 		validate_entry(section, section_ids, _("Section"))
-		schema = get_section_schema(theme_dirs, section["type"])
+		schema = get_section_schema(theme_context["dirs"], section["type"])
 		if not schema:
 			frappe.throw(_("Section type {0} does not exist in this theme.").format(section["type"]))
 		if not isinstance(section.get("hidden", False), bool):
 			frappe.throw(_("Section {0}: hidden must be true or false.").format(section["id"]))
-		validate_settings(schema.get("settings"), section.get("settings"), section["id"])
-		validate_blocks(schema, section)
+		validate_settings(schema.get("settings"), section.get("settings"), section["id"], references)
+		validate_blocks(schema, section, references)
+
+	validate_references(theme_context, references)
 
 
-def validate_blocks(schema, section):
+def validate_blocks(schema, section, references):
 	blocks = section.get("blocks") or []
 	if not isinstance(blocks, list):
 		frappe.throw(_("Section {0}: blocks must be a list.").format(section["id"]))
@@ -172,7 +234,9 @@ def validate_blocks(schema, section):
 			frappe.throw(
 				_("Section {0} does not allow blocks of type {1}.").format(section["id"], block["type"])
 			)
-		validate_settings(block_schemas[block["type"]].get("settings"), block.get("settings"), block["id"])
+		validate_settings(
+			block_schemas[block["type"]].get("settings"), block.get("settings"), block["id"], references
+		)
 
 
 def validate_entry(entry, seen_ids, label):
@@ -183,7 +247,7 @@ def validate_entry(entry, seen_ids, label):
 	seen_ids.add(entry["id"])
 
 
-def validate_settings(schema_settings, saved_settings, owner_id):
+def validate_settings(schema_settings, saved_settings, owner_id, references):
 	saved_settings = saved_settings or {}
 	if not isinstance(saved_settings, dict):
 		frappe.throw(_("{0}: settings must be an object.").format(owner_id))
@@ -193,13 +257,83 @@ def validate_settings(schema_settings, saved_settings, owner_id):
 		setting = settings_by_id.get(setting_id)
 		if not setting:
 			frappe.throw(_("{0}: unknown setting {1}.").format(owner_id, setting_id))
-		if not is_valid_value(setting.get("type"), value):
+		if not is_valid_value(setting, value):
 			frappe.throw(_("{0}: setting {1} has the wrong type.").format(owner_id, setting_id))
 
+	add_references(settings_by_id, saved_settings, owner_id, references)
 
-def is_valid_value(setting_type, value):
+
+def add_references(settings_by_id, saved_settings, owner_id, references):
+	source = saved_settings.get("source", (settings_by_id.get("source") or {}).get("default"))
+	for setting_id, value in saved_settings.items():
+		setting_type = settings_by_id[setting_id].get("type")
+		if setting_type == "image" and value:
+			references.images.extend((owner_id, image) for image in get_texts(value) if image)
+		elif setting_type == "products" and value and source in (None, "hand_picked"):
+			references.products.extend((owner_id, code) for code in value)
+		elif setting_type == "collection" and value and source == "collection":
+			references.collections.append((owner_id, value))
+
+
+def get_texts(value):
+	return list(value.values()) if isinstance(value, dict) else [value]
+
+
+def validate_references(theme_context, references):
+	validate_images(theme_context, references.images)
+	validate_products(references.products)
+	validate_collections(references.collections)
+
+
+def validate_images(theme_context, images):
+	file_urls = {image for _owner_id, image in images if image.startswith("/files/")}
+	saved_file_urls = (
+		set(frappe.get_all("File", filters={"file_url": ("in", list(file_urls))}, pluck="file_url"))
+		if file_urls
+		else set()
+	)
+	for owner_id, image in images:
+		if image.startswith("/files/"):
+			if image not in saved_file_urls:
+				frappe.throw(_("{0}: image {1} is not an uploaded file.").format(owner_id, image))
+		elif not image.startswith(("/", *PASS_THROUGH_IMAGE_PREFIXES)) and not find_theme_asset_url(
+			theme_context, image
+		):
+			frappe.throw(_("{0}: image {1} does not exist in this theme.").format(owner_id, image))
+
+
+def validate_products(products):
+	if not products:
+		return
+	published = set(
+		frappe.get_all(
+			"Style Attribute Variant",
+			filters={"name": ("in", list({code for _owner_id, code in products})), "is_published": 1},
+			pluck="name",
+		)
+	)
+	for owner_id, code in products:
+		if code not in published:
+			frappe.throw(_("{0}: product {1} does not exist or is not published.").format(owner_id, code))
+
+
+def validate_collections(collections):
+	if not collections:
+		return
+	handles = {collection["handle"] for collection in commera.sdk.catalog.list_collections()}
+	for owner_id, handle in collections:
+		if handle not in handles:
+			frappe.throw(_("{0}: collection {1} does not exist.").format(owner_id, handle))
+
+
+def is_valid_value(setting, value):
+	setting_type = setting.get("type")
 	if value is None:
 		return True
+	if setting_type == "select":
+		return value in (setting.get("options") or [])
+	if setting_type == "collection":
+		return isinstance(value, str)
 	if setting_type in TEXT_TYPES:
 		if isinstance(value, dict):
 			return all(isinstance(text, str) for text in value.values())

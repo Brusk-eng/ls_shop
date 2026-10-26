@@ -1,6 +1,6 @@
 {# .swiper-visible needs the swiper-slide-active / swiper-slide-visible classes summer_carousels.js stamps on in Swiper's place. #}
 {% from "components/macros/product_card.html" import variant_card %}
-{% set products = commera.catalog.get_product_cards_for(section.settings.products) %}
+{% set products = section.products %}
 {% if products %}
 <section class="content-inner-2 overflow-hidden">
 	<div class="container">

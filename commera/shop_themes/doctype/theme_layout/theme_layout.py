@@ -11,10 +11,10 @@ class ThemeLayout(Document):
 		if not self.page.replace("_", "").replace("-", "").isalnum():
 			frappe.throw(_("Page must hold only letters, digits, - and _."))
 
-		theme_dirs = build_theme_context(self.theme)["dirs"]
+		theme_context = build_theme_context(self.theme)
 		for fieldname in ("draft_layout", "published_layout"):
 			if self.get(fieldname):
-				validate_layout(theme_dirs, frappe.parse_json(self.get(fieldname)))
+				validate_layout(theme_context, frappe.parse_json(self.get(fieldname)))
 
 	def on_update(self):
 		clear_layout_cache(self.theme, self.page)

@@ -1,6 +1,6 @@
 {% from "components/macros/product_card.html" import card_discount %}
 {% set sponsored_brands = commera.catalog.list_brands() %}
-{% set picks = commera.catalog.get_product_cards_for(section.settings.products) %}
+{% set picks = section.products %}
 {% if sponsored_brands %}
 <section class="content-inner-2 overflow-hidden">
 	<div class="container">

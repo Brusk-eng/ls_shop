@@ -11,7 +11,7 @@
 						<div class="swiper-slide">
 							<div class="shop-box style-1 wow fadeInUp" data-wow-delay="{{ 0.2 * loop.index }}s">
 								<div class="dz-media">
-									<img src="{{ category.settings.image }}" alt="{{ category.settings.heading }}">
+									{% if category.settings.image %}<img src="{{ category.settings.image }}" alt="{{ category.settings.heading }}">{% endif %}
 								</div>
 								<h6 class="product-name"><a href="{{ category.settings.url or products_url }}">{{ category.settings.heading }}</a></h6>
 							</div>

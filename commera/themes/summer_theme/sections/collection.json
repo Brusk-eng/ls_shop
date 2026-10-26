@@ -1,5 +1,6 @@
 {
 	"name": "Collection banners",
+	"category": "Banners",
 	"settings": [],
 	"blocks": {
 		"banner": {

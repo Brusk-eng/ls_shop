@@ -1,6 +1,26 @@
 {
 	"name": "Recent additions",
+	"category": "Products",
+	"max_products": 6,
 	"settings": [
+		{
+			"id": "source",
+			"type": "select",
+			"label": "Products to show",
+			"options": [
+				"newest",
+				"on_sale",
+				"collection",
+				"hand_picked"
+			],
+			"default": "newest"
+		},
+		{
+			"id": "collection",
+			"type": "collection",
+			"label": "Collection",
+			"default": ""
+		},
 		{
 			"id": "products",
 			"type": "products",

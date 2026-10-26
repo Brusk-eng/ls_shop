@@ -36,7 +36,7 @@
 						<div class="slick-slide">
 							<div class="banner-media" data-name="{{ slide.settings.thumbnail_label }}">
 								<div class="img-preview">
-									<img src="{{ slide.settings.image }}" alt="{{ slide.settings.thumbnail_label or slide.settings.heading }}">
+									{% if slide.settings.image %}<img src="{{ slide.settings.image }}" alt="{{ slide.settings.thumbnail_label or slide.settings.heading }}">{% endif %}
 								</div>
 							</div>
 						</div>
