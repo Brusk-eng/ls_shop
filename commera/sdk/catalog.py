@@ -310,7 +310,7 @@ def get_collection_filters(handle: str) -> dict:
 	"""The listing filters of the menu tab's own link, as its `/products?category=` href carries them."""
 	root = next((node for node in get_storefront_menu() if node["route_slug"] == handle), None)
 	if not root:
-		raise frappe.DoesNotExistError(_("Collection {0} not found").format(handle))
+		frappe.throw(_("Collection {0} not found").format(handle), frappe.DoesNotExistError)
 	return {"category": root["route_slug"], "subcategory": root["item_groups"]}
 
 

@@ -8,8 +8,13 @@ from commera.api.storefront.shop import get_page, get_sitemap, get_storefront_ur
 from commera.sdk import catalog, shop
 from commera.sdk.shop import get_menu_link
 from commera.sdk.types import Collection, Product, ProductCard, ProductPage, ProductVariant, Shop
+from commera.shop_themes.sections import get_section_products
 from commera.tests.test_product_details import ProductDetailPriceTestCase
 from commera.www.sitemap_segment import get_urls_per_page
+
+
+def get_shopper_messages() -> list[str]:
+	return [entry.message for entry in frappe.get_message_log()]
 
 
 class TestStorefrontApi(ProductDetailPriceTestCase):
@@ -81,6 +86,29 @@ class TestStorefrontApi(ProductDetailPriceTestCase):
 		with self.assertRaisesRegex(frappe.DoesNotExistError, "^Product no-such-product not found$"):
 			get_product("no-such-product")
 
+		self.assertEqual(get_shopper_messages(), ["Product no-such-product not found"])
+
+	def test_a_missing_record_reaches_the_shopper_as_a_message(self):
+		missing_reads = [
+			("Collection no-such-collection not found", lambda: get_collection("no-such-collection")),
+			(
+				"Collection no-such-collection not found",
+				lambda: get_products(collection="no-such-collection"),
+			),
+			("Page no-such-page not found", lambda: get_page("no-such-page")),
+		]
+		for message, read in missing_reads:
+			with self.subTest(message=message):
+				frappe.local.message_log = []
+				with self.assertRaises(frappe.DoesNotExistError):
+					read()
+				self.assertEqual(get_shopper_messages(), [message])
+
+	def test_a_section_on_a_missing_collection_shows_nothing_and_no_message(self):
+		frappe.local.message_log = []
+		settings = frappe._dict(source="collection", collection="no-such-collection")
+
+		self.assertEqual(get_section_products(settings, 4), [])
 		self.assertEqual(frappe.local.message_log, [])
 
 	def test_facets_are_cached_for_each_filter_set(self):

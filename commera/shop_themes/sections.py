@@ -212,6 +212,7 @@ def get_section_products(settings, limit):
 			page_size=limit,
 		)
 	except frappe.DoesNotExistError:
+		frappe.clear_last_message()
 		return []
 	return page["products"]
 

@@ -23,6 +23,7 @@ from commera.sdk.types import (
 )
 from commera.tests import test_cart_checkout, test_plugin_events
 from commera.tests.test_admin_orders import ensure_fiscal_year
+from commera.tests.test_storefront_api import get_shopper_messages
 
 BILLING_ADDRESS = {
 	"first_name": "ZZ",
@@ -123,8 +124,10 @@ class TestSdkCheckout(IntegrationTestCase):
 		other_shopper = self.create_shopper()
 		self.fill_cart(other_shopper)
 
+		frappe.local.message_log = []
 		with self.assertRaises(frappe.DoesNotExistError):
 			checkout.set_addresses(saved_address)
+		self.assertEqual(get_shopper_messages(), [f"Address {saved_address} not found"])
 
 	def test_a_guest_books_their_cart_to_the_email_they_typed(self):
 		self.allow_guest_checkout()

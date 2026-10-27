@@ -48,7 +48,7 @@ def save_resized_image(path: str, width: int) -> str:
 		)
 	source = get_public_path(path)
 	if not is_within_directory(frappe.get_site_path("public", "files"), source) or not os.path.isfile(source):
-		raise frappe.DoesNotExistError(_("Image {0} not found").format(path))
+		frappe.throw(_("Image {0} not found").format(path), frappe.DoesNotExistError)
 
 	resized_url = get_resized_image_url(path, width)
 	target = get_public_path(resized_url)

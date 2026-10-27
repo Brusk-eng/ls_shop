@@ -10,6 +10,7 @@ from commera.order_access import OWNER_ACCESS, get_order_access, get_shopper_ord
 from commera.sdk.types import CustomerAddress, CustomerProfile, ShopperOrder, ShopperOrderPage
 from commera.tests.test_admin_orders import make_test_sales_order
 from commera.tests.test_order_access import make_website_user
+from commera.tests.test_storefront_api import get_shopper_messages
 from commera.utils import validate_document_access
 from commera.www.account.orders.index import get_orders_list
 
@@ -77,8 +78,10 @@ class TestStorefrontAccount(IntegrationTestCase):
 		address = account.save_address(ADDRESS)["name"]
 		frappe.set_user(self.shopper)
 
+		frappe.local.message_log = []
 		with self.assertRaises(frappe.DoesNotExistError):
 			account.save_address({"name": address, "city": "Elsewhere"})
+		self.assertEqual(get_shopper_messages(), [f"Address {address} not found"])
 		with self.assertRaises(frappe.ValidationError):
 			account.delete_address(address)
 		self.assertNotIn(address, [row["name"] for row in account.list_addresses()])
@@ -168,8 +171,10 @@ class TestStorefrontAccount(IntegrationTestCase):
 		order = self.make_order(owner=self.other)
 		frappe.set_user(self.shopper)
 
+		frappe.local.message_log = []
 		with self.assertRaises(frappe.DoesNotExistError):
 			account.get_order(order)
+		self.assertEqual(get_shopper_messages(), [f"Order {order} not found"])
 
 	def make_order(self, owner: str = "Administrator", contact_email=None, guest_cart=False) -> str:
 		sales_order = make_test_sales_order()

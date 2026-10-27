@@ -9,6 +9,7 @@ from commera.api.storefront import search as search_api
 from commera.sdk import catalog, format, shop
 from commera.sdk.types import Menu, MenuItem, ProductCard, SearchResults, Typeahead
 from commera.tests.test_product_details import ProductDetailPriceTestCase
+from commera.tests.test_storefront_api import get_shopper_messages
 
 
 class TestSdkStorefront(ProductDetailPriceTestCase):
@@ -151,4 +152,6 @@ class TestImageUrl(ProductDetailPriceTestCase):
 		self.assertRaises(
 			frappe.DoesNotExistError, format.save_resized_image, "/files/../../site_config.png", 320
 		)
+		frappe.local.message_log = []
 		self.assertRaises(frappe.DoesNotExistError, format.save_resized_image, "/files/missing.png", 320)
+		self.assertEqual(get_shopper_messages(), ["Image /files/missing.png not found"])

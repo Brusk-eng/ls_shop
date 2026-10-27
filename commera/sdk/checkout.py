@@ -103,7 +103,7 @@ def get_checkout_email(email: str | None) -> str | None:
 def get_address_input(address: dict | str, email: str | None) -> dict:
 	if isinstance(address, str):
 		if not is_guest() and not is_shoppers_address(address):
-			raise frappe.DoesNotExistError(_("Address {0} not found").format(address))
+			frappe.throw(_("Address {0} not found").format(address), frappe.DoesNotExistError)
 		return {"is_saved": True, "address_id": address, "email": email}
 	if not isinstance(address, dict):
 		frappe.throw(_("Send an address as an object or as the name of a saved address."))
