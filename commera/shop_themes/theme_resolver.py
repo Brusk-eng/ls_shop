@@ -9,6 +9,7 @@ from frappe.website.utils import build_response
 from jinja2 import BaseLoader, BytecodeCache, TemplateNotFound
 from jinja2.utils import LRUCache
 
+import commera.sdk
 from commera.shop_themes.doctype.shop_theme.shop_theme import (
 	get_render_theme_context,
 	is_within_directory,
@@ -274,6 +275,7 @@ def build_base_context(match):
 			"currency_symbols": get_currency_symbols(),
 		},
 	)
+	context.commera = commera.sdk
 	apply_website_context_hooks(context)
 
 	return context

@@ -12,6 +12,7 @@ import frappe
 from frappe.tests import IntegrationTestCase, UnitTestCase
 from frappe.utils.jinja import get_jenv
 
+import commera.sdk
 from commera.api.admin.theme import get_theme_settings_doctype
 from commera.shop_themes.doctype.shop_theme.shop_theme import (
 	build_theme_context,
@@ -392,6 +393,9 @@ class IntegrationTestThemeBaseContext(IntegrationTestCase):
 		session_data.csrf_token = None
 		self.assertIn('"csrf_token": null', build_base_context(None).commera_header_content)
 		self.assertIsNone(session_data.csrf_token)
+
+	def test_base_context_gives_the_frame_the_sdk_as_commera(self):
+		self.assertIs(build_base_context(None).commera, commera.sdk)
 
 
 class IntegrationTestThemedRendering(IntegrationTestCase):

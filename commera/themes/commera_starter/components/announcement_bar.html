@@ -1,0 +1,7 @@
+{% if theme.announcement_text %}
+{% if theme.announcement_url %}
+<a href="{{ theme.announcement_url }}" class="block bg-surface-gray-2 py-2 text-center text-xs text-ink-gray-7">{{ theme.announcement_text }}</a>
+{% else %}
+<p class="bg-surface-gray-2 py-2 text-center text-xs text-ink-gray-7">{{ theme.announcement_text }}</p>
+{% endif %}
+{% endif %}
