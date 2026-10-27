@@ -25,6 +25,9 @@ class ThemeScaffold(AppScaffold):
 			return DEFAULT_THEME_MODULE
 		return frappe.get_module_list(self.app)[0]
 
+	def get_relative_path(self, path: Path) -> str:
+		return str(path.relative_to(Path(frappe.get_app_path(self.app)).parent))
+
 	def is_installed(self) -> bool:
 		return self.app in frappe.get_installed_apps()
 

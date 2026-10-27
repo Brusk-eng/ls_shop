@@ -53,6 +53,11 @@ def get_hooks(app_root: Path) -> dict:
 	return namespace
 
 
+def forget_app_modules():
+	for name in [name for name in sys.modules if name == APP or name.startswith(f"{APP}.")]:
+		sys.modules.pop(name)
+
+
 class TestScaffold(UnitTestCase):
 	def setUp(self):
 		self.directory = tempfile.TemporaryDirectory()
@@ -290,8 +295,8 @@ class IntegrationTestThemeScaffold(IntegrationTestCase):
 		app_root = make_app(self.apps_path)
 		sys.path.insert(0, str(app_root))
 		self.addCleanup(sys.path.remove, str(app_root))
-		sys.modules.pop(APP, None)
-		self.addCleanup(sys.modules.pop, APP, None)
+		forget_app_modules()
+		self.addCleanup(forget_app_modules)
 		self.module = frappe.get_module_list(APP)[0]
 		frappe.local.module_app[frappe.scrub(self.module)] = APP
 		self.addCleanup(frappe.local.module_app.pop, frappe.scrub(self.module))
@@ -329,6 +334,22 @@ class IntegrationTestThemeScaffold(IntegrationTestCase):
 			),
 			("Sections", "Shop Base Theme", self.module, 1),
 		)
+
+	def test_a_theme_lands_where_the_app_is_imported_from(self):
+		directory = tempfile.TemporaryDirectory()
+		self.addCleanup(directory.cleanup)
+		worktree = make_app(Path(directory.name))
+		sys.path.insert(0, str(worktree))
+		self.addCleanup(sys.path.remove, str(worktree))
+		forget_app_modules()
+
+		changes = ThemeScaffold(APP, self.apps_path).add_theme(
+			"Scaffold Check", "Sections", "Shop Base Theme"
+		)
+
+		export_path = worktree / self.export_path.relative_to(self.apps_path / APP)
+		self.assertTrue(export_path.is_file())
+		self.assertIn(("created", str(export_path.relative_to(worktree))), changes)
 
 	def test_an_uninstalled_app_still_checks_the_parent(self):
 		scaffold = ThemeScaffold(APP, self.apps_path)
