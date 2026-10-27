@@ -436,10 +436,7 @@ def get_currency_symbols() -> dict[str, str]:
 	currencies = frappe.get_all(
 		"Price List", filters={"enabled": 1, "selling": 1}, pluck="currency", distinct=True
 	)
-	return {
-		currency: get_currency_symbol(currency)
-		for currency in {*filter(None, currencies), get_store_currency()}
-	}
+	return {currency: get_currency_symbol(currency) for currency in {*currencies, get_store_currency()}}
 
 
 def get_addresses(party=None, address_type="Billing"):
