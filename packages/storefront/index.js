@@ -1,25 +1,7 @@
-const API_ROOT = '/api/method/commera.api.storefront';
-
-export async function get_storefront_data(
-	method,
-	params = {},
-	{ base_url = '' } = {},
-) {
-	const query = new URLSearchParams();
-	for (const [key, value] of Object.entries(params)) {
-		if (value !== undefined && value !== null) {
-			query.set(key, typeof value === 'object' ? JSON.stringify(value) : value);
-		}
-	}
-	const response = await fetch(`${base_url}${API_ROOT}.${method}?${query}`, {
-		credentials: 'include',
-		headers: { Accept: 'application/json' },
-	});
-	const body = await response.json().catch(() => ({}));
-	if (!response.ok) {
-		throw new Error(
-			body.exception || body._error_message || response.statusText,
-		);
-	}
-	return body.message;
-}
+export * as cart from './cart.js';
+export * as checkout from './checkout.js';
+export * as format from './format.js';
+export * as product from './product.js';
+export { StorefrontError } from './request.js';
+export * as search from './search.js';
+export * as wishlist from './wishlist.js';
