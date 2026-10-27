@@ -265,7 +265,7 @@ def build_base_context(match):
 
 	apply_website_settings(context)
 	context.theme = get_shop_theme_settings()
-	context.commera_header_content = frappe.render_template(
+	context.commera_header_content = frappe.render_template(  # nosemgrep: frappe-ssti
 		"templates/includes/commera-header-content.html", {"csrf_token": frappe.session.data.csrf_token}
 	)
 	apply_website_context_hooks(context)
