@@ -37,3 +37,12 @@ test('get_recommendations sends the product handle and limit with GET', async ()
 		'/api/method/commera.api.storefront.search.get_recommendations?handle=runner-blue&limit=8',
 	);
 });
+
+test('get_recommendations without a handle throws before calling the store', async () => {
+	const calls = add_fake_fetch();
+	await assert.rejects(get_recommendations(undefined, 4), {
+		name: 'StorefrontError',
+		message: 'A product handle is required.',
+	});
+	assert.equal(calls.length, 0);
+});

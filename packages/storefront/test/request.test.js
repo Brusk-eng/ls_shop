@@ -105,3 +105,36 @@ test('a failed call with no JSON body throws the status text', async () => {
 		status: 502,
 	});
 });
+
+test('a call that never reaches the store throws a StorefrontError with status 0', async () => {
+	const network_error = new TypeError('Load failed');
+	globalThis.fetch = async () => {
+		throw network_error;
+	};
+	const error = await get('cart.get_cart').catch((error) => error);
+	assert.ok(error instanceof StorefrontError);
+	assert.equal(error.message, 'Could not reach the store.');
+	assert.equal(error.status, 0);
+	assert.equal(error.cause, network_error);
+});
+
+test('a successful call that is not JSON throws instead of returning undefined', async () => {
+	globalThis.fetch = async () => ({
+		ok: true,
+		status: 200,
+		statusText: 'OK',
+		json: async () => {
+			throw new SyntaxError('Unexpected token <');
+		},
+	});
+	await assert.rejects(get('search.get_typeahead', { query: 'shirt' }), {
+		name: 'StorefrontError',
+		message: 'The store sent an unexpected response.',
+		status: 200,
+	});
+});
+
+test('a call whose answer is None returns null', async () => {
+	add_fake_fetch({ get_cart: { body: {} } });
+	assert.equal(await get('cart.get_cart'), null);
+});

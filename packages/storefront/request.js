@@ -1,8 +1,8 @@
 const API_ROOT = '/api/method/commera.api.storefront';
 
 export class StorefrontError extends Error {
-	constructor(message, { status, exc_type } = {}) {
-		super(message);
+	constructor(message, { status, exc_type, cause } = {}) {
+		super(message, { cause });
 		this.name = 'StorefrontError';
 		this.status = status;
 		this.exc_type = exc_type;
@@ -40,19 +40,43 @@ function get_csrf_token() {
 }
 
 async function request(url, { headers = {}, ...options }) {
-	const response = await fetch(url, {
+	const response = await send(url, {
 		...options,
 		credentials: 'same-origin',
 		headers: { Accept: 'application/json', ...headers },
 	});
-	const body = await response.json().catch(() => ({}));
-	if (!response.ok || body.exc_type) {
-		throw new StorefrontError(get_error_message(body, response), {
+	const body = await read_json(response);
+	if (body === null && response.ok) {
+		throw new StorefrontError('The store sent an unexpected response.', {
 			status: response.status,
-			exc_type: body.exc_type,
 		});
 	}
-	return body.message;
+	if (!response.ok || body.exc_type) {
+		throw new StorefrontError(get_error_message(body ?? {}, response), {
+			status: response.status,
+			exc_type: body?.exc_type,
+		});
+	}
+	return body.message ?? null;
+}
+
+async function send(url, options) {
+	try {
+		return await fetch(url, options);
+	} catch (error) {
+		throw new StorefrontError('Could not reach the store.', {
+			status: 0,
+			cause: error,
+		});
+	}
+}
+
+async function read_json(response) {
+	try {
+		return await response.json();
+	} catch {
+		return null;
+	}
 }
 
 function get_error_message(body, response) {
