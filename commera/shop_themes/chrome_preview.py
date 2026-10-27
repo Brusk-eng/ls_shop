@@ -95,4 +95,5 @@ def get_preview_context(preview_settings, lang):
 		preview_theme_css=preview_settings.generate_theme_css(),
 		# The default theme's base renders a breadcrumb outside any block, guarded only by this.
 		show_breadcrumb=False,
+		commera_header_content="",
 	)

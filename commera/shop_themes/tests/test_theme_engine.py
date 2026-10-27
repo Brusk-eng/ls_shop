@@ -333,6 +333,28 @@ class IntegrationTestThemeBaseContext(IntegrationTestCase):
 		# get_csrf_token() here minted a throwaway token and made a themed page differ from an unthemed one.
 		self.assertNotIn("csrf_token", build_base_context(None))
 
+	def test_base_context_loads_the_storefront_sdk(self):
+		header_content = build_base_context(None).commera_header_content
+		self.assertIn("window.commera_storefront_config", header_content)
+		self.assertIn("commera-storefront.bundle", header_content)
+
+	def test_header_content_carries_each_session_its_own_csrf_token(self):
+		session_data = frappe.local.session.data
+		self.addCleanup(setattr, session_data, "csrf_token", session_data.get("csrf_token"))
+
+		session_data.csrf_token = "shopper-one-token"
+		self.assertIn('"csrf_token": "shopper-one-token"', build_base_context(None).commera_header_content)
+		session_data.csrf_token = "shopper-two-token"
+		self.assertIn('"csrf_token": "shopper-two-token"', build_base_context(None).commera_header_content)
+
+	def test_header_content_does_not_mint_a_csrf_token_for_a_guest(self):
+		session_data = frappe.local.session.data
+		self.addCleanup(setattr, session_data, "csrf_token", session_data.get("csrf_token"))
+
+		session_data.csrf_token = None
+		self.assertIn('"csrf_token": null', build_base_context(None).commera_header_content)
+		self.assertIsNone(session_data.csrf_token)
+
 
 class IntegrationTestThemedRendering(IntegrationTestCase):
 	def setUp(self):
