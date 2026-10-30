@@ -41,8 +41,16 @@ from commera.shop_themes.theme_resolver import (
 	match_route,
 	theme_bytecode_caches,
 )
+from commera.utils import get_currency_symbol, get_store_currency
 
 APP_PATH = frappe.get_app_path("commera")
+STOREFRONT_CONFIG_PATTERN = re.compile(r"window\.commera_storefront_config = (.*);")
+
+
+def get_storefront_config(header_content: str) -> dict:
+	return json.loads(STOREFRONT_CONFIG_PATTERN.search(header_content).group(1))
+
+
 THEMES_ROOT = os.path.join(APP_PATH, "themes")
 
 
@@ -346,6 +354,36 @@ class IntegrationTestThemeBaseContext(IntegrationTestCase):
 		self.assertIn('"csrf_token": "shopper-one-token"', build_base_context(None).commera_header_content)
 		session_data.csrf_token = "shopper-two-token"
 		self.assertIn('"csrf_token": "shopper-two-token"', build_base_context(None).commera_header_content)
+
+	def test_header_content_knows_the_currency_of_every_enabled_selling_price_list(self):
+		for currency, selling, enabled in (("SAR", 1, 1), ("AED", 0, 1), ("EUR", 1, 0)):
+			frappe.get_doc(
+				{
+					"doctype": "Price List",
+					"price_list_name": f"Header Currency {currency} {frappe.generate_hash(length=6)}",
+					"currency": currency,
+					"selling": selling,
+					"buying": int(not selling),
+					"enabled": enabled,
+				}
+			).insert(ignore_permissions=True)
+		frappe.local.request_cache.clear()
+
+		config = get_storefront_config(build_base_context(None).commera_header_content)
+
+		selling_currencies = frappe.get_all(
+			"Price List", filters={"enabled": 1, "selling": 1}, pluck="currency", distinct=True
+		)
+		self.assertEqual(set(config["currency_symbols"]), {*selling_currencies, get_store_currency()})
+		self.assertEqual(
+			config["currency_symbols"]["SAR"], '<span class="saudi-currency-symbol pe-0.5"></span>'
+		)
+		self.assertNotIn("AED", config["currency_symbols"])
+		self.assertNotIn("EUR", config["currency_symbols"])
+		self.assertEqual(config["store_currency"], get_store_currency())
+		self.assertEqual(
+			config["currency_symbols"][get_store_currency()], get_currency_symbol(get_store_currency())
+		)
 
 	def test_header_content_does_not_mint_a_csrf_token_for_a_guest(self):
 		session_data = frappe.local.session.data

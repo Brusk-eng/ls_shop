@@ -10,6 +10,7 @@ from frappe.geo.country_info import get_all
 from frappe.query_builder import Case, DocType
 from frappe.query_builder.functions import Count, Min, Sum
 from frappe.utils import add_days, cint, create_batch, cstr, flt, get_datetime, now_datetime
+from frappe.utils.caching import request_cache
 from frappe.utils.data import strip_html
 from pypika import Order
 
@@ -428,6 +429,14 @@ def get_currency_symbol(currency: str | None = None):
 		return '<span class="saudi-currency-symbol pe-0.5"></span>'
 	# A code needs a gap before the amount; a plain space collapses inside the flex price wrappers.
 	return frappe.get_cached_value("Currency", currency, "symbol") or f"{currency}\u00a0"
+
+
+@request_cache
+def get_currency_symbols() -> dict[str, str]:
+	currencies = frappe.get_all(
+		"Price List", filters={"enabled": 1, "selling": 1}, pluck="currency", distinct=True
+	)
+	return {currency: get_currency_symbol(currency) for currency in {*currencies, get_store_currency()}}
 
 
 def get_addresses(party=None, address_type="Billing"):
