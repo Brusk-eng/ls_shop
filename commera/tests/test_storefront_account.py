@@ -217,3 +217,42 @@ class TestStorefrontAccount(IntegrationTestCase):
 			.insert(ignore_permissions=True)
 			.name
 		)
+
+
+class TestFirstAddressRace(IntegrationTestCase):
+	def setUp(self):
+		self.addCleanup(frappe.set_user, "Administrator")
+
+	def test_a_new_shoppers_first_address_saves_while_their_contact_changes_elsewhere(self):
+		frappe.db.rollback()
+		shopper = make_website_user()
+		frappe.db.commit()
+		self.addCleanup(delete_committed_user, shopper)
+		frappe.set_user(shopper)
+		self.assertEqual(account.list_addresses(), [])
+
+		worker_connection = frappe.database.get_db(
+			socket=frappe.conf.db_socket,
+			host=frappe.conf.db_host,
+			port=frappe.conf.db_port,
+			user=frappe.conf.db_user or frappe.conf.db_name,
+			password=frappe.conf.db_password,
+			cur_db_name=frappe.conf.db_name,
+		)
+		worker_connection.connect()
+		worker_connection.sql("update `tabContact` set modified = now(6) where user = %s", shopper)
+		worker_connection.commit()
+		worker_connection.close()
+
+		added = account.save_address(ADDRESS)
+
+		self.assertEqual([address["name"] for address in account.list_addresses()], [added["name"]])
+
+
+def delete_committed_user(user: str):
+	frappe.db.rollback()
+	frappe.set_user("Administrator")
+	for contact in frappe.get_all("Contact", filters={"user": user}, pluck="name"):
+		frappe.delete_doc("Contact", contact, force=True, ignore_permissions=True)
+	frappe.delete_doc("User", user, force=True, ignore_permissions=True)
+	frappe.db.commit()

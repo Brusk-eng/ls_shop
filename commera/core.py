@@ -6,6 +6,7 @@ import frappe.defaults
 from frappe import _
 from frappe.contacts.doctype.address.address import get_address_display
 from frappe.contacts.doctype.contact.contact import get_contact_name
+from frappe.query_builder import DocType
 from frappe.utils import get_fullname
 from frappe.utils.nestedset import get_root_of
 
@@ -111,10 +112,10 @@ def create_party(email: str, customer_name: str, portal_user: str | None = None)
 			"territory": _get_default_territory(),
 		}
 	)
-	if portal_user:
-		customer.append("portal_users", {"user": portal_user})
 	customer.flags.ignore_mandatory = True
 	customer.insert(ignore_permissions=True)
+	if portal_user:
+		add_portal_user_after_linking_contacts(customer, portal_user)
 
 	contact = frappe.new_doc("Contact")
 	contact.update({"first_name": customer_name, "email_ids": [{"email_id": email, "is_primary": 1}]})
@@ -123,6 +124,28 @@ def create_party(email: str, customer_name: str, portal_user: str | None = None)
 	contact.insert(ignore_permissions=True)
 
 	return customer, contact
+
+
+def add_portal_user_after_linking_contacts(customer, user: str):
+	contact, contact_email = DocType("Contact"), DocType("Contact Email")
+	contact_names = (
+		frappe.qb.from_(contact)
+		.left_join(contact_email)
+		.on(contact_email.parent == contact.name)
+		.select(contact.name)
+		.distinct()
+		.where((contact.user == user) | (contact.email_id == user) | (contact_email.email_id == user))
+		.run(pluck=True)
+	)
+	with latest_committed_reads():
+		for contact_name in contact_names:
+			contact_doc = frappe.get_doc("Contact", contact_name, for_update=True)
+			if not contact_doc.has_link("Customer", customer.name):
+				contact_doc.append("links", {"link_doctype": "Customer", "link_name": customer.name})
+				contact_doc.save(ignore_permissions=True)
+
+	customer.append("portal_users", {"user": user})
+	customer.save(ignore_permissions=True)
 
 
 def get_customer_contact(email: str) -> tuple[str, str] | None:
