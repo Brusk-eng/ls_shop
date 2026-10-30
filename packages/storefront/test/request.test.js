@@ -118,14 +118,14 @@ test('a failed call without messages throws the last line of the traceback', asy
 test('a failed call with only the error type throws the status text', async () => {
 	add_fake_fetch({
 		get_product: {
-			status: 404,
-			body: { errors: [{ type: 'DoesNotExistError' }] },
+			status: 417,
+			body: { errors: [{ type: 'ValidationError' }] },
 		},
 	});
 	await assert.rejects(get('products.get_product', { handle: 'gone' }), {
 		message: 'Error',
-		status: 404,
-		exc_type: 'DoesNotExistError',
+		status: 417,
+		exc_type: 'ValidationError',
 	});
 });
 
@@ -175,4 +175,40 @@ test('a successful call that is not JSON throws instead of returning undefined',
 test('a call whose answer is None returns null', async () => {
 	add_fake_fetch({ get_cart: { body: {} } });
 	assert.equal(await get('cart.get_cart'), null);
+});
+
+for (const [status, exc_type, message] of [
+	[404, 'DoesNotExistError', 'Not found.'],
+	[403, 'PermissionError', 'Not permitted.'],
+]) {
+	test(`a ${status} with no message behind a proxy reads "${message}"`, async () => {
+		globalThis.fetch = async () => ({
+			ok: false,
+			status,
+			statusText: '',
+			json: async () => ({ errors: [{ type: exc_type }] }),
+		});
+		await assert.rejects(get('products.get_product', { handle: 'gone' }), {
+			name: 'StorefrontError',
+			message,
+			status,
+			exc_type,
+		});
+	});
+}
+
+test('a server message still wins over the fallback', async () => {
+	add_fake_fetch({
+		get_product: {
+			status: 404,
+			body: {
+				errors: [
+					{ type: 'DoesNotExistError', message: 'Product gone not found' },
+				],
+			},
+		},
+	});
+	await assert.rejects(get('products.get_product', { handle: 'gone' }), {
+		message: 'Product gone not found',
+	});
 });

@@ -1,4 +1,5 @@
 const API_ROOT = '/api/v2/method/commera.api.storefront';
+const STATUS_MESSAGES = { 403: 'Not permitted.', 404: 'Not found.' };
 
 export class StorefrontError extends Error {
 	constructor(message, { status, exc_type, cause } = {}) {
@@ -86,6 +87,7 @@ function get_error_message(body, response) {
 		error.message ||
 			body.messages?.[0]?.message ||
 			error.exception?.trim().split('\n').pop() ||
+			STATUS_MESSAGES[response.status] ||
 			response.statusText ||
 			'Request failed',
 	);

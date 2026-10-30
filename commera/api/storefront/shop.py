@@ -21,7 +21,7 @@ def get_shop() -> dict:
 def get_page(handle: str) -> ContentPage:
 	if page := shop.get_page(handle):
 		return page
-	raise frappe.DoesNotExistError(_("Page {0} not found").format(handle))
+	frappe.throw(_("Page {0} not found").format(handle), frappe.DoesNotExistError)
 
 
 @frappe.whitelist(allow_guest=True, methods=["GET"])  # nosemgrep: guest-whitelisted-method

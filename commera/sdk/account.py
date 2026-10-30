@@ -95,7 +95,7 @@ def save_address(address: dict) -> CustomerAddress:
 
 def get_own_address(name: str):
 	if not is_shoppers_address(name):
-		raise frappe.DoesNotExistError(_("Address {0} not found").format(name))
+		frappe.throw(_("Address {0} not found").format(name), frappe.DoesNotExistError)
 	return frappe.get_doc("Address", name)
 
 
@@ -138,7 +138,7 @@ def get_order(name: str) -> ShopperOrder:
 	get_shopper()
 	orders = read_order_results([name], ()) if get_order_access(name) == OWNER_ACCESS else {}
 	if cstr(name) not in orders:
-		raise frappe.DoesNotExistError(_("Order {0} not found").format(name))
+		frappe.throw(_("Order {0} not found").format(name), frappe.DoesNotExistError)
 	return without_staff_fields(orders[cstr(name)])
 
 
