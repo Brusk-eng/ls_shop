@@ -4,6 +4,31 @@ function product_url(product) {
 	)}`;
 }
 
+function typeahead() {
+	return {
+		query: '',
+		results: null,
+
+		async search() {
+			const query = this.query.trim();
+			if (!query) {
+				this.results = null;
+				return;
+			}
+			const results = await commera.search.get_typeahead(query);
+			if (query === this.query.trim()) {
+				this.results = results;
+			}
+		},
+
+		product_url,
+
+		money(product) {
+			return commera.format.money(product.price, product.currency);
+		},
+	};
+}
+
 document.addEventListener('alpine:init', () => {
 	Alpine.store('cart', {
 		cart: null,
@@ -55,32 +80,15 @@ document.addEventListener('alpine:init', () => {
 		product_url,
 	});
 
+	Alpine.data('typeahead', typeahead);
+
 	Alpine.data('search_modal', () => ({
+		...typeahead(),
 		open: false,
-		query: '',
-		results: null,
 
 		show() {
 			this.open = true;
 			this.$nextTick(() => this.$refs.search_input.focus());
-		},
-
-		async search() {
-			const query = this.query.trim();
-			if (!query) {
-				this.results = null;
-				return;
-			}
-			const results = await commera.search.get_typeahead(query);
-			if (query === this.query.trim()) {
-				this.results = results;
-			}
-		},
-
-		product_url,
-
-		money(product) {
-			return commera.format.money(product.price, product.currency);
 		},
 	}));
 

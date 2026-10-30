@@ -6,7 +6,7 @@ from frappe.tests import IntegrationTestCase
 
 import commera.sdk
 from commera.shop_themes.doctype.shop_theme.shop_theme import render_theme_context
-from commera.shop_themes.sections import get_theme_json, validate_layout
+from commera.shop_themes.sections import LAYOUT_CACHE_PREFIX, get_theme_json, validate_layout
 from commera.shop_themes.theme_resolver import ThemePageRenderer, build_base_context
 
 STARTER = "Commera Starter"
@@ -39,7 +39,9 @@ class IntegrationTestCommeraStarter(IntegrationTestCase):
 			"apps": {STARTER: "commera"},
 			"settings_doctype": None,
 		}
-		frappe.cache.delete_value(f"commera:theme_layout:{STARTER}:index")
+		for page in ("index", "header_group", "footer_group"):
+			frappe.cache.delete_value(f"{LAYOUT_CACHE_PREFIX}{STARTER}:{page}")
+			self.addCleanup(frappe.cache.delete_value, f"{LAYOUT_CACHE_PREFIX}{STARTER}:{page}")
 		frappe.db.delete("Theme Layout", {"theme": STARTER})
 
 	def render_home(self, products):
@@ -52,9 +54,77 @@ class IntegrationTestCommeraStarter(IntegrationTestCase):
 			renderer.template_path = "pages/index.html"
 			return renderer.render_with_theme_loader(build_base_context(None))
 
-	def test_the_home_layout_passes_the_layout_checks(self):
-		with render_theme_context(self.theme_context):
-			validate_layout(self.theme_context, get_theme_json([STARTER_DIR], "layouts/index.json"))
+	def publish(self, page, layout):
+		frappe.cache.set_value(f"{LAYOUT_CACHE_PREFIX}{STARTER}:{page}", {"layout": layout})
+
+	def assert_layout_rejected(self, page, section_type):
+		layout = {"sections": [{"id": "probe", "type": section_type}]}
+		with self.assertRaises(frappe.ValidationError):
+			validate_layout(self.theme_context, layout, page)
+
+	def test_every_starter_layout_passes_the_layout_checks(self):
+		for page in ("index", "header_group", "footer_group"):
+			with self.subTest(page):
+				validate_layout(
+					self.theme_context, get_theme_json([STARTER_DIR], f"layouts/{page}.json"), page
+				)
+
+	def test_sections_are_only_accepted_where_their_schema_allows(self):
+		self.assert_layout_rejected("header_group", "hero")
+		self.assert_layout_rejected("footer_group", "header")
+		self.assert_layout_rejected("index", "header")
+		self.assert_layout_rejected("index", "footer")
+
+		newsletter = {"sections": [{"id": "newsletter", "type": "newsletter"}]}
+		validate_layout(self.theme_context, newsletter, "index")
+		validate_layout(self.theme_context, newsletter, "footer_group")
+
+	def test_the_header_and_footer_come_from_their_group_layouts(self):
+		html = self.render_home([])
+
+		self.assertIn('aria-label="Wishlist"', html)
+		self.assertIn("grid grid-cols-3 items-center", html)
+		self.assertNotIn("ZZ Starter announcement", html)
+
+		self.publish(
+			"header_group",
+			{
+				"sections": [
+					{
+						"id": "announcement",
+						"type": "announcement_bar",
+						"settings": {"text": "ZZ Starter announcement"},
+					},
+					{
+						"id": "header",
+						"type": "header",
+						"settings": {"logo_position": "start", "show_wishlist": False},
+					},
+				]
+			},
+		)
+		self.publish(
+			"footer_group",
+			{
+				"sections": [
+					{
+						"id": "footer",
+						"type": "footer",
+						"settings": {"copyright": "ZZ Starter copyright"},
+						"blocks": [
+							{"id": "note", "type": "text", "settings": {"heading": "ZZ Starter column"}}
+						],
+					}
+				]
+			},
+		)
+		html = self.render_home([])
+
+		self.assertIn("ZZ Starter announcement", html)
+		self.assertNotIn('aria-label="Wishlist"', html)
+		self.assertNotIn("grid grid-cols-3 items-center", html)
+		self.assertIn("ZZ Starter copyright", html)
+		self.assertIn("ZZ Starter column", html)
 
 	def test_the_home_page_renders_every_section_from_the_theme_defaults(self):
 		html = self.render_home([PRODUCT_CARD])

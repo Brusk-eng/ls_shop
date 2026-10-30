@@ -1,11 +1,12 @@
 {% from "components/macros/icons.html" import icon %}
 {% from "components/macros/menu_link.html" import menu_link %}
 {% set language = frappe.lang or "en" %}
-{% set main_menu = commera.shop.get_menu("main-menu") %}
+{% set main_menu = commera.shop.get_menu(section.settings.menu or "main-menu") %}
 {% set menu_items = main_menu["items"] if main_menu else [] %}
+{% set logo_at_start = section.settings.logo_position == "start" %}
 
 <header x-data class="relative z-40">
-	<div class="grid grid-cols-3 items-center px-5 py-4 md:px-12">
+	<div class="{{ 'flex items-center gap-6' if logo_at_start else 'grid grid-cols-3 items-center' }} px-5 py-4 md:px-12">
 		<div class="flex items-center gap-1">
 			<button type="button" @click="$dispatch('open-menu')" class="grid size-10 place-items-center rounded-lg text-ink-gray-8 hover:bg-surface-gray-3 md:hidden" aria-label="{{ _('Menu') }}">{{ icon("menu") }}</button>
 			{% for item in menu_items %}
@@ -32,18 +33,25 @@
 			{% endfor %}
 		</div>
 
-		<a href="/{{ language }}" class="justify-self-center text-center text-lg font-semibold uppercase tracking-widest">
+		<a href="/{{ language }}" class="{{ 'md:order-first' if logo_at_start else 'justify-self-center text-center' }} text-lg font-semibold uppercase tracking-widest">
 			{% if theme.logo %}<img src="{{ theme.logo }}" alt="{{ app_name }}" class="h-8 w-auto">{% else %}{{ app_name }}{% endif %}
 		</a>
 
-		<div class="flex items-center justify-end gap-1">
-			<button type="button" @click="$dispatch('open-search')" class="grid size-10 place-items-center rounded-lg text-ink-gray-8 hover:bg-surface-gray-3" aria-label="{{ _('Search') }}">{{ icon("search") }}</button>
+		<div class="{{ 'ms-auto' if logo_at_start }} flex items-center justify-end gap-1">
+			{% if section.settings.show_search %}
+			<button type="button" @click="$dispatch('open-search')" class="hidden size-10 place-items-center rounded-lg text-ink-gray-8 hover:bg-surface-gray-3 md:grid" aria-label="{{ _('Search') }}">{{ icon("search") }}</button>
+			{% endif %}
+			{% if section.settings.show_account %}
 			<a href="/{{ language }}/account" class="hidden size-10 place-items-center rounded-lg text-ink-gray-8 hover:bg-surface-gray-3 md:grid" aria-label="{{ _('Account') }}">{{ icon("user") }}</a>
+			{% endif %}
+			{% if section.settings.show_wishlist %}
 			<a href="/{{ language }}/account/wishlist" class="hidden size-10 place-items-center rounded-lg text-ink-gray-8 hover:bg-surface-gray-3 md:grid" aria-label="{{ _('Wishlist') }}">{{ icon("heart") }}</a>
+			{% endif %}
 			<a href="/{{ language }}/cart" @click.prevent="$dispatch('open-cart')" class="relative grid size-10 place-items-center rounded-lg text-ink-gray-8 hover:bg-surface-gray-3" aria-label="{{ _('Cart') }}">
 				{{ icon("bag") }}
 				<span x-cloak x-show="$store.cart.count" x-text="$store.cart.count" class="absolute end-0.5 top-0.5 grid h-4 min-w-4 place-content-center rounded-full bg-brand px-1 text-2xs text-on-brand"></span>
 			</a>
 		</div>
 	</div>
+	{% include "components/mobile_menu.html" %}
 </header>
