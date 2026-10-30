@@ -1,25 +1,32 @@
 # Copyright (c) 2026, company@bwhstudios.com and contributors
 # For license information, please see license.txt
 
-"""Renders a theme's home page for the theme editor's iframe.
-Defaults to the live theme; `?theme=` frames an installed theme that is not live yet."""
-
 import frappe
+from frappe import _
 from frappe.utils import escape_html
+from markupsafe import Markup
 
 from commera.shop_themes.chrome_preview import TRACKING_BLANKED_BLOCKS, render_page_preview
-
-HOME_TEMPLATE = "pages/index.html"
+from commera.shop_themes.doctype.shop_theme.shop_theme import get_theme_context, resolve_active_theme
+from commera.shop_themes.theme_resolver import find_theme_file
 
 no_cache = True
 
 PREVIEW_LANGUAGES = ("en", "ar")
+EDITOR_ROLES = ("System Manager", "Website Manager")
+
+EDITOR_HEAD_HTML = Markup(
+	"<style>[data-commera-section]{display:contents}</style>"
+	'<script defer src="/assets/commera/js/theme_editor_preview.js"></script>'
+)
 
 
 def get_context(context):
-	frappe.has_permission("Shop Theme Settings", "write", throw=True)
+	frappe.only_for(EDITOR_ROLES)
 
 	theme = requested_theme()
+	page = requested_page(theme)
+	layout = requested_layout()
 
 	lang = frappe.form_dict.get("lang")
 	if lang not in PREVIEW_LANGUAGES:
@@ -28,7 +35,18 @@ def get_context(context):
 	# The themed page reads its language off frappe.lang, so the ?lang switch must move it here.
 	frappe.local.lang = lang
 
-	rendered = render_page_preview(HOME_TEMPLATE, TRACKING_BLANKED_BLOCKS, theme_name=theme)
+	head_html = ""
+	if layout is not None:
+		frappe.local.theme_editor_preview = frappe._dict(page=page, layout=layout)
+		head_html = EDITOR_HEAD_HTML
+
+	try:
+		rendered = render_page_preview(
+			f"pages/{page}.html", TRACKING_BLANKED_BLOCKS, theme_name=theme, head_html=head_html
+		)
+	finally:
+		frappe.local.theme_editor_preview = None
+
 	if rendered:
 		context.rendered_html = rendered
 		return
@@ -53,6 +71,34 @@ def requested_theme():
 		return None
 
 	return theme
+
+
+def requested_page(theme):
+	page = frappe.form_dict.get("page") or "index"
+	if page == "index":
+		return page
+	if (
+		not isinstance(page, str)
+		or not page.replace("_", "").replace("-", "").isalnum()
+		or not find_theme_file(
+			get_theme_context(theme or resolve_active_theme())["dirs"], f"layouts/{page}.json"
+		)
+	):
+		frappe.throw(_("This theme has no {0} page to preview.").format(page), frappe.DoesNotExistError)
+
+	return page
+
+
+def requested_layout():
+	layout = frappe.form_dict.get("layout")
+	if layout is None:
+		return None
+
+	layout = frappe.parse_json(layout)
+	if not isinstance(layout, dict) or not isinstance(layout.get("sections"), list):
+		frappe.throw(_('A layout must be an object with a "sections" list.'))
+
+	return layout
 
 
 def no_preview_message(theme):

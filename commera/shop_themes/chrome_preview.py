@@ -57,7 +57,7 @@ def render_chrome_preview(context, blanked_blocks):
 	)
 
 
-def render_page_preview(page_template, blanked_blocks, theme_name=None):
+def render_page_preview(page_template, blanked_blocks, theme_name=None, head_html=""):
 	"""Render one of a theme's own pages whole, or None if there is no theme or it ships no such page.
 	Unlike render_chrome_preview() this keeps the page content. `theme_name` previews a non-live theme."""
 	theme_name = theme_name or resolve_active_theme()
@@ -73,7 +73,7 @@ def render_page_preview(page_template, blanked_blocks, theme_name=None):
 
 		# Nothing here is unsaved, so the head slot has no colours to append - but jinja is configured
 		# with DebugUndefined, which would print the placeholder into the page rather than drop it.
-		context.preview_theme_css = ""
+		context.preview_theme_css = head_html
 
 		return render_themed_template(
 			get_preview_template(f"theme://{page_template}", blanked_blocks),

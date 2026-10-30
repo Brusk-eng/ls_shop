@@ -12,6 +12,8 @@ from commera.api.admin.theme import (
 	get_editor_data,
 	save_theme_settings,
 )
+from commera.shop_themes.doctype.shop_theme.shop_theme import build_theme_context
+from commera.shop_themes.sections import clear_layout_cache, get_section, get_section_schema
 from commera.www import theme_editor_preview
 
 SUMMER_THEME = "Summer Theme"
@@ -91,6 +93,20 @@ class TestAdminTheme(IntegrationTestCase):
 		self.assertRaises(frappe.ValidationError, save_theme_settings, store_name="ZZ Store")
 
 
+def hero_layout(caption, hidden=False, section_id="hero"):
+	return {
+		"sections": [
+			{
+				"id": section_id,
+				"type": "hero_slider",
+				"hidden": hidden,
+				"settings": {"caption": caption},
+				"blocks": [{"id": "slide-1", "type": "slide", "settings": {"heading": "Slide heading"}}],
+			}
+		]
+	}
+
+
 class TestThemeEditorPreview(IntegrationTestCase):
 	def setUp(self):
 		self.addCleanup(frappe.db.rollback)
@@ -98,10 +114,10 @@ class TestThemeEditorPreview(IntegrationTestCase):
 		frappe.set_user("Administrator")
 		activate_theme(SUMMER_THEME)
 
-	def render(self, lang="en", theme=None):
+	def render(self, lang="en", theme=None, **form):
 		# frappe.local, never frappe.form_dict: rebinding the module attribute swaps the LocalProxy out
 		# for a plain dict, and every later test in the run reads that stale one.
-		frappe.local.form_dict = frappe._dict(lang=lang, theme=theme)
+		frappe.local.form_dict = frappe._dict(lang=lang, theme=theme, **form)
 		context = frappe._dict()
 		theme_editor_preview.get_context(context)
 		return context.rendered_html
@@ -143,3 +159,80 @@ class TestThemeEditorPreview(IntegrationTestCase):
 
 		self.assertIn(BASE_THEME, html)
 		self.assertIn("no home page to preview", html)
+
+	def publish_layout(self, layout):
+		self.addCleanup(clear_layout_cache, SUMMER_THEME, "index")
+		name = frappe.db.exists("Theme Layout", {"theme": SUMMER_THEME, "page": "index"})
+		theme_layout = (
+			frappe.get_doc("Theme Layout", name)
+			if name
+			else frappe.new_doc("Theme Layout", theme=SUMMER_THEME, page="index")
+		)
+		theme_layout.update(
+			{"draft_layout": frappe.as_json(layout), "published_layout": frappe.as_json(layout)}
+		)
+		theme_layout.save()
+
+	def test_a_posted_layout_renders_in_place_of_the_published_one(self):
+		self.publish_layout(hero_layout("Published caption"))
+
+		html = self.render(layout=frappe.as_json(hero_layout("Draft caption")))
+
+		self.assertIn("Draft caption", html)
+		self.assertNotIn("Published caption", html)
+		self.assertIn("Published caption", self.render())
+
+	def test_a_hidden_section_in_the_posted_layout_is_skipped(self):
+		layout = hero_layout("Hidden caption", hidden=True)
+		layout["sections"] += hero_layout("Shown caption", section_id="hero-2")["sections"]
+
+		html = self.render(layout=frappe.as_json(layout))
+
+		self.assertNotIn("Hidden caption", html)
+		self.assertIn("Shown caption", html)
+
+	def test_the_editor_preview_marks_sections_and_loads_its_script(self):
+		html = self.render(layout=frappe.as_json(hero_layout("Draft caption")))
+
+		self.assertIn('<div data-commera-section="hero">', html)
+		self.assertIn("/assets/commera/js/theme_editor_preview.js", html)
+
+	def test_the_published_preview_and_the_live_home_page_carry_no_markers(self):
+		self.render(layout=frappe.as_json(hero_layout("Draft caption")))
+
+		for html in (self.render(), self.render_live_home_page()):
+			self.assertIn("theme-summer", html)
+			self.assertNotIn("data-commera-section", html)
+			self.assertNotIn("theme_editor_preview.js", html)
+
+	def render_live_home_page(self):
+		from frappe.website.serve import get_response_content
+
+		frappe.set_user("Guest")
+		frappe.local.form_dict = frappe._dict()
+		return get_response_content("/en")
+
+	def test_blocks_get_escaped_editor_attributes_only_in_editor_mode(self):
+		theme_context = build_theme_context(SUMMER_THEME)
+		schema = get_section_schema(theme_context["dirs"], "hero_slider")
+		saved_section = hero_layout("Caption")["sections"][0]
+		saved_section["blocks"][0]["id"] = 'slide"><b>'
+
+		editor_block = get_section(schema, saved_section, theme_context, editor_mode=True).blocks[0]
+		live_block = get_section(schema, saved_section, theme_context).blocks[0]
+
+		self.assertEqual(str(editor_block.editor_attributes), ' data-commera-block="slide&#34;&gt;&lt;b&gt;"')
+		self.assertEqual(str(live_block.editor_attributes), "")
+
+	def test_only_managers_get_the_preview(self):
+		frappe.set_user("Guest")
+
+		self.assertRaises(frappe.PermissionError, self.render, layout=frappe.as_json(hero_layout("Draft")))
+
+	def test_a_page_the_theme_ships_no_layout_for_is_rejected(self):
+		for page in ("no_such_page", "../index"):
+			self.assertRaises(frappe.DoesNotExistError, self.render, page=page)
+
+	def test_a_layout_that_is_not_an_object_with_sections_is_rejected(self):
+		for layout in ("[]", '{"sections": "hero"}'):
+			self.assertRaises(frappe.ValidationError, self.render, layout=layout)
