@@ -18,6 +18,8 @@ DEFAULT_MAX_BLOCKS = 50
 DEFAULT_MAX_PRODUCTS = 8
 PASS_THROUGH_IMAGE_PREFIXES = ("http://", "https://", "/assets/")
 SORT_BY_SOURCE = {"newest": "new_arrival", "on_sale": "discount", "collection": "default"}
+SECTION_GROUPS = frozenset({"header_group", "footer_group"})
+DEFAULT_SECTION_GROUPS = ("pages",)
 
 theme_json_files = {}
 image_urls = {}
@@ -217,9 +219,11 @@ def get_section_products(settings, limit):
 	return page["products"]
 
 
-def validate_layout(theme_context, layout):
+def validate_layout(theme_context, layout, page=None):
 	if not isinstance(layout, dict) or not isinstance(layout.get("sections"), list):
 		frappe.throw(_('A layout must be an object with a "sections" list.'))
+
+	group = page if page in SECTION_GROUPS else "pages"
 
 	references = frappe._dict(images=[], products=[], collections=[])
 	section_ids = set()
@@ -228,6 +232,8 @@ def validate_layout(theme_context, layout):
 		schema = get_section_schema(theme_context["dirs"], section["type"])
 		if not schema:
 			frappe.throw(_("Section type {0} does not exist in this theme.").format(section["type"]))
+		if group not in (schema.get("groups") or DEFAULT_SECTION_GROUPS):
+			frappe.throw(_("Section type {0} cannot be used in {1}.").format(section["type"], page or group))
 		if not isinstance(section.get("hidden", False), bool):
 			frappe.throw(_("Section {0}: hidden must be true or false.").format(section["id"]))
 		validate_settings(schema.get("settings"), section.get("settings"), section["id"], references)

@@ -14,7 +14,7 @@ class ThemeLayout(Document):
 		theme_context = build_theme_context(self.theme)
 		for fieldname in ("draft_layout", "published_layout"):
 			if self.get(fieldname):
-				validate_layout(theme_context, frappe.parse_json(self.get(fieldname)))
+				validate_layout(theme_context, frappe.parse_json(self.get(fieldname)), self.page)
 
 	def on_update(self):
 		clear_layout_cache(self.theme, self.page)
