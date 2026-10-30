@@ -13,6 +13,7 @@ from frappe.utils.nestedset import get_root_of
 from commera.guest import get_guest_cart_name, is_guest, validate_guest_checkout_enabled
 
 COD_PAYMENT_MODE = "COD"
+OTP_EXPIRY_SECONDS = 5 * 60
 
 
 def is_cod(payment_mode: str | None) -> bool:
@@ -64,11 +65,21 @@ def generate_otp():
 	return int.from_bytes(os.urandom(5), byteorder="big") % 900000 + 100000
 
 
-def send_otp(email):
+def get_otp_key(email: str, purpose: str | None = None) -> str:
+	return f"otp:{purpose}:{email}" if purpose else f"otp:{email}"
+
+
+def get_otp_attempts_key(email: str, purpose: str) -> str:
+	return f"otp_attempts:{purpose}:{email}"
+
+
+def send_otp(email, purpose: str | None = None):
 	"""Generate OTP and store it temporarily in Redis"""
 
 	otp = generate_otp()
-	frappe.cache.set_value(f"otp:{email}", otp, expires_in_sec=5 * 60)
+	frappe.cache.set_value(get_otp_key(email, purpose), otp, expires_in_sec=OTP_EXPIRY_SECONDS)
+	if purpose:
+		frappe.cache.delete_value(get_otp_attempts_key(email, purpose))
 
 	if frappe.conf.developer_mode:
 		print(f"OTP for {email}: {otp}")

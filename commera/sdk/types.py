@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 from typing import Any, TypedDict
 
 __all__ = [
@@ -26,6 +26,7 @@ __all__ = [
 	"NewCartLine",
 	"Order",
 	"OrderLine",
+	"OrderTracking",
 	"PaymentMethod",
 	"PaymentSession",
 	"PlacedOrder",
@@ -39,6 +40,8 @@ __all__ = [
 	"ProductPage",
 	"ProductVariant",
 	"Rating",
+	"ReturnOptions",
+	"ReturnReason",
 	"SearchResults",
 	"ShippingOption",
 	"ShippingOptions",
@@ -48,6 +51,7 @@ __all__ = [
 	"Sitemap",
 	"SitemapEntry",
 	"Stage",
+	"TrackingEvent",
 	"Typeahead",
 	"TypeaheadLink",
 	"Wishlist",
@@ -501,6 +505,35 @@ class CheckoutState(TypedDict):
 	store: str | None
 	shipping_option: str | None
 	summary: CheckoutSummary
+
+
+class ReturnReason(TypedDict):
+	name: str
+	label: str
+
+
+class ReturnOptions(TypedDict):
+	can_return: bool
+	return_by: datetime | None
+	reasons: list[ReturnReason]
+	returned_items: list[str]
+	pending_items: list[str]
+
+
+class TrackingEvent(TypedDict):
+	timestamp: datetime
+	status: str | None
+	location: str | None
+	message: str | None
+
+
+class OrderTracking(TypedDict, total=False):
+	has_tracking: bool
+	awb: str
+	carrier: str | None
+	status: str | None
+	tracking_url: str | None
+	events: list[TrackingEvent]
 
 
 class ShippingOption(TypedDict):

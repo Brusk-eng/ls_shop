@@ -543,7 +543,10 @@ def copy_delivery_option_to_order(quotation_name: str, sales_order) -> None:
 def get_order_tracking(sales_order: str, key: str | None = None) -> dict:
 	"""Customer-facing tracking for one of their own orders, or one whose private link they hold."""
 	validate_document_access("Sales Order", sales_order, key)
+	return read_order_tracking(sales_order)
 
+
+def read_order_tracking(sales_order: str) -> dict:
 	if not is_connector_installed():
 		return {"has_tracking": False}
 

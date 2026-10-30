@@ -1,3 +1,6 @@
+import importlib
+from urllib.parse import urlencode
+
 import frappe
 from frappe import _
 from frappe.query_builder import DocType
@@ -5,22 +8,39 @@ from frappe.query_builder.functions import Count
 from frappe.utils.data import cint, cstr
 from pypika import Order
 
+from commera.api.order_link import email_order_link
+from commera.api.orders import cancel_order as cancel_sales_order
 from commera.api.payments import add_customer_address
+from commera.api.shipping import read_order_tracking
 from commera.api.signup import validate_user_names
 from commera.api.users import delete_user_address
 from commera.core import get_address_docs, get_party, is_shoppers_address
 from commera.guest import is_guest
 from commera.order_access import OWNER_ACCESS, get_order_access, get_shopper_order_condition
 from commera.sdk.orders import read_order_results
-from commera.sdk.types import CustomerAddress, CustomerProfile, ShopperOrder, ShopperOrderPage
+from commera.sdk.types import (
+	CustomerAddress,
+	CustomerProfile,
+	OrderTracking,
+	ReturnOptions,
+	ShopperOrder,
+	ShopperOrderPage,
+)
+from commera.utils import get_return_deadline, validate_document_access
 
 __all__ = [
+	"cancel_order",
 	"delete_address",
+	"get_invoice_url",
 	"get_order",
+	"get_order_tracking",
 	"get_profile",
+	"get_return_options",
 	"list_addresses",
 	"list_orders",
+	"request_return",
 	"save_address",
+	"send_order_link",
 	"update_profile",
 ]
 
@@ -39,6 +59,8 @@ ADDRESS_FIELDS = (
 	"is_shipping_address",
 )
 MAX_ORDER_PAGE_SIZE = 50
+
+return_api = importlib.import_module("commera.api.return")
 
 
 def get_shopper() -> str:
@@ -135,11 +157,65 @@ def list_orders(page: int = 1, page_size: int = 10) -> ShopperOrderPage:
 
 
 def get_order(name: str) -> ShopperOrder:
-	get_shopper()
-	orders = read_order_results([name], ()) if get_order_access(name) == OWNER_ACCESS else {}
-	if cstr(name) not in orders:
-		frappe.throw(_("Order {0} not found").format(name), frappe.DoesNotExistError)
+	get_own_order(name)
+	orders = read_order_results([name], ())
 	return without_staff_fields(orders[cstr(name)])
+
+
+def get_own_order(name: str) -> str:
+	get_shopper()
+	if get_order_access(name) != OWNER_ACCESS:
+		frappe.throw(_("Order {0} not found").format(name), frappe.DoesNotExistError)
+	return cstr(name)
+
+
+def cancel_order(name: str) -> ShopperOrder:
+	cancel_sales_order(get_own_order(name))
+	return get_order(name)
+
+
+def get_return_options(name: str) -> ReturnOptions:
+	name = get_own_order(name)
+	settings = frappe.get_cached_doc("Commera Settings")
+	return_by = get_return_deadline(name, settings.return_period) if settings.return_period else None
+	returned = return_api.get_returned_items(name)
+	return {
+		"can_return": bool(return_by) and frappe.utils.now_datetime() <= return_by,
+		"return_by": return_by,
+		"reasons": [
+			{"name": reason.name, "label": reason.display_name} for reason in settings.reason_for_return
+		],
+		"returned_items": returned["returned_items"],
+		"pending_items": returned["returned_items_in_draft"],
+	}
+
+
+def request_return(name: str, items: list[dict]) -> ReturnOptions:
+	return_api.return_items(get_own_order(name), items)
+	return get_return_options(name)
+
+
+def get_invoice_url(name: str) -> str | None:
+	invoices = frappe.get_all(
+		"Sales Invoice Item",
+		filters={"sales_order": get_own_order(name), "docstatus": 1},
+		pluck="parent",
+		limit=1,
+	)
+	if not invoices:
+		return None
+	print_format = frappe.get_cached_value("Commera Settings", "Commera Settings", "print_format")
+	query = urlencode({"doctype": "Sales Invoice", "name": invoices[0], "format": print_format or "Standard"})
+	return f"/api/method/frappe.utils.print_format.download_pdf?{query}"
+
+
+def get_order_tracking(name: str, key: str | None = None) -> OrderTracking:
+	validate_document_access("Sales Order", name, key)
+	return read_order_tracking(cstr(name))
+
+
+def send_order_link(order_number: str, email: str) -> str:
+	return email_order_link(order_number, email)
 
 
 def without_staff_fields(order) -> ShopperOrder:
