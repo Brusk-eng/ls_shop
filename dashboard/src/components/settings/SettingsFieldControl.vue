@@ -6,18 +6,21 @@
  */
 import { computed, ref } from 'vue'
 import { Button, Select, Switch, Textarea, TextInput, toast, useFileUpload } from 'frappe-ui'
+import SettingsCollectionControl from './SettingsCollectionControl.vue'
 import SettingsLinkControl from './SettingsLinkControl.vue'
+import SettingsProductsControl from './SettingsProductsControl.vue'
 
 const NUMERIC_FIELDTYPES = ['Int', 'Float', 'Currency', 'Percent']
-const MULTILINE_FIELDTYPES = ['Small Text', 'Text', 'Long Text', 'Code']
+const MULTILINE_FIELDTYPES = ['Small Text', 'Text', 'Long Text', 'Text Editor', 'Code']
 const ATTACH_FIELDTYPES = ['Attach', 'Attach Image']
 
 const props = defineProps({
   field: { type: Object, required: true },
-  modelValue: { type: [String, Number, Boolean], default: null },
+  modelValue: { type: [String, Number, Boolean, Array], default: null },
   // Only set where the server offers a picker for this doctype's Link fields. Without one a
   // Link stays a plain box rather than a combobox that can never fill itself.
   linkOptionsPath: { type: String, default: '' },
+  disabled: { type: Boolean, default: false },
 })
 
 // `update:modelValue` is every edit, including each keystroke; `change` is the value settled —
@@ -41,6 +44,11 @@ const text = computed({
 })
 
 const checked = computed(() => Boolean(props.modelValue) && props.modelValue !== '0')
+
+function commitText(value) {
+  if (!NUMERIC_FIELDTYPES.includes(props.field.fieldtype)) return commit(value)
+  commit(value === '' ? null : Number(value))
+}
 
 function inputType(field) {
   if (field.is_secret) return 'password'
@@ -72,14 +80,50 @@ async function uploadFile(event) {
     v-if="field.fieldtype === 'Check'"
     :model-value="checked"
     size="sm"
+    :disabled="disabled"
     @update:model-value="commit"
   />
+
+  <div v-else-if="field.fieldtype === 'Color'" class="flex w-full items-center gap-2 sm:w-72">
+    <input
+      :value="text"
+      type="color"
+      class="size-7 shrink-0 cursor-pointer rounded-4 border border-outline-gray-2 bg-surface-base"
+      :disabled="disabled"
+      :aria-label="field.label"
+      @input="emit('update:modelValue', $event.target.value)"
+      @change="commit($event.target.value)"
+    />
+    <TextInput
+      v-model="text"
+      class="min-w-0 flex-1"
+      :disabled="disabled"
+      :aria-label="`${field.label} hex`"
+      placeholder="#000000"
+      @change="commit($event.target.value)"
+    />
+  </div>
 
   <Select
     v-else-if="field.fieldtype === 'Select'"
     :model-value="text"
     class="w-full sm:w-72"
     :options="selectOptions(field)"
+    :disabled="disabled"
+    @update:model-value="commit"
+  />
+
+  <SettingsCollectionControl
+    v-else-if="field.fieldtype === 'Collection'"
+    :model-value="text"
+    :disabled="disabled"
+    @update:model-value="commit"
+  />
+
+  <SettingsProductsControl
+    v-else-if="field.fieldtype === 'Products'"
+    :model-value="modelValue ?? []"
+    :disabled="disabled"
     @update:model-value="commit"
   />
 
@@ -88,6 +132,7 @@ async function uploadFile(event) {
     :field="field"
     :model-value="text"
     :options-path="linkOptionsPath"
+    :disabled="disabled"
     @update:model-value="commit"
   />
 
@@ -101,11 +146,12 @@ async function uploadFile(event) {
     />
     <p v-if="text" class="min-w-0 flex-1 truncate text-base text-ink-gray-7">{{ text }}</p>
     <p v-else class="min-w-0 flex-1 text-base text-ink-gray-5">Nothing uploaded</p>
-    <Button :loading="isUploading" label="Upload" @click="fileInput.click()" />
+    <Button :loading="isUploading" :disabled="disabled" label="Upload" @click="fileInput.click()" />
     <Button
       v-if="text"
       icon="lucide-x"
       variant="ghost"
+      :disabled="disabled"
       :aria-label="`Remove ${field.label}`"
       @click="commit('')"
     />
@@ -116,6 +162,7 @@ async function uploadFile(event) {
     v-model="text"
     class="w-full sm:w-72"
     :rows="field.fieldtype === 'Code' ? 8 : 3"
+    :disabled="disabled"
     @change="commit($event.target.value)"
   />
 
@@ -125,6 +172,7 @@ async function uploadFile(event) {
     class="w-full sm:w-72"
     :type="inputType(field)"
     :placeholder="field.is_secret && field.is_set ? '••••••••' : ''"
-    @change="commit($event.target.value)"
+    :disabled="disabled"
+    @change="commitText($event.target.value)"
   />
 </template>
