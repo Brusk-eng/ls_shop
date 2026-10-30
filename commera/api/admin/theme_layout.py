@@ -120,7 +120,7 @@ def save_draft_layout(theme_context, page, layout):
 
 
 @frappe.whitelist(methods=["POST"])
-def save_draft(theme: str, page: str, layout):
+def save_draft(theme: str, page: str, layout: str | dict):
 	theme_context = get_editable_theme_context(theme)
 	validate_page(theme_context, page)
 
@@ -129,7 +129,7 @@ def save_draft(theme: str, page: str, layout):
 
 
 @frappe.whitelist(methods=["POST"])
-def publish(theme: str, page: str, layout):
+def publish(theme: str, page: str, layout: str | dict):
 	theme_context = get_editable_theme_context(theme)
 	validate_page(theme_context, page)
 
