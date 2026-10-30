@@ -3,12 +3,12 @@
  * The live theme and the settings that theme ships of its own — over a preview of the actual
  * storefront home page, re-rendered by the server on every save.
  */
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useMediaQuery } from '@vueuse/core'
 import { Badge, Button, Skeleton, toast } from 'frappe-ui'
 import EmptyState from '../EmptyState.vue'
 import ChromePreview from './ChromePreview.vue'
-import ThemeField from './ThemeField.vue'
+import SettingsFieldControl from '../settings/SettingsFieldControl.vue'
 import { useTheme } from '../../data/theme'
 import { errorMessage } from '../../data/errors'
 
@@ -50,7 +50,27 @@ async function activate(theme) {
   }
 }
 
+const values = ref({})
+watch(
+  settings,
+  (current) => {
+    values.value = Object.fromEntries(
+      current.groups.flatMap((group) => group.fields.map((field) => [field.fieldname, field.value ?? ''])),
+    )
+  },
+  { immediate: true },
+)
+
+function plainText(html) {
+  if (!html) return undefined
+
+  const element = document.createElement('div')
+  element.innerHTML = html
+  return element.textContent.replace(/\s+/g, ' ').trim()
+}
+
 async function saveSetting(field, value) {
+  if (value === (field.value ?? '')) return
   if (await mutate('save_theme_settings', { [field.fieldname]: value })) {
     toast.success(`${field.label} saved`)
   }
@@ -160,13 +180,22 @@ async function saveSetting(field, value) {
           <div v-for="group in settings.groups" :key="group.label" class="mt-4">
             <p class="text-sm text-ink-gray-5">{{ group.label }}</p>
             <div class="mt-2 grid gap-4 sm:grid-cols-2">
-              <ThemeField
-                v-for="field in group.fields"
-                :key="field.fieldname"
-                :field="field"
-                :disabled="loading"
-                @commit="saveSetting(field, $event)"
-              />
+              <div v-for="field in group.fields" :key="field.fieldname">
+                <label class="mb-1.5 block text-base text-ink-gray-6" :for="field.fieldname">
+                  {{ field.label }}
+                </label>
+                <SettingsFieldControl
+                  :id="field.fieldname"
+                  v-model="values[field.fieldname]"
+                  :class="field.fieldtype === 'Check' ? undefined : '!w-full'"
+                  :field="field"
+                  :disabled="loading"
+                  @change="saveSetting(field, $event)"
+                />
+                <p v-if="plainText(field.description)" class="mt-1 text-sm text-ink-gray-5">
+                  {{ plainText(field.description) }}
+                </p>
+              </div>
             </div>
           </div>
 
