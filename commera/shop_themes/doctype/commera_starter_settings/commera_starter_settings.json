@@ -10,9 +10,6 @@
   "logo",
   "color_scheme",
   "corners",
-  "announcement_section",
-  "announcement_text",
-  "announcement_url",
   "social_section",
   "instagram_url",
   "facebook_url",
@@ -52,22 +49,6 @@
    "label": "Corners",
    "options": "Square\nSubtle\nDefault\nRounded",
    "default": "Default"
-  },
-  {
-   "fieldname": "announcement_section",
-   "fieldtype": "Section Break",
-   "label": "Announcement Bar"
-  },
-  {
-   "fieldname": "announcement_text",
-   "fieldtype": "Data",
-   "label": "Announcement Text"
-  },
-  {
-   "fieldname": "announcement_url",
-   "fieldtype": "Data",
-   "label": "Announcement Link",
-   "options": "URL"
   },
   {
    "fieldname": "social_section",

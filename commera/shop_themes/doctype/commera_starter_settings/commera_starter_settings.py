@@ -13,8 +13,6 @@ class CommeraStarterSettings(Document):
 	if TYPE_CHECKING:
 		from frappe.types import DF
 
-		announcement_text: DF.Data | None
-		announcement_url: DF.Data | None
 		brand_color: DF.Color | None
 		brand_text_color: DF.Color | None
 		color_scheme: DF.Literal["System", "Light", "Dark"]
