@@ -12,17 +12,17 @@
 		window.parent.postMessage({ type, ...data }, origin);
 	}
 
-	function find_target(id, section) {
-		const section_element = section
-			? document.querySelector(
-					`[data-commera-section="${CSS.escape(section)}"]`,
-			  )
-			: null;
-		const scope = section_element || document;
+	function find_target(group, section, id) {
+		const section_element = document.querySelector(
+			`[data-commera-group="${CSS.escape(
+				group,
+			)}"][data-commera-section="${CSS.escape(section)}"]`,
+		);
+		if (!section_element || id === section) return section_element;
 		return (
-			scope.querySelector(`[data-commera-block="${CSS.escape(id)}"]`) ||
-			document.querySelector(`[data-commera-section="${CSS.escape(id)}"]`) ||
-			section_element
+			section_element.querySelector(
+				`[data-commera-block="${CSS.escape(id)}"]`,
+			) || section_element
 		);
 	}
 
@@ -56,8 +56,8 @@
 		});
 	}
 
-	function highlight({ id, section, scroll }) {
-		highlighted = id ? find_target(id, section) : null;
+	function highlight({ group, section, id, scroll }) {
+		highlighted = group && section ? find_target(group, section, id) : null;
 		refresh_outline();
 		const rect = scroll && highlighted && get_rect(highlighted);
 		if (rect) window.scrollTo({ top: Math.max(rect.top - 80, 0) });
@@ -71,10 +71,15 @@
 			if (link || target) event.preventDefault();
 			if (!target) return;
 			event.stopPropagation();
-			const id = target.dataset.commeraBlock || target.dataset.commeraSection;
-			const section = target.closest('[data-commera-section]')?.dataset
-				.commeraSection;
-			post('commera:select', { id, section });
+			const section_element = target.closest('[data-commera-section]');
+			if (!section_element) return;
+			const { commeraGroup: group, commeraSection: section } =
+				section_element.dataset;
+			post('commera:select', {
+				group,
+				section,
+				id: target.dataset.commeraBlock || section,
+			});
 		},
 		true,
 	);

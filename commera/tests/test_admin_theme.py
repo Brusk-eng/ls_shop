@@ -17,6 +17,7 @@ from commera.shop_themes.sections import clear_layout_cache, get_section, get_se
 from commera.www import theme_editor_preview
 
 SUMMER_THEME = "Summer Theme"
+STARTER_THEME = "Commera Starter"
 BASE_THEME = "Shop Base Theme"
 DEFAULT_THEME = "Shop Default Theme"
 
@@ -194,7 +195,7 @@ class TestThemeEditorPreview(IntegrationTestCase):
 	def test_the_editor_preview_marks_sections_and_loads_its_script(self):
 		html = self.render(layout=frappe.as_json(hero_layout("Draft caption")))
 
-		self.assertIn('<div data-commera-section="hero">', html)
+		self.assertIn('<div data-commera-group="index" data-commera-section="hero">', html)
 		self.assertIn("/assets/commera/js/theme_editor_preview.js", html)
 
 	def test_the_published_preview_and_the_live_home_page_carry_no_markers(self):
@@ -236,3 +237,108 @@ class TestThemeEditorPreview(IntegrationTestCase):
 	def test_a_layout_that_is_not_an_object_with_sections_is_rejected(self):
 		for layout in ("[]", '{"sections": "hero"}'):
 			self.assertRaises(frappe.ValidationError, self.render, layout=layout)
+
+
+def announcement_layout(text):
+	return {"sections": [{"id": "announcement", "type": "announcement_bar", "settings": {"text": text}}]}
+
+
+def starter_hero_layout(heading):
+	return {"sections": [{"id": "hero", "type": "hero", "settings": {"heading": heading}}]}
+
+
+def newsletter_layout(heading):
+	return {"sections": [{"id": "newsletter", "type": "newsletter", "settings": {"heading": heading}}]}
+
+
+class TestThemeEditorGroupPreview(IntegrationTestCase):
+	def setUp(self):
+		self.addCleanup(frappe.clear_cache)
+		self.addCleanup(frappe.db.rollback)
+		self.addCleanup(frappe.set_user, "Administrator")
+		frappe.set_user("Administrator")
+		if not frappe.db.exists("Shop Theme", STARTER_THEME):
+			frappe.get_doc(
+				doctype="Shop Theme",
+				name=STARTER_THEME,
+				theme_name=STARTER_THEME,
+				theme_type="Sections",
+				module="Shop Themes",
+			).db_insert()
+		frappe.db.delete("Theme Layout", {"theme": STARTER_THEME})
+		for page in ("index", "header_group", "footer_group"):
+			clear_layout_cache(STARTER_THEME, page)
+			self.addCleanup(clear_layout_cache, STARTER_THEME, page)
+		activate_theme(STARTER_THEME)
+
+	def render(self, **form):
+		frappe.local.form_dict = frappe._dict(lang="en", theme=STARTER_THEME, **form)
+		context = frappe._dict()
+		theme_editor_preview.get_context(context)
+		return context.rendered_html
+
+	def publish_layout(self, page, layout):
+		frappe.new_doc(
+			"Theme Layout",
+			theme=STARTER_THEME,
+			page=page,
+			draft_layout=frappe.as_json(layout),
+			published_layout=frappe.as_json(layout),
+		).insert()
+		clear_layout_cache(STARTER_THEME, page)
+
+	def test_a_header_group_draft_renders_in_the_header_and_not_on_the_live_page(self):
+		self.publish_layout("header_group", announcement_layout("Published announcement"))
+
+		html = self.render(header_group_layout=frappe.as_json(announcement_layout("Draft announcement")))
+
+		self.assertIn("Draft announcement", html)
+		self.assertNotIn("Published announcement", html)
+		self.assertLess(html.index("Draft announcement"), html.index('data-commera-group="index"'))
+		for published_html in (self.render(), self.render_live_home_page()):
+			self.assertIn("Published announcement", published_html)
+			self.assertNotIn("Draft announcement", published_html)
+
+	def test_page_and_group_drafts_apply_together(self):
+		html = self.render(
+			layout=frappe.as_json(starter_hero_layout("Draft hero")),
+			header_group_layout=frappe.as_json(announcement_layout("Draft announcement")),
+			footer_group_layout=frappe.as_json(newsletter_layout("Draft newsletter")),
+		)
+
+		self.assertIn('<div data-commera-group="header_group" data-commera-section="announcement">', html)
+		self.assertIn('<div data-commera-group="footer_group" data-commera-section="newsletter">', html)
+		self.assertIn('<div data-commera-group="index" data-commera-section="hero">', html)
+		for text in ("Draft announcement", "Draft hero", "Draft newsletter"):
+			self.assertIn(text, html)
+
+	def test_a_group_left_out_of_the_post_renders_as_published(self):
+		self.publish_layout("header_group", announcement_layout("Published announcement"))
+
+		html = self.render(footer_group_layout=frappe.as_json(newsletter_layout("Draft newsletter")))
+
+		self.assertIn("Published announcement", html)
+		self.assertIn('<div data-commera-group="header_group" data-commera-section="announcement">', html)
+		self.assertIn("Draft newsletter", html)
+
+	def test_only_the_editor_preview_carries_group_markers(self):
+		self.publish_layout("header_group", announcement_layout("Published announcement"))
+		self.assertIn(
+			'data-commera-group="footer_group"',
+			self.render(header_group_layout=frappe.as_json(announcement_layout("Draft announcement"))),
+		)
+
+		for html in (self.render(), self.render_live_home_page()):
+			self.assertIn("Published announcement", html)
+			self.assertNotIn("data-commera-group", html)
+			self.assertNotIn("data-commera-section", html)
+
+	def test_a_group_layout_that_is_not_an_object_with_sections_is_rejected(self):
+		self.assertRaises(frappe.ValidationError, self.render, footer_group_layout='{"sections": "footer"}')
+
+	def render_live_home_page(self):
+		from frappe.website.serve import get_response_content
+
+		frappe.set_user("Guest")
+		frappe.local.form_dict = frappe._dict()
+		return get_response_content("/en")
