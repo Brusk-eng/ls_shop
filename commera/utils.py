@@ -661,13 +661,17 @@ def get_page_size():
 def can_return(order_name, return_period_days):
 	"""Check if the order is still within the return period."""
 
+	return_deadline = get_return_deadline(order_name, return_period_days)
+	return bool(return_deadline) and now_datetime() <= return_deadline
+
+
+def get_return_deadline(order_name, return_period_days):
 	delivered_on = [
 		line.creation for line in get_delivery_note_lines(order_name, docstatus=1) if not line.is_return
 	]
 	if not delivered_on:
-		return False
-	return_deadline = add_days(get_datetime(max(delivered_on)), cint(return_period_days))
-	return now_datetime() <= return_deadline
+		return None
+	return add_days(get_datetime(max(delivered_on)), cint(return_period_days))
 
 
 def get_available_stock(item_code, warehouse):
