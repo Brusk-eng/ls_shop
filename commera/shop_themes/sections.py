@@ -62,9 +62,8 @@ def get_page_layout(theme_name, theme_dirs, page):
 	return cached["layout"] or get_theme_json(theme_dirs, f"layouts/{page}.json") or {"sections": []}
 
 
-def get_editor_preview(page):
-	editor_preview = getattr(frappe.local, "theme_editor_preview", None)
-	return editor_preview if editor_preview and editor_preview.page == page else None
+def get_editor_preview():
+	return getattr(frappe.local, "theme_editor_preview", None)
 
 
 def clear_layout_cache(theme_name, page):
@@ -165,17 +164,14 @@ def render_layout(context, page):
 		log_classic_layout_call(theme_context["theme_name"], page)
 		return ""
 
-	editor_preview = get_editor_preview(page)
-	layout = (
-		editor_preview.layout
-		if editor_preview
-		else get_page_layout(theme_context["theme_name"], theme_dirs, page)
-	)
+	editor_preview = get_editor_preview()
+	layout = editor_preview.layouts.get(page) if editor_preview else None
+	if layout is None:
+		layout = get_page_layout(theme_context["theme_name"], theme_dirs, page)
 	section_context = {**context.get_all(), "commera": commera.sdk}
+	editor_group = page if editor_preview else None
 	html = [
-		render_section(
-			context.environment, theme_context, saved_section, section_context, bool(editor_preview)
-		)
+		render_section(context.environment, theme_context, saved_section, section_context, editor_group)
 		for saved_section in layout.get("sections") or []
 		if isinstance(saved_section, dict) and not saved_section.get("hidden")
 	]
@@ -196,11 +192,12 @@ def log_classic_layout_call(theme_name, page):
 	)
 
 
-def render_section(environment, theme_context, saved_section, section_context, editor_mode=False):
+def render_section(environment, theme_context, saved_section, section_context, editor_group=None):
 	schema = get_section_schema(theme_context["dirs"], saved_section.get("type"))
 	if not schema:
 		return ""
 
+	editor_mode = bool(editor_group)
 	try:
 		section = get_section(schema, saved_section, theme_context, editor_mode)
 		if section.settings.get("source"):
@@ -213,8 +210,10 @@ def render_section(environment, theme_context, saved_section, section_context, e
 		html = template.render({**section_context, "section": section})
 		if not editor_mode or not html.strip():
 			return html
-		return Markup("<div{0}>{1}</div>").format(
-			get_editor_attributes("data-commera-section", section.id, editor_mode), Markup(html)
+		return Markup("<div{0}{1}>{2}</div>").format(
+			get_editor_attributes("data-commera-group", editor_group, editor_mode),
+			get_editor_attributes("data-commera-section", section.id, editor_mode),
+			Markup(html),
 		)
 	except Exception:
 		frappe.log_error(title=_("Theme section {0} failed to render").format(saved_section.get("type")))

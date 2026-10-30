@@ -8,6 +8,7 @@ from markupsafe import Markup
 
 from commera.shop_themes.chrome_preview import TRACKING_BLANKED_BLOCKS, render_page_preview
 from commera.shop_themes.doctype.shop_theme.shop_theme import get_theme_context, resolve_active_theme
+from commera.shop_themes.sections import SECTION_GROUPS
 from commera.shop_themes.theme_resolver import find_theme_file
 
 no_cache = True
@@ -26,7 +27,7 @@ def get_context(context):
 
 	theme = requested_theme()
 	page = requested_page(theme)
-	layout = requested_layout()
+	layouts = requested_layouts(page)
 
 	lang = frappe.form_dict.get("lang")
 	if lang not in PREVIEW_LANGUAGES:
@@ -36,8 +37,8 @@ def get_context(context):
 	frappe.local.lang = lang
 
 	head_html = ""
-	if layout is not None:
-		frappe.local.theme_editor_preview = frappe._dict(page=page, layout=layout)
+	if layouts:
+		frappe.local.theme_editor_preview = frappe._dict(layouts=layouts)
 		head_html = EDITOR_HEAD_HTML
 
 	try:
@@ -89,12 +90,17 @@ def requested_page(theme):
 	return page
 
 
-def requested_layout():
-	layout = frappe.form_dict.get("layout")
-	if layout is None:
-		return None
+def requested_layouts(page):
+	parts = {page: "layout", **{group: f"{group}_layout" for group in SECTION_GROUPS}}
+	return {
+		part: requested_layout(field)
+		for part, field in parts.items()
+		if frappe.form_dict.get(field) is not None
+	}
 
-	layout = frappe.parse_json(layout)
+
+def requested_layout(field):
+	layout = frappe.parse_json(frappe.form_dict.get(field))
 	if not isinstance(layout, dict) or not isinstance(layout.get("sections"), list):
 		frappe.throw(_('A layout must be an object with a "sections" list.'))
 
