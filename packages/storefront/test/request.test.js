@@ -8,9 +8,9 @@ beforeEach(() => {
 	globalThis.frappe = undefined;
 });
 
-test('get sends arguments in the query string and unwraps message', async () => {
+test('get sends arguments in the query string and unwraps data', async () => {
 	const calls = add_fake_fetch({
-		get_products: { body: { message: { products: [] } } },
+		get_products: { body: { data: { products: [] } } },
 	});
 	const result = await get('products.get_products', {
 		collection: 'shoes',
@@ -20,7 +20,7 @@ test('get sends arguments in the query string and unwraps message', async () => 
 	assert.deepEqual(result, { products: [] });
 	assert.equal(
 		calls[0].url,
-		'/api/method/commera.api.storefront.products.get_products?collection=shoes&brands=%5B%22Nike%22%2C%22Puma%22%5D',
+		'/api/v2/method/commera.api.storefront.products.get_products?collection=shoes&brands=%5B%22Nike%22%2C%22Puma%22%5D',
 	);
 	assert.equal(calls[0].options.method, 'GET');
 	assert.equal(calls[0].options.credentials, 'same-origin');
@@ -31,7 +31,7 @@ test('get without arguments has no query string', async () => {
 	await get('cart.get_cart');
 	assert.equal(
 		calls[0].url,
-		'/api/method/commera.api.storefront.cart.get_cart',
+		'/api/v2/method/commera.api.storefront.cart.get_cart',
 	);
 });
 
@@ -54,16 +54,19 @@ test('post falls back to frappe.csrf_token on a page without the config', async 
 	assert.equal(calls[0].options.headers['X-Frappe-CSRF-Token'], 'desk-csrf');
 });
 
-test('a failed call throws the first server message without HTML', async () => {
+test('a failed call throws the error message without HTML', async () => {
 	add_fake_fetch({
 		add_discount_code: {
 			status: 417,
 			body: {
-				exc_type: 'ValidationError',
-				exception: 'frappe.exceptions.ValidationError: Code SAVE10 has expired',
-				_server_messages: JSON.stringify([
-					JSON.stringify({ message: 'Code <b>SAVE10</b> has expired' }),
-				]),
+				errors: [
+					{
+						type: 'ValidationError',
+						message: 'Code <b>SAVE10</b> has expired',
+						exception:
+							'frappe.exceptions.ValidationError: Code SAVE10 has expired',
+					},
+				],
 			},
 		},
 	});
@@ -75,13 +78,34 @@ test('a failed call throws the first server message without HTML', async () => {
 	});
 });
 
-test('a failed call without server messages throws the exception', async () => {
+test('a failed call without an error message throws the first message', async () => {
+	add_fake_fetch({
+		set_addresses: {
+			status: 417,
+			body: {
+				errors: [{ type: 'ValidationError' }],
+				messages: [{ message: 'Please enter a <i>city</i>' }],
+			},
+		},
+	});
+	await assert.rejects(post('checkout.set_addresses', {}), {
+		message: 'Please enter a city',
+		exc_type: 'ValidationError',
+	});
+});
+
+test('a failed call without messages throws the last line of the traceback', async () => {
 	add_fake_fetch({
 		get_wishlist: {
 			status: 403,
 			body: {
-				exc_type: 'PermissionError',
-				exception: 'frappe.exceptions.PermissionError',
+				errors: [
+					{
+						type: 'PermissionError',
+						exception:
+							'Traceback (most recent call last):\n  File "app.py"\nfrappe.exceptions.PermissionError\n',
+					},
+				],
 			},
 		},
 	});
@@ -89,6 +113,20 @@ test('a failed call without server messages throws the exception', async () => {
 	assert.ok(error instanceof StorefrontError);
 	assert.equal(error.message, 'frappe.exceptions.PermissionError');
 	assert.equal(error.exc_type, 'PermissionError');
+});
+
+test('a failed call with only the error type throws the status text', async () => {
+	add_fake_fetch({
+		get_product: {
+			status: 404,
+			body: { errors: [{ type: 'DoesNotExistError' }] },
+		},
+	});
+	await assert.rejects(get('products.get_product', { handle: 'gone' }), {
+		message: 'Error',
+		status: 404,
+		exc_type: 'DoesNotExistError',
+	});
 });
 
 test('a failed call with no JSON body throws the status text', async () => {

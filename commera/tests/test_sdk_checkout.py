@@ -74,7 +74,7 @@ class TestSdkCheckout(IntegrationTestCase):
 			self.addCleanup(delattr, frappe.local, "request")
 		frappe.local.request = Request(
 			EnvironBuilder(
-				path="/api/method/commera.api.storefront.checkout.set_addresses",
+				path="/api/v2/method/commera.api.storefront.checkout.set_addresses",
 				headers={CART_TOKEN_HEADER: token},
 			).get_environ()
 		)
