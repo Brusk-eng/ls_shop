@@ -1,6 +1,6 @@
 (() => {
 	const origin = window.location.origin;
-	const targetSelector = '[data-commera-block], [data-commera-section]';
+	const target_selector = '[data-commera-block], [data-commera-section]';
 	let highlighted = null;
 
 	const outline = document.createElement('div');
@@ -12,21 +12,21 @@
 		window.parent.postMessage({ type, ...data }, origin);
 	}
 
-	function findTarget(id, section) {
-		const sectionElement = section
+	function find_target(id, section) {
+		const section_element = section
 			? document.querySelector(
 					`[data-commera-section="${CSS.escape(section)}"]`,
 			  )
 			: null;
-		const scope = sectionElement || document;
+		const scope = section_element || document;
 		return (
 			scope.querySelector(`[data-commera-block="${CSS.escape(id)}"]`) ||
 			document.querySelector(`[data-commera-section="${CSS.escape(id)}"]`) ||
-			sectionElement
+			section_element
 		);
 	}
 
-	function getRect(element) {
+	function get_rect(element) {
 		const rects = [element, ...element.children]
 			.map((child) => child.getBoundingClientRect())
 			.filter((rect) => rect.width || rect.height);
@@ -41,8 +41,8 @@
 		};
 	}
 
-	function refreshOutline() {
-		const rect = highlighted && getRect(highlighted);
+	function refresh_outline() {
+		const rect = highlighted && get_rect(highlighted);
 		if (!rect) {
 			outline.style.display = 'none';
 			return;
@@ -57,9 +57,9 @@
 	}
 
 	function highlight({ id, section, scroll }) {
-		highlighted = id ? findTarget(id, section) : null;
-		refreshOutline();
-		const rect = scroll && highlighted && getRect(highlighted);
+		highlighted = id ? find_target(id, section) : null;
+		refresh_outline();
+		const rect = scroll && highlighted && get_rect(highlighted);
 		if (rect) window.scrollTo({ top: Math.max(rect.top - 80, 0) });
 	}
 
@@ -67,7 +67,7 @@
 		'click',
 		(event) => {
 			const link = event.target.closest('a, button[type="submit"]');
-			const target = event.target.closest(targetSelector);
+			const target = event.target.closest(target_selector);
 			if (link || target) event.preventDefault();
 			if (!target) return;
 			event.stopPropagation();
@@ -88,8 +88,8 @@
 			window.scrollTo({ top: Number(data.y) || 0 });
 	});
 
-	window.addEventListener('resize', refreshOutline);
-	window.addEventListener('load', refreshOutline);
+	window.addEventListener('resize', refresh_outline);
+	window.addEventListener('load', refresh_outline);
 	window.addEventListener('pagehide', () =>
 		post('commera:scroll', { y: window.scrollY }),
 	);
