@@ -7,6 +7,7 @@ from frappe.utils.data import flt
 from commera.api.payments import make_sales_invoice
 from commera.sdk import STORE_ORDER_TYPE
 from commera.tests.test_admin_orders import make_drop_ship_order, make_test_sales_order
+from commera.tests.test_order_access import make_website_user
 from commera.utils import can_return, update_sales_order_ecommerce_status
 
 try:
@@ -230,3 +231,36 @@ class TestReturnItems(IntegrationTestCase):
 		self.request_return(sales_order)
 		with self.assertRaises(frappe.ValidationError):
 			self.request_return(sales_order)
+
+	def test_a_delivered_order_is_returned_once(self):
+		self.addCleanup(frappe.set_user, "Administrator")
+		shopper = make_website_user()
+		sales_order = make_paid_order()
+		sales_order.db_set("owner", shopper)
+		deliver(sales_order)
+		frappe.set_user(shopper)
+
+		self.request_return(sales_order)
+
+		self.assertTrue(
+			frappe.db.exists(
+				"Delivery Note Item",
+				{"against_sales_order": sales_order.name, "docstatus": 0, "qty": ["<", 0]},
+			)
+		)
+		with self.assertRaisesRegex(frappe.ValidationError, "already been returned"):
+			self.request_return(sales_order)
+
+	def test_a_shopper_cannot_return_another_shoppers_order(self):
+		self.addCleanup(frappe.set_user, "Administrator")
+		sales_order = make_paid_order()
+		sales_order.db_set("owner", make_website_user())
+		deliver(sales_order)
+		frappe.set_user(make_website_user())
+
+		with self.assertRaises(frappe.PermissionError):
+			self.request_return(sales_order)
+
+		self.assertFalse(
+			frappe.db.exists("Delivery Note Item", {"against_sales_order": sales_order.name, "qty": ["<", 0]})
+		)
