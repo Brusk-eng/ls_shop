@@ -6,7 +6,7 @@ import * as products from '../products.js';
 import { StorefrontError } from '../request.js';
 import { add_fake_fetch } from './fake-fetch.js';
 
-const API_ROOT = '/api/method/commera.api.storefront';
+const API_ROOT = '/api/v2/method/commera.api.storefront';
 const address = { address_line1: '1 Main St', city: 'Pune', country: 'India' };
 
 const endpoint_calls = [
@@ -86,7 +86,7 @@ for (const [
 ] of endpoint_calls) {
 	test(`${endpoint}${query} is called with ${http_method}`, async () => {
 		const method = endpoint.split('.').pop();
-		const calls = add_fake_fetch({ [method]: { body: { message: 'result' } } });
+		const calls = add_fake_fetch({ [method]: { body: { data: 'result' } } });
 		assert.equal(await call(), 'result');
 		assert.equal(calls[0].url, `${API_ROOT}.${endpoint}${query}`);
 		assert.equal(calls[0].options.method, http_method);
@@ -129,10 +129,12 @@ test('account.get_order raises the server message for another shopper’s order'
 		get_order: {
 			status: 404,
 			body: {
-				exc_type: 'DoesNotExistError',
-				_server_messages: JSON.stringify([
-					JSON.stringify({ message: 'Order SAL-ORD-0002 not found' }),
-				]),
+				errors: [
+					{
+						type: 'DoesNotExistError',
+						message: 'Order SAL-ORD-0002 not found',
+					},
+				],
 			},
 		},
 	});
