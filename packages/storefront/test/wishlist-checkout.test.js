@@ -73,11 +73,11 @@ const endpoint_calls = [
 for (const [endpoint, http_method, call, expected_body] of endpoint_calls) {
 	test(`${endpoint} is called with ${http_method}`, async () => {
 		const method = endpoint.split('.').pop();
-		const calls = add_fake_fetch({ [method]: { body: { message: 'result' } } });
+		const calls = add_fake_fetch({ [method]: { body: { data: 'result' } } });
 		assert.equal(await call(), 'result');
 		assert.equal(
 			calls[0].url,
-			`/api/method/commera.api.storefront.${endpoint}`,
+			`/api/v2/method/commera.api.storefront.${endpoint}`,
 		);
 		assert.equal(calls[0].options.method, http_method);
 		assert.deepEqual(calls[0].body, expected_body);

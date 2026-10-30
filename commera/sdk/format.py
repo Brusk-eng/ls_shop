@@ -15,7 +15,7 @@ __all__ = ["IMAGE_WIDTHS", "image_url", "money", "product_url"]
 IMAGE_WIDTHS = (160, 320, 480, 640, 960, 1280, 1920)
 RESIZED_IMAGES_URL = "/files/commera-images"
 RESIZABLE_EXTENSIONS = (".jpg", ".jpeg", ".png", ".webp")
-RESIZE_ENDPOINT = "/api/method/commera.api.storefront.images.get_resized_image"
+RESIZE_ENDPOINT = "/api/v2/method/commera.api.storefront.images.get_resized_image"
 WEBP_QUALITY = 80
 
 

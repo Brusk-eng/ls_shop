@@ -41,12 +41,12 @@ const cart_writes = [
 for (const [method, call, expected_body] of cart_writes) {
 	test(`${method} posts its arguments and announces the new cart`, async () => {
 		const calls = add_fake_fetch({
-			[method]: { body: { message: priced_cart } },
+			[method]: { body: { data: priced_cart } },
 		});
 		const result = await call();
 		assert.equal(
 			calls[0].url,
-			`/api/method/commera.api.storefront.cart.${method}`,
+			`/api/v2/method/commera.api.storefront.cart.${method}`,
 		);
 		assert.equal(calls[0].options.method, 'POST');
 		assert.deepEqual(calls[0].body, expected_body);
@@ -57,7 +57,7 @@ for (const [method, call, expected_body] of cart_writes) {
 
 test('get reads the cart without announcing it', async () => {
 	const calls = add_fake_fetch({
-		get_cart: { body: { message: priced_cart } },
+		get_cart: { body: { data: priced_cart } },
 	});
 	assert.deepEqual(await cart.get(), priced_cart);
 	assert.equal(calls[0].options.method, 'GET');
@@ -68,7 +68,7 @@ test('a failed write throws and announces nothing', async () => {
 	add_fake_fetch({
 		add_lines: {
 			status: 417,
-			body: { exc_type: 'ValidationError', exception: 'Out of stock' },
+			body: { errors: [{ type: 'ValidationError', message: 'Out of stock' }] },
 		},
 	});
 	await assert.rejects(cart.add_lines([{ item_code: 'SHOE-42' }]), {
@@ -78,9 +78,10 @@ test('a failed write throws and announces nothing', async () => {
 });
 
 test('go_to_checkout opens the single-use checkout path', async () => {
-	const path = '/api/method/commera.api.storefront.cart.open_checkout?code=abc';
+	const path =
+		'/api/v2/method/commera.api.storefront.cart.open_checkout?code=abc';
 	const calls = add_fake_fetch({
-		get_checkout_url: { body: { message: { path } } },
+		get_checkout_url: { body: { data: { path } } },
 	});
 	await cart.go_to_checkout();
 	assert.equal(calls[0].options.method, 'POST');

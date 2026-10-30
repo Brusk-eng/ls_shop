@@ -8,7 +8,7 @@ export function add_fake_fetch(responses = {}) {
 			options,
 			body: options.body ? JSON.parse(options.body) : undefined,
 		});
-		const { status = 200, body = { message: null } } = responses[method] ?? {};
+		const { status = 200, body = { data: null } } = responses[method] ?? {};
 		return {
 			ok: status < 400,
 			status,

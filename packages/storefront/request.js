@@ -1,4 +1,4 @@
-const API_ROOT = '/api/method/commera.api.storefront';
+const API_ROOT = '/api/v2/method/commera.api.storefront';
 
 export class StorefrontError extends Error {
 	constructor(message, { status, exc_type, cause } = {}) {
@@ -51,13 +51,14 @@ async function request(url, { headers = {}, ...options }) {
 			status: response.status,
 		});
 	}
-	if (!response.ok || body.exc_type) {
+	const error = body?.errors?.[0];
+	if (!response.ok || error) {
 		throw new StorefrontError(get_error_message(body ?? {}, response), {
 			status: response.status,
-			exc_type: body?.exc_type,
+			exc_type: error?.type,
 		});
 	}
-	return body.message ?? null;
+	return body.data ?? null;
 }
 
 async function send(url, options) {
@@ -80,20 +81,14 @@ async function read_json(response) {
 }
 
 function get_error_message(body, response) {
-	const server_message = get_server_messages(body)[0];
+	const error = body.errors?.[0] ?? {};
 	return strip_html(
-		server_message || body.exception || response.statusText || 'Request failed',
+		error.message ||
+			body.messages?.[0]?.message ||
+			error.exception?.trim().split('\n').pop() ||
+			response.statusText ||
+			'Request failed',
 	);
-}
-
-function get_server_messages(body) {
-	try {
-		return JSON.parse(body._server_messages || '[]').map(
-			(message) => JSON.parse(message).message,
-		);
-	} catch {
-		return [];
-	}
 }
 
 function strip_html(text) {

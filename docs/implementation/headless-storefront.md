@@ -49,7 +49,7 @@ sequenceDiagram
 
 ## Methods
 
-The catalogue and cart methods allow guests. The [account methods](#account-methods) and `cart.adopt_cart` need a signed-in shopper. Reads are GET, writes are POST, and each method has its own rate limit.
+The catalogue and cart methods allow guests. The [account methods](#account-methods) and `cart.adopt_cart` need a signed-in shopper. Reads are GET, writes are POST, and each method has its own rate limit. Call a method at `/api/v2/method/commera.api.storefront.<method>`. The answer is in `data`, and an error is in `errors[0]` with its `type` and `message`.
 
 | Method | Returns |
 | --- | --- |
@@ -62,7 +62,7 @@ The catalogue and cart methods allow guests. The [account methods](#account-meth
 | `cart.get_cart`, `cart.add_lines`, `cart.update_lines`, `cart.remove_lines` | The priced server cart. Each line has the product handle, size and image. |
 | `cart.add_discount_code`, `cart.remove_discount_code` | The priced cart, with a reason for each code that takes nothing off. |
 | `cart.adopt_cart` | Signed in only. Moves the guest cart of the `X-Commera-Cart-Token` header into the account cart and returns the priced cart. |
-| `cart.get_checkout_url` | `{"path": "/api/method/commera.api.storefront.cart.open_checkout?code=..."}` |
+| `cart.get_checkout_url` | `{"path": "/api/v2/method/commera.api.storefront.cart.open_checkout?code=..."}` |
 
 A missing or unpublished record returns HTTP 404. A product is one Style Attribute Variant: its `route` is the handle, sibling colours of the same configurator are the colour option, and its sizes are the variants. Options that only hold the fallback axis ("Title" or "One Size") are left out.
 
@@ -71,7 +71,7 @@ A missing or unpublished record returns HTTP 404. A product is one Style Attribu
 The storefront server keeps a random token of 32 to 128 letters, digits, `-` or `_`, and sends it with each call:
 
 ```sh
-curl -X POST "$COMMERA/api/method/commera.api.storefront.cart.add_lines" \
+curl -X POST "$COMMERA/api/v2/method/commera.api.storefront.cart.add_lines" \
   -H "X-Commera-Cart-Token: $TOKEN" -H "Content-Type: application/json" \
   -d '{"lines": [{"item_code": "BRAKE-PADS-BLA-Medium", "qty": 1}]}'
 ```
