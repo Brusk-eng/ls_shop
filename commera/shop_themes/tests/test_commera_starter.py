@@ -142,6 +142,36 @@ class IntegrationTestCommeraStarter(IntegrationTestCase):
 		):
 			self.assertIn(expected, html)
 
+	def test_every_starter_block_is_marked_only_in_the_editor_preview(self):
+		get_menu = commera.sdk.shop.get_menu
+		footer_menu = {"handle": "footer", "title": "Footer", "items": [{"title": "ZZ Help", "items": []}]}
+		with (
+			patch.object(
+				commera.sdk.shop,
+				"get_menu",
+				new=lambda handle: footer_menu if handle == "footer" else get_menu(handle),
+			),
+			patch(
+				"commera.shop_themes.theme_resolver.get_shop_theme_settings",
+				return_value=frappe._dict(instagram_url="https://instagram.com/zz-starter"),
+			),
+		):
+			for page in ("index", "header_group", "footer_group"):
+				layout = get_theme_json([STARTER_DIR], f"layouts/{page}.json")
+				with self.subTest(page):
+					frappe.local.theme_editor_preview = frappe._dict(page=page, layout=layout)
+					try:
+						html = self.render_home([PRODUCT_CARD])
+					finally:
+						frappe.local.theme_editor_preview = None
+
+					for section in layout["sections"]:
+						for block in section.get("blocks") or []:
+							if not section.get("hidden"):
+								self.assertIn(f'data-commera-block="{block["id"]}"', html)
+
+			self.assertNotIn("data-commera-block", self.render_home([PRODUCT_CARD]))
+
 	def test_featured_products_is_left_out_when_its_source_has_no_products(self):
 		html = self.render_home([])
 

@@ -30,7 +30,7 @@
 	</div>
 	<div class="order-1 md:order-2">
 		{% for slide in slides %}
-		<img src="{{ slide.settings.image }}" alt="{{ slide.settings.alt }}" {% if not loop.first %}x-cloak loading="lazy" {% endif %}x-show="slide === {{ loop.index0 }}" class="aspect-[3/4] w-full rounded-xl object-cover object-top">
+		<img src="{{ slide.settings.image }}" alt="{{ slide.settings.alt }}" {% if not loop.first %}x-cloak loading="lazy" {% endif %}x-show="slide === {{ loop.index0 }}" class="aspect-[3/4] w-full rounded-xl object-cover object-top"{{ slide.editor_attributes }}>
 		{% endfor %}
 	</div>
 </section>
