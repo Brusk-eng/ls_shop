@@ -5,7 +5,7 @@
 	{% for tile in section.blocks %}
 	{% set collection = commera.catalog.get_collection(tile.settings.collection) if tile.settings.collection else None %}
 	{% set title = tile.settings.title or (collection.title if collection else "") %}
-	<a href="/{{ language }}/products{{ '?category=' ~ collection.handle | urlencode if collection else '' }}">
+	<a href="/{{ language }}/products{{ '?category=' ~ collection.handle | urlencode if collection else '' }}"{{ tile.editor_attributes }}>
 		{{ image(tile.settings.image or (collection.image if collection else None), title, 960) }}
 		<p class="mt-4 text-lg">{{ title }}</p>
 		{% if collection %}
